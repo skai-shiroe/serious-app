@@ -9,8 +9,16 @@ export const unstable_settings = {
   anchor: '(tabs)',
 };
 
+import { OnboardingScreen } from '@/components/onboarding-screen';
+import { useState } from 'react';
+
 export default function RootLayout() {
   const colorScheme = useColorScheme();
+  const [hasSeenOnboarding, setHasSeenOnboarding] = useState(false);
+
+  if (!hasSeenOnboarding) {
+    return <OnboardingScreen onComplete={() => setHasSeenOnboarding(true)} />;
+  }
 
   return (
     <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
