@@ -10,14 +10,20 @@ export const unstable_settings = {
 };
 
 import { OnboardingScreen } from '@/components/onboarding-screen';
+import AuthScreen from '@/components/auth-screen';
 import { useState } from 'react';
 
 export default function RootLayout() {
   const colorScheme = useColorScheme();
   const [hasSeenOnboarding, setHasSeenOnboarding] = useState(false);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
 
   if (!hasSeenOnboarding) {
     return <OnboardingScreen onComplete={() => setHasSeenOnboarding(true)} />;
+  }
+
+  if (!isAuthenticated) {
+    return <AuthScreen onComplete={() => setIsAuthenticated(true)} />;
   }
 
   return (
