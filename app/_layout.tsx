@@ -11,12 +11,14 @@ export const unstable_settings = {
 
 import { OnboardingScreen } from '@/components/onboarding-screen';
 import AuthScreen from '@/components/auth-screen';
+import ProfileCreation from '@/components/profile-creation';
 import { useState } from 'react';
 
 export default function RootLayout() {
   const colorScheme = useColorScheme();
   const [hasSeenOnboarding, setHasSeenOnboarding] = useState(false);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [hasCompletedProfile, setHasCompletedProfile] = useState(false);
 
   if (!hasSeenOnboarding) {
     return <OnboardingScreen onComplete={() => setHasSeenOnboarding(true)} />;
@@ -24,6 +26,10 @@ export default function RootLayout() {
 
   if (!isAuthenticated) {
     return <AuthScreen onComplete={() => setIsAuthenticated(true)} />;
+  }
+
+  if (!hasCompletedProfile) {
+    return <ProfileCreation onComplete={() => setHasCompletedProfile(true)} />;
   }
 
   return (

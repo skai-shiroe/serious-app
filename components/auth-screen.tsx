@@ -105,15 +105,10 @@ export default function AuthScreen({ onComplete }: AuthScreenProps) {
 
         if (result.type === 'success' && result.url) {
           const url = new URL(result.url);
-          const params = new URLSearchParams(url.hash.substring(1));
-          const accessToken = params.get('access_token');
-          const refreshToken = params.get('refresh_token');
+          const code = url.searchParams.get('code');
 
-          if (accessToken && refreshToken) {
-            const { error: sessionError } = await supabase.auth.setSession({
-              access_token: accessToken,
-              refresh_token: refreshToken,
-            });
+          if (code) {
+            const { error: sessionError } = await supabase.auth.exchangeCodeForSession(code);
             if (sessionError) throw sessionError;
             onComplete();
           }
@@ -125,6 +120,8 @@ export default function AuthScreen({ onComplete }: AuthScreenProps) {
       setLoading(false);
     }
   };
+
+  
 
   const handleForgotPassword = async () => {
     if (!formData.email) {
