@@ -1,11 +1,12 @@
-import { SafeAreaView } from 'react-native-safe-area-context';
-import React, { useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView, useColorScheme, KeyboardAvoidingView, Platform, Image, ActivityIndicator, Alert,  } from 'react-native';
-import { User, Heart, Activity, Camera, ChevronLeft, ChevronRight } from 'lucide-react-native';
-import { LinearGradient } from 'expo-linear-gradient';
-import * as ImagePicker from 'expo-image-picker';
 import { supabase } from '@/lib/supabase';
 import { decode } from 'base64-arraybuffer';
+import { Image } from 'expo-image';
+import * as ImagePicker from 'expo-image-picker';
+import { LinearGradient } from 'expo-linear-gradient';
+import { Activity, Camera, ChevronLeft, ChevronRight, Heart, User } from 'lucide-react-native';
+import React, { useState } from 'react';
+import { ActivityIndicator, Alert, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, useColorScheme, View, } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 interface ProfileCreationProps {
   onComplete: () => void;
@@ -106,15 +107,15 @@ const SICKLE_CELL_STATUS = [
 export default function ProfileCreation({ onComplete, initialData }: ProfileCreationProps) {
   const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
-  
+
   // Pad the existing photos array with nulls up to 6 slots
   const defaultPhotos = [null, null, null, null, null, null];
   if (initialData?.photos) {
     for (let i = 0; i < Math.min(initialData.photos.length, 6); i++) {
-        defaultPhotos[i] = initialData.photos[i];
+      defaultPhotos[i] = initialData.photos[i];
     }
   }
-  
+
   const [photos, setPhotos] = useState<(string | null)[]>(defaultPhotos);
   const [formData, setFormData] = useState({
     age: initialData?.age?.toString() || '',
@@ -153,23 +154,30 @@ export default function ProfileCreation({ onComplete, initialData }: ProfileCrea
       // Upload photos
       const uploadedUrls: string[] = [];
       for (let i = 0; i < photos.length; i++) {
-        const photoBase64 = photos[i];
-        if (photoBase64) {
+        const photo = photos[i];
+        if (!photo) continue;
+
+        if (photo.startsWith('http')) {
+          // C'est déjà une URL existante, on la garde telle quelle
+          uploadedUrls.push(photo);
+        } else {
+          // C'est une nouvelle photo en base64, on l'uploade
           const filePath = `${user.id}/${Date.now()}_${i}.jpg`;
-          const base64Str = photoBase64.replace(/^data:image\/\w+;base64,/, '');
-          
+          const base64Str = photo.replace(/^data:image\/\w+;base64,/, '');
+
           const { error: uploadError } = await supabase.storage
             .from('avatars')
             .upload(filePath, decode(base64Str), {
               contentType: 'image/jpeg',
+              upsert: true
             });
-            
+
           if (uploadError) throw uploadError;
 
           const { data } = supabase.storage
             .from('avatars')
             .getPublicUrl(filePath);
-            
+
           uploadedUrls.push(data.publicUrl);
         }
       }
@@ -273,7 +281,7 @@ export default function ProfileCreation({ onComplete, initialData }: ProfileCrea
             options={[
               { label: 'Homme', value: 'homme' },
               { label: 'Femme', value: 'femme' },
-              
+
             ]}
             selectedValue={formData.gender}
             onSelect={(v) => setFormData({ ...formData, gender: v })}
@@ -471,20 +479,20 @@ export default function ProfileCreation({ onComplete, initialData }: ProfileCrea
       <View style={styles.inputGroup}>
         <Text style={[styles.label, { color: themeColors.text }]}>Photos (jusqu'à 6)</Text>
         <View style={styles.photoGrid}>
-          {photos.map((photo, i) => (
+          {photos.map((photo, index) => (
             <TouchableOpacity
-              key={i}
-              style={[
-                styles.photoSlot,
-                { backgroundColor: themeColors.inputBg, borderColor: themeColors.border, overflow: 'hidden' },
-              ]}
-              activeOpacity={0.7}
-              onPress={() => handlePickImage(i)}
+              key={index}
+              style={[styles.photoSlot, { backgroundColor: themeColors.inputBg }]}
+              onPress={() => handlePickImage(index)}
             >
               {photo ? (
-                <Image source={{ uri: photo }} style={{ width: '100%', height: '100%' }} />
+                <Image
+                  source={{ uri: photo }}
+                  style={styles.photoImage}
+                  contentFit="cover"
+                />
               ) : (
-                <Camera color={themeColors.icon} size={28} />
+                <Camera color={themeColors.icon} size={24} />
               )}
             </TouchableOpacity>
           ))}
@@ -754,6 +762,11 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  photoImage: {
+    width: '100%',
+    height: '100%',
+    borderRadius: 10,
   },
 
   /* Navigation buttons */

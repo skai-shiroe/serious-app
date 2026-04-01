@@ -1,6 +1,7 @@
 import { SafeAreaView } from 'react-native-safe-area-context';
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, ActivityIndicator, useColorScheme, Dimensions, Image, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, ActivityIndicator, useColorScheme, Dimensions, TouchableOpacity } from 'react-native';
+import { Image } from 'expo-image';
 import { supabase } from '@/lib/supabase';
 import { LinearGradient } from 'expo-linear-gradient';
 import { X, Heart } from 'lucide-react-native';
@@ -158,7 +159,12 @@ export default function MatchScreen() {
         <View style={styles.cardContainer}>
           <GestureDetector gesture={panGesture}>
             <Animated.View style={[styles.card, { backgroundColor: themeColors.card }, cardStyle]}>
-              <Image source={{ uri: photoUri }} style={styles.image} />
+              <Image 
+                source={{ uri: photoUri }} 
+                style={styles.image} 
+                contentFit="cover"
+                transition={300}
+              />
               
               <Animated.View style={[styles.stamp, styles.stampLike, likeOpacity]}>
                 <Text style={styles.stampTextLike}>LIKE</Text>

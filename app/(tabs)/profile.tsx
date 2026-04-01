@@ -1,13 +1,16 @@
 import { SafeAreaView } from 'react-native-safe-area-context';
 import React, { useState, useCallback } from 'react';
-import { View, Text, StyleSheet, Image, ScrollView, ActivityIndicator, useColorScheme, TouchableOpacity, Alert, Switch, Appearance } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, ActivityIndicator, useColorScheme, TouchableOpacity, Alert, Switch, Appearance, Platform, Dimensions } from 'react-native';
+import { Image } from 'expo-image';
 import { supabase } from '@/lib/supabase';
 import { LinearGradient } from 'expo-linear-gradient';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import { LogOut, Edit3, MapPin, BookOpen, Briefcase, Droplet, Activity, Calendar, Moon, Sun } from 'lucide-react-native';
+import { LogOut, Edit3, MapPin, BookOpen, Briefcase, Droplet, Activity, Calendar, Moon, Sun, Camera } from 'lucide-react-native';
 import { useRouter, useFocusEffect } from 'expo-router';
 
 export default function ProfileScreen() {
+  const { width: screenWidth } = Dimensions.get('window');
+  const slotSize = (screenWidth - 48 - 8) / 4;
+
   const [loading, setLoading] = useState(true);
   const [profile, setProfile] = useState<any>(null);
   const router = useRouter();
@@ -66,7 +69,16 @@ export default function ProfileScreen() {
   const toggleTheme = async () => {
     const newTheme = isDark ? 'light' : 'dark';
     Appearance.setColorScheme(newTheme);
+    
+    if (Platform.OS === 'web') {
+      if (typeof window !== 'undefined') {
+        window.localStorage.setItem('appTheme', newTheme);
+      }
+      return;
+    }
+
     try {
+      const AsyncStorage = require('@react-native-async-storage/async-storage').default;
       await AsyncStorage.setItem('appTheme', newTheme);
     } catch(e) {}
   };
@@ -206,13 +218,27 @@ export default function ProfileScreen() {
         {/* Photos */}
         <View style={[styles.card, { backgroundColor: themeColors.bgCard, borderColor: themeColors.border }]}>
           <Text style={[styles.sectionTitle, { color: themeColors.text }]}>Mes photos</Text>
-          <View style={styles.photosGrid}>
-            {Array.from({ length: 6 }).map((_, i) => {
+          
+          <View style={styles.gridContainer}>
+            {[0, 1, 2, 3, 4, 5].map((i) => {
               const uri = profile?.photos?.[i];
-              return uri ? (
-                <Image key={i} source={{ uri }} style={styles.photoSlot} />
-              ) : (
-                <View key={i} style={[styles.photoSlot, { backgroundColor: themeColors.inputBg }]} />
+              return (
+                <View key={i} style={[styles.slotWrapper, { width: slotSize, height: slotSize }]}>
+                  {uri ? (
+                    <View style={[styles.photoSlotFull, styles.shadow]}>
+                      <Image 
+                        source={{ uri }} 
+                        style={styles.fullImage} 
+                        contentFit="cover" 
+                        transition={300}
+                      />
+                    </View>
+                  ) : (
+                    <View style={[styles.photoSlotFull, styles.emptySlot, { backgroundColor: themeColors.inputBg }]}>
+                      <Camera color={themeColors.icon} size={28} />
+                    </View>
+                  )}
+                </View>
               );
             })}
           </View>
@@ -267,8 +293,12 @@ const styles = StyleSheet.create({
   tagsContainer: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   tagBadge: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 12 },
   tagText: { fontSize: 14, fontWeight: '600' },
-  photosGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  photoSlot: { width: '31%', aspectRatio: 0.75, borderRadius: 12 },
+  gridContainer: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  slotWrapper: { marginBottom: 8 },
+  photoSlotFull: { width: '100%', height: '100%', borderRadius: 12, overflow: 'hidden' },
+  fullImage: { width: '100%', height: '100%' },
+  emptySlot: { justifyContent: 'center', alignItems: 'center', borderWidth: 2, borderStyle: 'dashed', borderColor: 'rgba(156, 163, 175, 0.3)' },
+  shadow: { shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.1, shadowRadius: 8, elevation: 5 },
   actionBtn: { marginTop: 8, marginBottom: 16, shadowColor: '#f43f5e', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 8, elevation: 8 },
   gradientBtn: { borderRadius: 28, paddingVertical: 16, flexDirection: 'row', justifyContent: 'center', alignItems: 'center' },
   btnText: { color: '#ffffff', fontSize: 16, fontWeight: 'bold', marginLeft: 8 },

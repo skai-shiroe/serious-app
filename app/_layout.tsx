@@ -13,9 +13,8 @@ import { OnboardingScreen } from '@/components/onboarding-screen';
 import AuthScreen from '@/components/auth-screen';
 import ProfileCreation from '@/components/profile-creation';
 import { useState, useEffect } from 'react';
-import { ActivityIndicator, View, Appearance } from 'react-native';
+import { ActivityIndicator, View, Appearance, Platform } from 'react-native';
 import { supabase } from '@/lib/supabase';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export default function RootLayout() {
   const colorScheme = useColorScheme();
@@ -26,7 +25,17 @@ export default function RootLayout() {
 
   useEffect(() => {
     const initTheme = async () => {
+      if (Platform.OS === 'web') {
+        if (typeof window !== 'undefined') {
+          const savedTheme = window.localStorage.getItem('appTheme') as 'light' | 'dark' | null;
+          if (savedTheme) Appearance.setColorScheme(savedTheme);
+          else Appearance.setColorScheme('light');
+        }
+        return;
+      }
+
       try {
+        const AsyncStorage = require('@react-native-async-storage/async-storage').default;
         const savedTheme = await AsyncStorage.getItem('appTheme') as 'light' | 'dark' | null;
         if (savedTheme) {
           Appearance.setColorScheme(savedTheme);
