@@ -1,18 +1,6 @@
+import { SafeAreaView } from 'react-native-safe-area-context';
 import React, { useState } from 'react';
-import { 
-  View, 
-  Text, 
-  TextInput, 
-  TouchableOpacity, 
-  StyleSheet, 
-  KeyboardAvoidingView, 
-  Platform, 
-  useColorScheme,
-  ScrollView,
-  SafeAreaView,
-  Alert,
-  ActivityIndicator
-} from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, KeyboardAvoidingView, Platform, useColorScheme, ScrollView, Alert, ActivityIndicator } from 'react-native';
 import { Mail, Phone, Heart, Eye, EyeOff, Chrome } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as WebBrowser from 'expo-web-browser';

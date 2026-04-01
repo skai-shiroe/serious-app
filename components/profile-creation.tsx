@@ -1,19 +1,6 @@
+import { SafeAreaView } from 'react-native-safe-area-context';
 import React, { useState } from 'react';
-import {
-  View,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  StyleSheet,
-  ScrollView,
-  SafeAreaView,
-  useColorScheme,
-  KeyboardAvoidingView,
-  Platform,
-  Image,
-  ActivityIndicator,
-  Alert,
-} from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView, useColorScheme, KeyboardAvoidingView, Platform, Image, ActivityIndicator, Alert,  } from 'react-native';
 import { User, Heart, Activity, Camera, ChevronLeft, ChevronRight } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as ImagePicker from 'expo-image-picker';
@@ -22,6 +9,7 @@ import { decode } from 'base64-arraybuffer';
 
 interface ProfileCreationProps {
   onComplete: () => void;
+  initialData?: any;
 }
 
 // ── Picker modal simplifié ──────────────────────────────────────────────
@@ -115,20 +103,29 @@ const SICKLE_CELL_STATUS = [
 ];
 
 // ── Composant principal ─────────────────────────────────────────────────
-export default function ProfileCreation({ onComplete }: ProfileCreationProps) {
+export default function ProfileCreation({ onComplete, initialData }: ProfileCreationProps) {
   const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
-  const [photos, setPhotos] = useState<(string | null)[]>([null, null, null, null, null, null]);
+  
+  // Pad the existing photos array with nulls up to 6 slots
+  const defaultPhotos = [null, null, null, null, null, null];
+  if (initialData?.photos) {
+    for (let i = 0; i < Math.min(initialData.photos.length, 6); i++) {
+        defaultPhotos[i] = initialData.photos[i];
+    }
+  }
+  
+  const [photos, setPhotos] = useState<(string | null)[]>(defaultPhotos);
   const [formData, setFormData] = useState({
-    age: '',
-    gender: '',
-    city: '',
-    religion: '',
-    profession: '',
-    interests: [] as string[],
-    bloodType: '',
-    sickleCell: '',
-    bio: '',
+    age: initialData?.age?.toString() || '',
+    gender: initialData?.gender || '',
+    city: initialData?.city || '',
+    religion: initialData?.religion || '',
+    profession: initialData?.profession || '',
+    interests: initialData?.interests || ([] as string[]),
+    bloodType: initialData?.blood_type || '',
+    sickleCell: initialData?.sickle_cell || '',
+    bio: initialData?.bio || '',
   });
 
   const handlePickImage = async (index: number) => {
@@ -192,7 +189,7 @@ export default function ProfileCreation({ onComplete }: ProfileCreationProps) {
           sickle_cell: formData.sickleCell,
           bio: formData.bio,
           photos: uploadedUrls
-        });
+        }, { onConflict: 'user_id' });
 
       if (profileError) throw profileError;
 
@@ -208,7 +205,7 @@ export default function ProfileCreation({ onComplete }: ProfileCreationProps) {
     setFormData(prev => ({
       ...prev,
       interests: prev.interests.includes(interest)
-        ? prev.interests.filter(i => i !== interest)
+        ? prev.interests.filter((i: string) => i !== interest)
         : [...prev.interests, interest]
     }));
   };
