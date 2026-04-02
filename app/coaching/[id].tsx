@@ -28,8 +28,9 @@ interface Comment {
   profiles: {
     user_id: string;
     photos: string[];
-    // Ajout d'un pseudo par défaut si pas de nom complet
     role: string;
+    first_name: string;
+    last_name: string;
   };
 }
 
@@ -125,7 +126,9 @@ export default function CoachingDetailScreen() {
           profiles:user_id (
             user_id,
             photos,
-            role
+            role,
+            first_name,
+            last_name
           )
         `)
         .eq('post_id', id)
@@ -401,7 +404,10 @@ export default function CoachingDetailScreen() {
                   <View style={[styles.commentContent, { backgroundColor: themeColors.card }]}>
                     <View style={styles.commentHeader}>
                       <Text style={[styles.commentUser, { color: themeColors.text }]}>
-                        Utilisateur {comment.profiles?.role === 'admin' ? '(Admin)' : ''}
+                        {comment.profiles?.first_name || comment.profiles?.last_name 
+                          ? `${comment.profiles.first_name || ''} ${comment.profiles.last_name || ''}`.trim()
+                          : 'Utilisateur'}
+                        {comment.profiles?.role === 'admin' ? ' (Admin)' : ''}
                       </Text>
                       <Text style={[styles.commentTime, { color: themeColors.textMuted }]}>
                         {new Date(comment.created_at).toLocaleDateString()}

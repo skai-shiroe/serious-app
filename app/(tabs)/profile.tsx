@@ -44,7 +44,7 @@ export default function ProfileScreen() {
 
       const { data, error } = await supabase
         .from('profiles')
-        .select('*, role')
+        .select('*, role, first_name, last_name')
         .eq('user_id', user.id)
         .single();
 
@@ -52,7 +52,9 @@ export default function ProfileScreen() {
       
       setProfile({
         ...data,
-        firstName: user.user_metadata?.full_name || user.user_metadata?.name || user.email?.split('@')[0] || 'Utilisateur',
+        displayName: data.first_name || data.last_name 
+          ? `${data.first_name || ''} ${data.last_name || ''}`.trim()
+          : (user.user_metadata?.full_name || user.user_metadata?.name || user.email?.split('@')[0] || 'Utilisateur'),
       });
     } catch (error: any) {
       console.log('Error fetching profile', error);
@@ -151,7 +153,7 @@ export default function ProfileScreen() {
             <Image source={{ uri: mainPhoto }} style={styles.avatarLarge} />
           </LinearGradient>
           <Text style={[styles.name, { color: themeColors.text }]}>
-            {profile?.firstName}
+            {profile?.displayName}
           </Text>
           <View style={[styles.completionBadge, { backgroundColor: 'rgba(244, 63, 94, 0.1)' }]}>
             <Text style={[styles.completionText, { color: '#f43f5e' }]}>{completionPercent}% complété</Text>

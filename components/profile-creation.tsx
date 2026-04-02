@@ -118,6 +118,8 @@ export default function ProfileCreation({ onComplete, initialData }: ProfileCrea
 
   const [photos, setPhotos] = useState<(string | null)[]>(defaultPhotos);
   const [formData, setFormData] = useState({
+    firstName: initialData?.first_name || '',
+    lastName: initialData?.last_name || '',
     age: initialData?.age?.toString() || '',
     gender: initialData?.gender || '',
     city: initialData?.city || '',
@@ -187,6 +189,8 @@ export default function ProfileCreation({ onComplete, initialData }: ProfileCrea
         .from('profiles')
         .upsert({
           user_id: user.id,
+          first_name: formData.firstName,
+          last_name: formData.lastName,
           age: parseInt(formData.age, 10) || null,
           gender: formData.gender,
           city: formData.city,
@@ -261,6 +265,29 @@ export default function ProfileCreation({ onComplete, initialData }: ProfileCrea
         <Text style={[styles.stepSubtitle, { color: themeColors.textMuted }]}>
           Parlez-nous de vous
         </Text>
+      </View>
+
+      <View style={styles.row}>
+        <View style={{ flex: 1, marginRight: 8 }}>
+          <Text style={[styles.label, { color: themeColors.text }]}>Prénom</Text>
+          <TextInput
+            style={[styles.input, { backgroundColor: themeColors.inputBg, borderColor: themeColors.border, color: themeColors.text }]}
+            placeholder="Jean"
+            placeholderTextColor={themeColors.icon}
+            value={formData.firstName}
+            onChangeText={(t) => setFormData({ ...formData, firstName: t })}
+          />
+        </View>
+        <View style={{ flex: 1, marginLeft: 8 }}>
+          <Text style={[styles.label, { color: themeColors.text }]}>Nom</Text>
+          <TextInput
+            style={[styles.input, { backgroundColor: themeColors.inputBg, borderColor: themeColors.border, color: themeColors.text }]}
+            placeholder="Dupont"
+            placeholderTextColor={themeColors.icon}
+            value={formData.lastName}
+            onChangeText={(t) => setFormData({ ...formData, lastName: t })}
+          />
+        </View>
       </View>
 
       <View style={styles.row}>
