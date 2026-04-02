@@ -120,7 +120,6 @@ export default function ProfileCreation({ onComplete, initialData }: ProfileCrea
   const [formData, setFormData] = useState({
     firstName: initialData?.first_name || '',
     lastName: initialData?.last_name || '',
-    age: initialData?.age?.toString() || '',
     gender: initialData?.gender || '',
     city: initialData?.city || '',
     religion: initialData?.religion || '',
@@ -130,6 +129,30 @@ export default function ProfileCreation({ onComplete, initialData }: ProfileCrea
     sickleCell: initialData?.sickle_cell || '',
     bio: initialData?.bio || '',
   });
+
+  // Pour la saisie structurée de la date de naissance
+  const [bd, setBd] = useState({
+    day: initialData?.birth_date ? initialData.birth_date.split('-')[2] : '',
+    month: initialData?.birth_date ? initialData.birth_date.split('-')[1] : '',
+    year: initialData?.birth_date ? initialData.birth_date.split('-')[0] : '',
+  });
+
+  const calculateAge = (day: string, month: string, year: string) => {
+    if (!day || !month || !year || year.length < 4) return null;
+    const d = parseInt(day, 10);
+    const m = parseInt(month, 10);
+    const y = parseInt(year, 10);
+    if (isNaN(d) || isNaN(m) || isNaN(y)) return null;
+
+    const birthDate = new Date(y, m - 1, d);
+    const today = new Date();
+    let age = today.getFullYear() - birthDate.getFullYear();
+    const monthDiff = today.getMonth() - birthDate.getMonth();
+    if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
+      age--;
+    }
+    return age;
+  };
 
   const handlePickImage = async (index: number) => {
     const result = await ImagePicker.launchImageLibraryAsync({
@@ -160,10 +183,8 @@ export default function ProfileCreation({ onComplete, initialData }: ProfileCrea
         if (!photo) continue;
 
         if (photo.startsWith('http')) {
-          // C'est déjà une URL existante, on la garde telle quelle
           uploadedUrls.push(photo);
         } else {
-          // C'est une nouvelle photo en base64, on l'uploade
           const filePath = `${user.id}/${Date.now()}_${i}.jpg`;
           const base64Str = photo.replace(/^data:image\/\w+;base64,/, '');
 
@@ -191,7 +212,7 @@ export default function ProfileCreation({ onComplete, initialData }: ProfileCrea
           user_id: user.id,
           first_name: formData.firstName,
           last_name: formData.lastName,
-          age: parseInt(formData.age, 10) || null,
+          birth_date: bd.year && bd.month && bd.day ? `${bd.year}-${bd.month.padStart(2, '0')}-${bd.day.padStart(2, '0')}` : null,
           gender: formData.gender,
           city: formData.city,
           religion: formData.religion,
@@ -290,25 +311,54 @@ export default function ProfileCreation({ onComplete, initialData }: ProfileCrea
         </View>
       </View>
 
+      <View style={styles.inputGroup}>
+        <Text style={[styles.label, { color: themeColors.text }]}>Date de naissance</Text>
+        <View style={styles.row}>
+          <View style={{ flex: 1, marginRight: 4 }}>
+            <TextInput
+              style={[styles.input, { backgroundColor: themeColors.inputBg, borderColor: themeColors.border, color: themeColors.text }]}
+              placeholder="JJ"
+              placeholderTextColor={themeColors.icon}
+              value={bd.day}
+              onChangeText={(t) => setBd({ ...bd, day: t.slice(0, 2) })}
+              keyboardType="number-pad"
+            />
+          </View>
+          <View style={{ flex: 1, marginHorizontal: 4 }}>
+            <TextInput
+              style={[styles.input, { backgroundColor: themeColors.inputBg, borderColor: themeColors.border, color: themeColors.text }]}
+              placeholder="MM"
+              placeholderTextColor={themeColors.icon}
+              value={bd.month}
+              onChangeText={(t) => setBd({ ...bd, month: t.slice(0, 2) })}
+              keyboardType="number-pad"
+            />
+          </View>
+          <View style={{ flex: 1.5, marginLeft: 4 }}>
+            <TextInput
+              style={[styles.input, { backgroundColor: themeColors.inputBg, borderColor: themeColors.border, color: themeColors.text }]}
+              placeholder="AAAA"
+              placeholderTextColor={themeColors.icon}
+              value={bd.year}
+              onChangeText={(t) => setBd({ ...bd, year: t.slice(0, 4) })}
+              keyboardType="number-pad"
+            />
+          </View>
+        </View>
+        {calculateAge(bd.day, bd.month, bd.year) !== null && (
+          <Text style={[styles.ageFeedback, { color: '#f43f5e' }]}>
+            Âge calculé : {calculateAge(bd.day, bd.month, bd.year)} ans
+          </Text>
+        )}
+      </View>
+
       <View style={styles.row}>
         <View style={{ flex: 1, marginRight: 8 }}>
-          <Text style={[styles.label, { color: themeColors.text }]}>Âge</Text>
-          <TextInput
-            style={[styles.input, { backgroundColor: themeColors.inputBg, borderColor: themeColors.border, color: themeColors.text }]}
-            placeholder="25"
-            placeholderTextColor={themeColors.icon}
-            value={formData.age}
-            onChangeText={(t) => setFormData({ ...formData, age: t })}
-            keyboardType="number-pad"
-          />
-        </View>
-        <View style={{ flex: 1, marginLeft: 8 }}>
           <SimplePicker
             label="Genre"
             options={[
               { label: 'Homme', value: 'homme' },
               { label: 'Femme', value: 'femme' },
-
             ]}
             selectedValue={formData.gender}
             onSelect={(v) => setFormData({ ...formData, gender: v })}
@@ -316,17 +366,16 @@ export default function ProfileCreation({ onComplete, initialData }: ProfileCrea
             themeColors={themeColors}
           />
         </View>
-      </View>
-
-      <View style={styles.inputGroup}>
-        <Text style={[styles.label, { color: themeColors.text }]}>Ville</Text>
-        <TextInput
-          style={[styles.input, { backgroundColor: themeColors.inputBg, borderColor: themeColors.border, color: themeColors.text }]}
-          placeholder="Paris, France"
-          placeholderTextColor={themeColors.icon}
-          value={formData.city}
-          onChangeText={(t) => setFormData({ ...formData, city: t })}
-        />
+        <View style={{ flex: 1, marginLeft: 8 }}>
+          <Text style={[styles.label, { color: themeColors.text }]}>Ville</Text>
+          <TextInput
+            style={[styles.input, { backgroundColor: themeColors.inputBg, borderColor: themeColors.border, color: themeColors.text }]}
+            placeholder="Paris, France"
+            placeholderTextColor={themeColors.icon}
+            value={formData.city}
+            onChangeText={(t) => setFormData({ ...formData, city: t })}
+          />
+        </View>
       </View>
     </View>
   );
@@ -820,4 +869,10 @@ const styles = StyleSheet.create({
     elevation: 8,
   },
   navBtnPrimaryText: { color: '#ffffff', fontSize: 16, fontWeight: 'bold' },
+  ageFeedback: {
+    marginTop: 8,
+    fontSize: 14,
+    fontWeight: '600',
+    fontStyle: 'italic',
+  }
 });

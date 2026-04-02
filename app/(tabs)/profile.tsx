@@ -29,6 +29,18 @@ export default function ProfileScreen() {
     accent: '#f43f5e',
   };
 
+  const calculateAge = (birthDateStr: string) => {
+    if (!birthDateStr) return null;
+    const birthDate = new Date(birthDateStr);
+    const today = new Date();
+    let age = today.getFullYear() - birthDate.getFullYear();
+    const m = today.getMonth() - birthDate.getMonth();
+    if (m < 0 || (m === 0 && today.getDate() < birthDate.getDate())) {
+      age--;
+    }
+    return age;
+  };
+
   useFocusEffect(
     useCallback(() => {
       fetchProfile();
@@ -52,6 +64,7 @@ export default function ProfileScreen() {
       
       setProfile({
         ...data,
+        age: calculateAge(data.birth_date),
         displayName: data.first_name || data.last_name 
           ? `${data.first_name || ''} ${data.last_name || ''}`.trim()
           : (user.user_metadata?.full_name || user.user_metadata?.name || user.email?.split('@')[0] || 'Utilisateur'),
@@ -114,7 +127,7 @@ export default function ProfileScreen() {
   const calculateCompletion = () => {
     if (!profile) return 0;
     const fields = [
-      profile.age,
+      profile.birth_date,
       profile.gender,
       profile.city,
       profile.religion,
