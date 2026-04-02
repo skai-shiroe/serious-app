@@ -41,7 +41,7 @@ export default function ProfileScreen() {
 
       const { data, error } = await supabase
         .from('profiles')
-        .select('*')
+        .select('*, role')
         .eq('user_id', user.id)
         .single();
 
