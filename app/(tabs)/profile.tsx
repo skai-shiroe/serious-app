@@ -4,7 +4,7 @@ import { View, Text, StyleSheet, ScrollView, ActivityIndicator, useColorScheme, 
 import { Image } from 'expo-image';
 import { supabase } from '@/lib/supabase';
 import { LinearGradient } from 'expo-linear-gradient';
-import { LogOut, Edit3, MapPin, BookOpen, Briefcase, Droplet, Activity, Calendar, Moon, Sun, Camera } from 'lucide-react-native';
+import { LogOut, Edit3, MapPin, BookOpen, Briefcase, Droplet, Activity, Calendar, Moon, Sun, Camera, Bookmark } from 'lucide-react-native';
 import { useRouter, useFocusEffect } from 'expo-router';
 
 export default function ProfileScreen() {
@@ -13,6 +13,7 @@ export default function ProfileScreen() {
 
   const [loading, setLoading] = useState(true);
   const [profile, setProfile] = useState<any>(null);
+  const [savedPosts, setSavedPosts] = useState<any[]>([]);
   const router = useRouter();
   const colorScheme = useColorScheme();
   const isDark = colorScheme === 'dark';
@@ -25,11 +26,13 @@ export default function ProfileScreen() {
     border: isDark ? '#374151' : '#f3f4f6',
     inputBg: isDark ? '#374151' : '#f3f4f6',
     icon: isDark ? '#9ca3af' : '#6b7280',
+    accent: '#f43f5e',
   };
 
   useFocusEffect(
     useCallback(() => {
       fetchProfile();
+      fetchSavedPosts();
     }, [])
   );
 
@@ -55,6 +58,29 @@ export default function ProfileScreen() {
       console.log('Error fetching profile', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchSavedPosts = async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const { data, error } = await supabase
+        .from('coaching_favorites')
+        .select(`
+          id,
+          coaching_posts (*)
+        `)
+        .eq('user_id', user.id);
+
+      if (error) throw error;
+      
+      // On filtre pour ne garder que les posts qui existent encore
+      const posts = data?.map(f => f.coaching_posts).filter(p => p !== null) || [];
+      setSavedPosts(posts);
+    } catch (error) {
+      console.log('Error fetching saved posts', error);
     }
   };
 
@@ -244,6 +270,34 @@ export default function ProfileScreen() {
           </View>
         </View>
 
+        {/* Saved Posts Section */}
+        <View style={[styles.card, { backgroundColor: themeColors.bgCard, borderColor: themeColors.border }]}>
+          <View style={styles.sectionHeader}>
+            <Bookmark size={20} color={themeColors.accent} />
+            <Text style={[styles.sectionTitle, { color: themeColors.text, marginBottom: 0 }]}>Conseils Enregistrés</Text>
+          </View>
+          
+          {savedPosts.length > 0 ? (
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.savedPostsScroll}>
+              {savedPosts.map((post) => (
+                <TouchableOpacity 
+                  key={post.id} 
+                  style={[styles.savedPostCard, { backgroundColor: themeColors.bg }]}
+                  onPress={() => router.push({ pathname: '/coaching/[id]', params: { id: post.id } })}
+                >
+                  <Image source={{ uri: post.image_url }} style={styles.savedPostImage} />
+                  <View style={styles.savedPostInfo}>
+                    <Text style={[styles.savedPostTitle, { color: themeColors.text }]} numberOfLines={1}>{post.title}</Text>
+                    <Text style={[styles.savedPostCategory, { color: themeColors.accent }]}>{post.category}</Text>
+                  </View>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+          ) : (
+            <Text style={[styles.emptyText, { color: themeColors.textMuted }]}>Aucun conseil enregistré pour le moment.</Text>
+          )}
+        </View>
+
         <TouchableOpacity style={styles.actionBtn} activeOpacity={0.8} onPress={() => router.push('/edit-profile')}>
           <LinearGradient
             colors={['#f43f5e', '#ec4899']}
@@ -304,4 +358,12 @@ const styles = StyleSheet.create({
   btnText: { color: '#ffffff', fontSize: 16, fontWeight: 'bold', marginLeft: 8 },
   outlineBtn: { borderRadius: 28, paddingVertical: 16, borderWidth: 1, flexDirection: 'row', justifyContent: 'center', alignItems: 'center' },
   outlineBtnText: { fontSize: 16, fontWeight: '600', marginLeft: 8 },
+  sectionHeader: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 16 },
+  savedPostsScroll: { marginTop: 8 },
+  savedPostCard: { width: 160, borderRadius: 16, overflow: 'hidden', marginRight: 12, borderWidth: 1, borderColor: 'rgba(0,0,0,0.05)' },
+  savedPostImage: { width: '100%', height: 90 },
+  savedPostInfo: { padding: 10 },
+  savedPostTitle: { fontSize: 14, fontWeight: 'bold', marginBottom: 4 },
+  savedPostCategory: { fontSize: 10, fontWeight: '700', textTransform: 'uppercase' },
+  emptyText: { fontSize: 14, fontStyle: 'italic', marginTop: 8 },
 });

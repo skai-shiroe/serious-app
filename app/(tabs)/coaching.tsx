@@ -1,6 +1,7 @@
 import { SafeAreaView } from 'react-native-safe-area-context';
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView, useColorScheme, TouchableOpacity, ActivityIndicator, RefreshControl, Platform, Modal, TextInput, Alert } from 'react-native';
+import { useRouter } from 'expo-router';
 import { Picker } from '@react-native-picker/picker';
 import { Image } from 'expo-image';
 import { supabase } from '@/lib/supabase';
@@ -26,6 +27,7 @@ const CATEGORIES = [
 ];
 
 export default function CoachingScreen() {
+  const router = useRouter();
   const colorScheme = useColorScheme();
   const isDark = colorScheme === 'dark';
   const [posts, setPosts] = useState<CoachingPost[]>([]);
@@ -288,6 +290,7 @@ export default function CoachingScreen() {
                 key={post.id} 
                 style={[styles.postCard, { backgroundColor: themeColors.card, borderColor: themeColors.border }]}
                 activeOpacity={0.9}
+                onPress={() => router.push({ pathname: '/coaching/[id]', params: { id: post.id } })}
               >
                 {post.image_url && (
                   <Image 
