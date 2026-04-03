@@ -65,7 +65,9 @@ function ProfileBottomSheet() {
         backgroundStyle={{ backgroundColor: isDark ? '#1f2937' : '#ffffff' }}
         handleIndicatorStyle={{ backgroundColor: isDark ? '#4b5563' : '#d1d5db' }}
       >
-        <BottomSheetView />
+        <BottomSheetView style={{ flex: 1 }}>
+          <View />
+        </BottomSheetView>
       </BottomSheet>
     );
   }
@@ -294,6 +296,7 @@ export default function RootLayout() {
         <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
           <Stack>
             <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+            <Stack.Screen name="chat/[id]" options={{ headerShown: false }} />
             <Stack.Screen name="modal" options={{ presentation: 'modal', title: 'Modal' }} />
           </Stack>
           <StatusBar style="auto" />
