@@ -230,6 +230,9 @@ export default function RootLayout() {
         router.push('/(tabs)/messages');
       } else if (data?.type === 'message' && data?.match_id) {
         router.push(`/chat/${data.match_id}`);
+      } else if (data?.type === 'coaching' && data?.id) {
+        // Redirige vers la page du conseil de coaching
+        router.push(`/coaching/${data.id}`);
       }
     });
 
