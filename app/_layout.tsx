@@ -1,6 +1,8 @@
 import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native';
-import { Stack } from 'expo-router';
+import { Stack, useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
+import * as Device from 'expo-device';
+import * as Notifications from 'expo-notifications';
 import 'react-native-reanimated';
 import { useState, useEffect, useCallback } from 'react';
 import { 
@@ -31,6 +33,14 @@ import { OnboardingScreen } from '@/components/onboarding-screen';
 import AuthScreen from '@/components/auth-screen';
 import ProfileCreation from '@/components/profile-creation';
 import { ProfileSheetProvider, useProfileSheet } from '@/contexts/ProfileSheetContext';
+
+Notifications.setNotificationHandler({
+  handleNotification: async () => ({
+    shouldShowAlert: true,
+    shouldPlaySound: true,
+    shouldSetBadge: true,
+  }),
+});
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
@@ -195,10 +205,77 @@ function ProfileBottomSheet() {
 
 export default function RootLayout() {
   const colorScheme = useColorScheme();
+  const router = useRouter();
   const [isReady, setIsReady] = useState(false);
   const [hasSeenOnboarding, setHasSeenOnboarding] = useState(false);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [hasCompletedProfile, setHasCompletedProfile] = useState(false);
+
+  useEffect(() => {
+    if (isAuthenticated && hasCompletedProfile) {
+      registerForPushNotificationsAsync().then(token => {
+        if (token) {
+          savePushToken(token);
+        }
+      });
+    }
+  }, [isAuthenticated, hasCompletedProfile]);
+
+  useEffect(() => {
+    const responseListener = Notifications.addNotificationResponseReceivedListener((response: any) => {
+      const data = response.notification.request.content.data;
+      if (data?.type === 'match') {
+        router.push('/(tabs)/messages');
+      } else if (data?.type === 'message' && data?.match_id) {
+        router.push(`/chat/${data.match_id}`);
+      }
+    });
+
+    return () => {
+      Notifications.removeNotificationSubscription(responseListener);
+    };
+  }, []);
+
+  async function registerForPushNotificationsAsync() {
+    let token;
+    
+    if (Device.isDevice) {
+      const { status: existingStatus } = await Notifications.getPermissionsAsync();
+      let finalStatus = existingStatus;
+      if (existingStatus !== 'granted') {
+        const { status } = await Notifications.requestPermissionsAsync();
+        finalStatus = status;
+      }
+      if (finalStatus !== 'granted') {
+        console.log('Permission refusée pour les notifications push !');
+        return;
+      }
+      try {
+        const projectId = '74bbbd37-e090-47e9-8950-fe52865da619';
+        token = (await Notifications.getExpoPushTokenAsync({ projectId })).data;
+      } catch (e) {
+        console.log("Erreur lors de la récupération du token push:", e);
+      }
+    } else {
+      console.log('Les notifications push nécessitent un appareil physique.');
+    }
+
+    return token;
+  }
+
+  async function savePushToken(token: string) {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        await supabase
+          .from('profiles')
+          .update({ push_token: token })
+          .eq('user_id', user.id);
+      }
+    } catch (e) {
+      console.log("Erreur sauvegarde token:", e);
+    }
+  }
 
   useEffect(() => {
     const initTheme = async () => {
