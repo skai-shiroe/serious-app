@@ -39,6 +39,8 @@ Notifications.setNotificationHandler({
     shouldShowAlert: true,
     shouldPlaySound: true,
     shouldSetBadge: true,
+    shouldShowBanner: true,
+    shouldShowList: true,
   }),
 });
 
@@ -232,7 +234,7 @@ export default function RootLayout() {
     });
 
     return () => {
-      Notifications.removeNotificationSubscription(responseListener);
+      responseListener.remove();
     };
   }, []);
 
