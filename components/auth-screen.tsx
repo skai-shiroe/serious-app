@@ -1,10 +1,11 @@
 import { SafeAreaView } from 'react-native-safe-area-context';
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, KeyboardAvoidingView, Platform, useColorScheme, ScrollView, Alert, ActivityIndicator } from 'react-native';
 import { Mail, Phone, Heart, Eye, EyeOff, Chrome } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as WebBrowser from 'expo-web-browser';
 import * as AuthSession from 'expo-auth-session';
+import * as Linking from 'expo-linking';
 import { supabase } from '@/lib/supabase';
 
 WebBrowser.maybeCompleteAuthSession();
@@ -26,6 +27,35 @@ export default function AuthScreen({ onComplete }: AuthScreenProps) {
 
   const colorScheme = useColorScheme();
   const isDark = colorScheme === 'dark';
+
+  useEffect(() => {
+    const handleUrl = async (url: string | null) => {
+      if (!url) return;
+      
+      const parsedUrl = Linking.parse(url);
+      const code = parsedUrl.queryParams?.code as string | undefined;
+      
+      if (code) {
+        setLoading(true);
+        try {
+          const { error: sessionError } = await supabase.auth.exchangeCodeForSession(code);
+          if (sessionError) throw sessionError;
+          onComplete();
+        } catch (error: any) {
+          Alert.alert('Erreur', error.message || 'Échec de la connexion Google.');
+        } finally {
+          setLoading(false);
+        }
+      }
+    };
+
+    Linking.getInitialURL().then(handleUrl);
+    const subscription = Linking.addEventListener('url', ({ url }) => handleUrl(url));
+    
+    return () => {
+      subscription.remove();
+    };
+  }, []);
 
   const handleSubmit = async () => {
     if (!formData.email || !formData.password) {
@@ -75,7 +105,6 @@ export default function AuthScreen({ onComplete }: AuthScreenProps) {
     try {
       const redirectUrl = AuthSession.makeRedirectUri({
         scheme: 'seriousapp',
-        path: 'auth/callback',
       });
 
       const { data, error } = await supabase.auth.signInWithOAuth({
