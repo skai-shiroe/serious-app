@@ -124,6 +124,7 @@ export default function AuthScreen({ onComplete }: AuthScreenProps) {
         scheme: 'seriousapp',
         path: 'auth-callback',
       });
+      console.log('[OAuth] redirectTo =', redirectUrl);
 
       const { data, error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
@@ -137,20 +138,57 @@ export default function AuthScreen({ onComplete }: AuthScreenProps) {
 
       if (data?.url) {
         const result = await WebBrowser.openAuthSessionAsync(data.url, redirectUrl);
+        console.log('[OAuth] resultat =', result.type, (result as any).url || '');
 
         if (result.type === 'success' && result.url) {
+          // Supabase peut renvoyer les erreurs dans le query string OU le hash (#error=...)
+          const hashParams = new URLSearchParams(result.url.split('#')[1] || '');
           const url = new URL(result.url);
           const code = url.searchParams.get('code');
-          const errorDescription = url.searchParams.get('error_description');
+          const errorDescription =
+            url.searchParams.get('error_description') ||
+            hashParams.get('error_description') ||
+            url.searchParams.get('error') ||
+            hashParams.get('error');
 
-          if (errorDescription) throw new Error(errorDescription);
+          if (errorDescription) {
+            lastHandledCode = null;
+            Alert.alert(
+              'Connexion Google refusee',
+              `Supabase / Google a renvoye:
+
+${decodeURIComponent(errorDescription)}
+
+redirectTo attendu dans Supabase > Authentication > URL Configuration:
+${redirectUrl}`
+            );
+            return;
+          }
 
           if (code && code !== lastHandledCode) {
             lastHandledCode = code;
             const { error: sessionError } = await supabase.auth.exchangeCodeForSession(code);
             if (sessionError) throw sessionError;
             onComplete();
+            return;
           }
+
+          // Deep link recu SANS code : la whitelist Supabase a probablement renvoye
+          // le navigateur vers le "Site URL" au lieu de l'app.
+          Alert.alert(
+            'Connexion incomplète',
+            `Aucun code d'autorisation recu.
+
+URL recue:
+${result.url}
+
+A verifier dans Supabase > Authentication > URL Configuration :
+1) Redirect URLs doit contenir :
+${redirectUrl}
+2) Site URL ne doit PAS etre localhost (mettre ${redirectUrl})
+3) Google Cloud > Authorized redirect URIs doit contenir :
+https://<PROJECT_REF>.supabase.co/auth/v1/callback`
+          );
         } else if (result.type === 'cancel' || result.type === 'dismiss') {
           // L'utilisateur a ferme la fenetre Google : pas d'alerte bloquante
           console.log("Connexion Google annulee par l'utilisateur");
