@@ -7,12 +7,9 @@ import * as WebBrowser from 'expo-web-browser';
 import * as AuthSession from 'expo-auth-session';
 import * as Linking from 'expo-linking';
 import { supabase } from '@/lib/supabase';
+import { completeAuthFromUrl } from '@/lib/auth-url';
 
 WebBrowser.maybeCompleteAuthSession();
-
-// Garde-fou : un meme code OAuth ne doit jamais etre echange deux fois
-// (le deep link et le retour de openAuthSessionAsync peuvent le fournir en double)
-let lastHandledCode: string | null = null;
 
 interface AuthScreenProps {
   onComplete: () => void;
@@ -33,34 +30,39 @@ export default function AuthScreen({ onComplete }: AuthScreenProps) {
   const isDark = colorScheme === 'dark';
 
   useEffect(() => {
-    // Deep link recu (seriousapp://auth-callback) : on echange le code contre une session
+    // Deep link recu (seriousapp://auth-callback) : on termine la connexion
+    //   - flow PKCE      : ?code=...         -> exchangeCodeForSession
+    //   - flow implicite : #access_token=... -> setSession
     const handleUrl = async (url: string | null) => {
       if (!url) return;
 
-      const { queryParams } = Linking.parse(url);
-      const code = queryParams?.code as string | undefined;
-      const errorDescription = (queryParams?.error_description || queryParams?.error) as string | undefined;
+      setLoading(true);
+      const result = await completeAuthFromUrl(url);
+      setLoading(false);
 
-      if (errorDescription) {
-        lastHandledCode = null;
-        Alert.alert('Erreur', decodeURIComponent(String(errorDescription)));
-        setLoading(false);
+      if (result.status === 'session') {
+        onComplete();
         return;
       }
 
-      if (!code || code === lastHandledCode) return;
-      lastHandledCode = code;
+      if (result.status === 'already-handled') {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session) onComplete();
+        return;
+      }
 
-      setLoading(true);
-      try {
-        const { error: sessionError } = await supabase.auth.exchangeCodeForSession(code);
-        if (sessionError) throw sessionError;
-        onComplete();
-      } catch (error: any) {
-        lastHandledCode = null;
-        Alert.alert('Erreur', error.message || 'Echec de la connexion Google.');
-      } finally {
-        setLoading(false);
+      if (result.status === 'error') {
+        Alert.alert('Erreur de connexion Google', result.message);
+        return;
+      }
+
+      // URL recue sans code ni token : presque toujours un redirect_to non
+      // autorise dans Supabase (le navigateur retombe alors sur le Site URL).
+      if (url.startsWith('seriousapp://') && !url.includes('expo-development-client')) {
+        Alert.alert(
+          'Connexion incomplete',
+          `Aucun code d'autorisation recu.\nURL recue :\n${url}\n\nA verifier dans Supabase > Authentication > URL Configuration :\n1) Redirect URLs doit contenir : seriousapp://auth-callback\n2) Google Cloud > Authorized redirect URIs : https://<PROJECT_REF>.supabase.co/auth/v1/callback`
+        );
       }
     };
 
@@ -124,7 +126,7 @@ export default function AuthScreen({ onComplete }: AuthScreenProps) {
         scheme: 'seriousapp',
         path: 'auth-callback',
       });
-      console.log('[OAuth] redirectTo =', redirectUrl);
+      console.log('[OAuth] redirectTo =', redirectUrl, '| flow = pkce');
 
       const { data, error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
@@ -135,67 +137,44 @@ export default function AuthScreen({ onComplete }: AuthScreenProps) {
       });
 
       if (error) throw error;
+      if (!data?.url) return;
 
-      if (data?.url) {
-        const result = await WebBrowser.openAuthSessionAsync(data.url, redirectUrl);
-        console.log('[OAuth] resultat =', result.type, (result as any).url || '');
+      const result = await WebBrowser.openAuthSessionAsync(data.url, redirectUrl);
+      console.log('[OAuth] resultat =', result.type, (result as any).url || '');
 
-        if (result.type === 'success' && result.url) {
-          // Supabase peut renvoyer les erreurs dans le query string OU le hash (#error=...)
-          const hashParams = new URLSearchParams(result.url.split('#')[1] || '');
-          const url = new URL(result.url);
-          const code = url.searchParams.get('code');
-          const errorDescription =
-            url.searchParams.get('error_description') ||
-            hashParams.get('error_description') ||
-            url.searchParams.get('error') ||
-            hashParams.get('error');
-
-          if (errorDescription) {
-            lastHandledCode = null;
-            Alert.alert(
-              'Connexion Google refusee',
-              `Supabase / Google a renvoye:
-
-${decodeURIComponent(errorDescription)}
-
-redirectTo attendu dans Supabase > Authentication > URL Configuration:
-${redirectUrl}`
-            );
-            return;
-          }
-
-          if (code && code !== lastHandledCode) {
-            lastHandledCode = code;
-            const { error: sessionError } = await supabase.auth.exchangeCodeForSession(code);
-            if (sessionError) throw sessionError;
-            onComplete();
-            return;
-          }
-
-          // Deep link recu SANS code : la whitelist Supabase a probablement renvoye
-          // le navigateur vers le "Site URL" au lieu de l'app.
-          Alert.alert(
-            'Connexion incomplète',
-            `Aucun code d'autorisation recu.
-
-URL recue:
-${result.url}
-
-A verifier dans Supabase > Authentication > URL Configuration :
-1) Redirect URLs doit contenir :
-${redirectUrl}
-2) Site URL ne doit PAS etre localhost (mettre ${redirectUrl})
-3) Google Cloud > Authorized redirect URIs doit contenir :
-https://<PROJECT_REF>.supabase.co/auth/v1/callback`
-          );
-        } else if (result.type === 'cancel' || result.type === 'dismiss') {
-          // L'utilisateur a ferme la fenetre Google : pas d'alerte bloquante
-          console.log("Connexion Google annulee par l'utilisateur");
-        }
+      if (result.type === 'cancel' || result.type === 'dismiss') {
+        // Fenetre fermee : si le deep link est deja passe par le listener
+        // Linking, la session est etablie et onComplete a ete appele la-bas.
+        console.log('Fenetre Google fermee (deep link traite par le listener)');
+        return;
       }
+
+      if (result.type !== 'success' || !result.url) return;
+
+      const auth = await completeAuthFromUrl(result.url);
+
+      if (auth.status === 'session') {
+        onComplete();
+        return;
+      }
+
+      if (auth.status === 'already-handled') {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session) onComplete();
+        return;
+      }
+
+      if (auth.status === 'error') {
+        Alert.alert('Connexion Google refusee', auth.message);
+        return;
+      }
+
+      Alert.alert(
+        'Connexion incomplete',
+        `Aucun code ni token recu.\nURL recue :\n${result.url}\n\nA verifier :\n1) Supabase > Authentication > URL Configuration > Redirect URLs : seriousapp://auth-callback\n2) Google Cloud > Authorized redirect URIs : https://<PROJECT_REF>.supabase.co/auth/v1/callback`
+      );
     } catch (error: any) {
-      Alert.alert('Erreur', error.message || 'Échec de la connexion Google.');
+      Alert.alert('Erreur', error.message || 'Echec de la connexion Google.');
     } finally {
       setLoading(false);
     }

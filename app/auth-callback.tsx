@@ -1,12 +1,15 @@
 import { useEffect } from 'react';
 import { View, ActivityIndicator, Text } from 'react-native';
 import { useRouter } from 'expo-router';
+import * as Linking from 'expo-linking';
 import { supabase } from '@/lib/supabase';
+import { completeAuthFromUrl } from '@/lib/auth-url';
 
 // Route cible du deep link OAuth : seriousapp://auth-callback
 // (URL declaree dans Supabase > Authentication > URL Configuration).
-// L'echange du code est fait par AuthScreen / openAuthSessionAsync ;
-// cet ecran sert de filet de securite et redirige des qu'une session existe.
+// Le traitement de l'URL (code PKCE ou tokens du flow implicite) est fait
+// par lib/auth-url.ts, utilise ici ET dans AuthScreen : les deux peuvent
+// recevoir l'URL, le garde-fou y evite tout double traitement.
 export default function AuthCallback() {
   const router = useRouter();
 
@@ -18,7 +21,17 @@ export default function AuthCallback() {
       if (session && !cancelled) router.replace('/');
     };
 
-    redirectIfSession();
+    const handleUrl = async (url: string | null) => {
+      await completeAuthFromUrl(url);
+      if (cancelled) return;
+      await redirectIfSession();
+    };
+
+    Linking.getInitialURL().then(handleUrl).catch(() => {});
+
+    const subscription = Linking.addEventListener('url', ({ url }) => {
+      handleUrl(url);
+    });
 
     const { data: authListener } = supabase.auth.onAuthStateChange((_event, session) => {
       if (session) router.replace('/');
@@ -26,6 +39,7 @@ export default function AuthCallback() {
 
     return () => {
       cancelled = true;
+      subscription.remove();
       authListener.subscription.unsubscribe();
     };
   }, [router]);
