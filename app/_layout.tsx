@@ -3,6 +3,9 @@ import { Stack, useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import * as Device from 'expo-device';
 import * as Notifications from 'expo-notifications';
+import Constants from 'expo-constants';
+import * as SplashScreen from 'expo-splash-screen';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import 'react-native-reanimated';
 import { useState, useEffect, useCallback } from 'react';
 import { 
@@ -43,6 +46,33 @@ Notifications.setNotificationHandler({
     shouldShowList: true,
   }),
 });
+
+// Le splash natif reste affiche jusqu a ce que l etat auth + profil soit connu :
+// evite tout clignotement entre l ecran de login, "Completer le profil" et l accueil.
+SplashScreen.preventAutoHideAsync().catch(() => {});
+
+type ProfileStatus = 'unknown' | 'ready' | 'missing';
+
+// Cache local du statut de profil, par utilisateur : demarrage instantane,
+// la revalidation serveur se faisant ensuite en arriere-plan.
+const PROFILE_CACHE_PREFIX = 'profile_ready:';
+
+async function readProfileCache(userId: string): Promise<boolean | null> {
+  try {
+    const value = await AsyncStorage.getItem(PROFILE_CACHE_PREFIX + userId);
+    if (value === null) return null;
+    return value === '1';
+  } catch {
+    return null;
+  }
+}
+
+async function writeProfileCache(userId: string, ready: boolean): Promise<void> {
+  try {
+    if (ready) await AsyncStorage.setItem(PROFILE_CACHE_PREFIX + userId, '1');
+    else await AsyncStorage.removeItem(PROFILE_CACHE_PREFIX + userId);
+  } catch {}
+}
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
@@ -211,17 +241,17 @@ export default function RootLayout() {
   const [isReady, setIsReady] = useState(false);
   const [hasSeenOnboarding, setHasSeenOnboarding] = useState(false);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [hasCompletedProfile, setHasCompletedProfile] = useState(false);
+  const [profileStatus, setProfileStatus] = useState<ProfileStatus>('unknown');
 
   useEffect(() => {
-    if (isAuthenticated && hasCompletedProfile) {
+    if (isAuthenticated && profileStatus === 'ready') {
       registerForPushNotificationsAsync().then(token => {
         if (token) {
           savePushToken(token);
         }
       });
     }
-  }, [isAuthenticated, hasCompletedProfile]);
+  }, [isAuthenticated, profileStatus]);
 
   useEffect(() => {
     const responseListener = Notifications.addNotificationResponseReceivedListener((response: any) => {
@@ -256,7 +286,15 @@ export default function RootLayout() {
         return;
       }
       try {
-        const projectId = '74bbbd37-e090-47e9-8950-fe52865da619';
+        // Toujours lire le projectId depuis app.json (EAS) :
+        // l'ancienne valeur codee en dur pointait vers un projet etranger.
+        const projectId =
+          Constants.expoConfig?.extra?.eas?.projectId ??
+          (Constants as any).easConfig?.projectId;
+        if (!projectId) {
+          console.warn('[Push] projectId EAS introuvable : token non demande');
+          return;
+        }
         token = (await Notifications.getExpoPushTokenAsync({ projectId })).data;
       } catch (e) {
         console.log("Erreur lors de la récupération du token push:", e);
@@ -307,13 +345,20 @@ export default function RootLayout() {
     checkAuthState();
 
     const { data: authListener } = supabase.auth.onAuthStateChange(async (event, session) => {
-      if (session?.user) {
-        setHasSeenOnboarding(true);
-        setIsAuthenticated(true);
-        checkProfile(session.user.id);
-      } else {
+      if (!session?.user) {
         setIsAuthenticated(false);
-        setHasCompletedProfile(false);
+        setProfileStatus('unknown');
+        return;
+      }
+
+      setHasSeenOnboarding(true);
+      setIsAuthenticated(true);
+
+      // On ne reverifie le profil que sur une vraie connexion : inutile de
+      // relancer la requete a chaque TOKEN_REFRESHED (une fois par heure).
+      if (event === 'SIGNED_IN') {
+        setProfileStatus('unknown');
+        checkProfile(session.user.id);
       }
     });
 
@@ -322,13 +367,21 @@ export default function RootLayout() {
     };
   }, []);
 
+  // Masque le splash natif DAS que l'ecran reel est pret a s'afficher
+  // (jamais pendant que le statut de profil est encore inconnu).
+  useEffect(() => {
+    if (isReady && (!isAuthenticated || profileStatus !== 'unknown')) {
+      SplashScreen.hideAsync().catch(() => undefined);
+    }
+  }, [isReady, isAuthenticated, profileStatus]);
+
   const checkAuthState = async () => {
     try {
       const { data: { session } } = await supabase.auth.getSession();
       if (session?.user) {
         setHasSeenOnboarding(true);
         setIsAuthenticated(true);
-        await checkProfile(session.user.id);
+        checkProfile(session.user.id);
       }
     } catch (e) {
       console.log(e);
@@ -338,26 +391,54 @@ export default function RootLayout() {
   };
 
   const checkProfile = async (userId: string) => {
-    try {
-      const { data } = await supabase
+    // 1) Cache local : statut immediat pour un utilisateur deja connu
+    //    (zero latence au demarrage), puis revalidation serveur.
+    const cached = await readProfileCache(userId);
+    if (cached !== null) setProfileStatus(cached ? 'ready' : 'missing');
+
+    // 2) Revalidation serveur — .maybeSingle() et non .single() : une erreur
+    //    reseau ne doit pas etre interpretee comme "profil absent".
+    for (let attempt = 1; attempt <= 2; attempt++) {
+      const { data, error } = await supabase
         .from('profiles')
         .select('id')
         .eq('user_id', userId)
-        .single();
-        
-      if (data) setHasCompletedProfile(true);
-      else setHasCompletedProfile(false);
-    } catch (e) {
-      setHasCompletedProfile(false);
+        .maybeSingle();
+
+      if (!error) {
+        const ready = !!data;
+        setProfileStatus(ready ? 'ready' : 'missing');
+        void writeProfileCache(userId, ready);
+        return;
+      }
+
+      console.warn(`[AuthFlow] checkProfile echec (${attempt}/2) : ${error.message}`);
+      await new Promise((resolve) => setTimeout(resolve, 400 * attempt));
+    }
+
+    // 3) Reseau toujours muet : sans cache, on laisse l'utilisateur entrer plutot
+    //    que de lui imposer a tort l'ecran "Completer le profil".
+    if (cached === null) {
+      console.warn('[AuthFlow] statut profil indetermine -> acces autorise');
+      setProfileStatus('ready');
     }
   };
 
+  const loadingScreen = (
+    <View
+      style={{
+        flex: 1,
+        justifyContent: 'center',
+        alignItems: 'center',
+        backgroundColor: colorScheme === 'dark' ? '#111827' : '#f9fafb',
+      }}
+    >
+      <ActivityIndicator size="large" color="#f43f5e" />
+    </View>
+  );
+
   if (!isReady) {
-    return (
-      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: colorScheme === 'dark' ? '#111827' : '#f9fafb' }}>
-        <ActivityIndicator size="large" color="#f43f5e" />
-      </View>
-    );
+    return loadingScreen;
   }
 
   if (!hasSeenOnboarding) {
@@ -365,11 +446,40 @@ export default function RootLayout() {
   }
 
   if (!isAuthenticated) {
-    return <AuthScreen onComplete={() => setIsAuthenticated(true)} />;
+    return (
+      <AuthScreen
+        onComplete={() => {
+          setIsAuthenticated(true);
+          // Le statut du profil est inconnu jusqu'a la reponse de checkProfile :
+          // on n'affiche surtout pas "Completer le profil" entre-temps (flash de login).
+          setProfileStatus('unknown');
+        }}
+      />
+    );
   }
 
-  if (!hasCompletedProfile) {
-    return <ProfileCreation onComplete={() => setHasCompletedProfile(true)} />;
+  // Statut du profil encore inconnu (cache vide / requete en cours) : on affiche le
+  // loader, JAMAIS l'ecran "Completer le profil" — c'est la correction du flash.
+  if (profileStatus === 'unknown') {
+    return loadingScreen;
+  }
+
+  if (profileStatus === 'missing') {
+    return (
+      <ProfileCreation
+        onComplete={async () => {
+          setProfileStatus('ready');
+          try {
+            const {
+              data: { user },
+            } = await supabase.auth.getUser();
+            if (user) await writeProfileCache(user.id, true);
+          } catch {
+            // cache best effort
+          }
+        }}
+      />
+    );
   }
 
   return (
