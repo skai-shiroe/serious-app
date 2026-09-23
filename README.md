@@ -50,6 +50,45 @@ Une application de rencontre moderne et engagée, conçue avec un focus particul
    npx expo start --offline
    ```
 
+## 🔐 Redirect URLs (OAuth Google)
+
+Ces URLs doivent être déclarées dans **Supabase → Authentication → URL Configuration → Redirect URLs** :
+
+```
+seriousapp://auth-callback
+exp+seriousapp://auth-callback
+http://localhost:8081/**
+http://192.168.1.237:8081/**
+http://localhost:8083/**
+http://192.168.1.237:8083/**
+```
+
+Et dans **Google Cloud Console → Identifiants OAuth → Authorized redirect URIs** :
+
+```
+https://<PROJECT_REF>.supabase.co/auth/v1/callback
+```
+
+> `seriousapp://auth-callback` est l''URL utilisée par les builds natifs (dev build / production),
+> `exp+seriousapp://auth-callback` par Expo Go, et les URLs `http://...` servent au développement web.
+
+## 📲 Development Build (sans Expo Go)
+
+```bash
+# 1. Dépendance du client de développement (obligatoire)
+npx expo install expo-dev-client
+
+# 2. Build cloud de développement (APK installable)
+npx eas-cli build --profile development --platform android
+
+# 3. Installer l''APK sur l''appareil, puis lancer le bundler
+npx expo start --dev-client
+```
+
+**Pré-requis push notifications (Android)** : les dev builds n''utilisent plus les credentials
+FCM d''Expo Go. Il faut ajouter un **FCM Service Account Key** dans
+EAS → Project → Credentials → Android, sinon les Edge Functions `notify-*` échoueront.
+
 ## 📜 Base de Données
 
 Le projet utilise les tables suivantes dans Supabase :

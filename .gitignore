@@ -3,6 +3,10 @@
 # dependencies
 node_modules/
 
+# lockfile alternatif (projet gere par npm)
+bun.lock
+bun.lockb
+
 # Expo
 .expo/
 dist/

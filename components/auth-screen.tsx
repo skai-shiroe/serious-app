@@ -10,6 +10,10 @@ import { supabase } from '@/lib/supabase';
 
 WebBrowser.maybeCompleteAuthSession();
 
+// Garde-fou : un meme code OAuth ne doit jamais etre echange deux fois
+// (le deep link et le retour de openAuthSessionAsync peuvent le fournir en double)
+let lastHandledCode: string | null = null;
+
 interface AuthScreenProps {
   onComplete: () => void;
 }
@@ -29,29 +33,42 @@ export default function AuthScreen({ onComplete }: AuthScreenProps) {
   const isDark = colorScheme === 'dark';
 
   useEffect(() => {
+    // Deep link recu (seriousapp://auth-callback) : on echange le code contre une session
     const handleUrl = async (url: string | null) => {
       if (!url) return;
-      
-      const parsedUrl = Linking.parse(url);
-      const code = parsedUrl.queryParams?.code as string | undefined;
-      
-      if (code) {
-        setLoading(true);
-        try {
-          const { error: sessionError } = await supabase.auth.exchangeCodeForSession(code);
-          if (sessionError) throw sessionError;
-          onComplete();
-        } catch (error: any) {
-          Alert.alert('Erreur', error.message || 'Échec de la connexion Google.');
-        } finally {
-          setLoading(false);
-        }
+
+      const { queryParams } = Linking.parse(url);
+      const code = queryParams?.code as string | undefined;
+      const errorDescription = (queryParams?.error_description || queryParams?.error) as string | undefined;
+
+      if (errorDescription) {
+        lastHandledCode = null;
+        Alert.alert('Erreur', decodeURIComponent(String(errorDescription)));
+        setLoading(false);
+        return;
+      }
+
+      if (!code || code === lastHandledCode) return;
+      lastHandledCode = code;
+
+      setLoading(true);
+      try {
+        const { error: sessionError } = await supabase.auth.exchangeCodeForSession(code);
+        if (sessionError) throw sessionError;
+        onComplete();
+      } catch (error: any) {
+        lastHandledCode = null;
+        Alert.alert('Erreur', error.message || 'Echec de la connexion Google.');
+      } finally {
+        setLoading(false);
       }
     };
 
-    Linking.getInitialURL().then(handleUrl);
-    const subscription = Linking.addEventListener('url', ({ url }) => handleUrl(url));
-    
+    Linking.getInitialURL().then(handleUrl).catch(() => {});
+    const subscription = Linking.addEventListener('url', ({ url }) => {
+      handleUrl(url);
+    });
+
     return () => {
       subscription.remove();
     };
@@ -105,6 +122,7 @@ export default function AuthScreen({ onComplete }: AuthScreenProps) {
     try {
       const redirectUrl = AuthSession.makeRedirectUri({
         scheme: 'seriousapp',
+        path: 'auth-callback',
       });
 
       const { data, error } = await supabase.auth.signInWithOAuth({
@@ -123,12 +141,19 @@ export default function AuthScreen({ onComplete }: AuthScreenProps) {
         if (result.type === 'success' && result.url) {
           const url = new URL(result.url);
           const code = url.searchParams.get('code');
+          const errorDescription = url.searchParams.get('error_description');
 
-          if (code) {
+          if (errorDescription) throw new Error(errorDescription);
+
+          if (code && code !== lastHandledCode) {
+            lastHandledCode = code;
             const { error: sessionError } = await supabase.auth.exchangeCodeForSession(code);
             if (sessionError) throw sessionError;
             onComplete();
           }
+        } else if (result.type === 'cancel' || result.type === 'dismiss') {
+          // L'utilisateur a ferme la fenetre Google : pas d'alerte bloquante
+          console.log("Connexion Google annulee par l'utilisateur");
         }
       }
     } catch (error: any) {
@@ -362,7 +387,7 @@ export default function AuthScreen({ onComplete }: AuthScreenProps) {
           {/* Terms */}
           <Text style={styles.termsText}>
             En continuant, vous acceptez nos{' '}
-            <Text style={styles.termsLink}>Conditions d'utilisation</Text>
+            <Text style={styles.termsLink}>Conditions d&apos;utilisation</Text>
             {' '}et notre{' '}
             <Text style={styles.termsLink}>Politique de confidentialité</Text>
           </Text>

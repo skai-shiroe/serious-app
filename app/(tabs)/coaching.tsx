@@ -226,7 +226,7 @@ export default function CoachingScreen() {
             <View style={{ flex: 1 }}>
               <Text style={[styles.title, { color: themeColors.text }]}>Conseils Coaching</Text>
               <Text style={[styles.subtitle, { color: themeColors.textMuted }]}>
-                Votre fil d'actualités pour une vie épanouie
+                Votre fil d&apos;actualités pour une vie épanouie
               </Text>
             </View>
             {!roleLoading && (userRole === 'admin' || userRole === 'manager') && (

@@ -424,7 +424,7 @@ export default function ProfileCreation({ onComplete, initialData }: ProfileCrea
       </View>
 
       <View style={styles.inputGroup}>
-        <Text style={[styles.label, { color: themeColors.text }]}>Centres d'intérêt (plusieurs possibles)</Text>
+        <Text style={[styles.label, { color: themeColors.text }]}>Centres d&apos;intérêt (plusieurs possibles)</Text>
         <View style={styles.tagsContainer}>
           {INTERESTS_LIST.map((interest) => {
             const isSelected = formData.interests.includes(interest);
@@ -475,7 +475,7 @@ export default function ProfileCreation({ onComplete, initialData }: ProfileCrea
         ]}
       >
         <Text style={[styles.infoText, { color: themeColors.infoText }]}>
-          Ces informations sont confidentielles et permettent d'évaluer la compatibilité médicale
+          Ces informations sont confidentielles et permettent d&apos;évaluer la compatibilité médicale
           avec vos futurs matchs.
         </Text>
       </View>
@@ -553,7 +553,7 @@ export default function ProfileCreation({ onComplete, initialData }: ProfileCrea
 
       {/* Photo grid */}
       <View style={styles.inputGroup}>
-        <Text style={[styles.label, { color: themeColors.text }]}>Photos (jusqu'à 6)</Text>
+        <Text style={[styles.label, { color: themeColors.text }]}>Photos (jusqu&apos;à 6)</Text>
         <View style={styles.photoGrid}>
           {photos.map((photo, index) => (
             <TouchableOpacity

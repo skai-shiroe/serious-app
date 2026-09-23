@@ -66,7 +66,7 @@ export default function MessagesScreen() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
-      // 1. Récupérer tous les matches
+      // 1. Récupérer tous les matches de l'utilisateur
       const { data: matches, error: matchError } = await supabase
         .from('matches')
         .select('*')
@@ -74,57 +74,79 @@ export default function MessagesScreen() {
 
       if (matchError) throw matchError;
 
-      const convs: Conversation[] = [];
+      if (!matches || matches.length === 0) {
+        setConversations([]);
+        return;
+      }
 
-      for (const match of matches || []) {
-        const otherUserId = match.user_id_1 === user.id ? match.user_id_2 : match.user_id_1;
+      const matchIds = matches.map((m) => m.id);
+      const otherUserIds = matches.map((m) =>
+        m.user_id_1 === user.id ? m.user_id_2 : m.user_id_1
+      );
 
-        // 2. Profil de l'autre utilisateur
-        const { data: profile } = await supabase
+      // 2. Profils + présences + compteurs de non-lus : 3 requêtes groupées
+      //    (auparavant : 4 requêtes séquentielles par conversation)
+      const [profilesRes, presenceRes, unreadRes] = await Promise.all([
+        supabase
           .from('profiles')
           .select('user_id, first_name, photos')
-          .eq('user_id', otherUserId)
-          .single();
-
-        // 3. Présence de l'autre utilisateur
-        const { data: presence } = await supabase
+          .in('user_id', otherUserIds),
+        supabase
           .from('presence')
-          .select('last_seen')
-          .eq('user_id', otherUserId)
-          .maybeSingle();
-
-        // 4. Dernier message
-        const { data: lastMessages } = await supabase
+          .select('user_id, last_seen')
+          .in('user_id', otherUserIds),
+        supabase
           .from('messages')
-          .select('content, created_at, sender_id')
-          .eq('match_id', match.id)
-          .order('created_at', { ascending: false })
-          .limit(1);
-
-        // 5. Messages non lus (envoyés par l'autre)
-        const { count: unreadCount } = await supabase
-          .from('messages')
-          .select('*', { count: 'exact', head: true })
-          .eq('match_id', match.id)
+          .select('match_id')
+          .in('match_id', matchIds)
           .eq('read', false)
-          .neq('sender_id', user.id);
+          .neq('sender_id', user.id),
+      ]);
 
+      const profilesById = new Map<string, any>(
+        (profilesRes.data || []).map((p: any) => [p.user_id, p])
+      );
+      const presenceById = new Map<string, any>(
+        (presenceRes.data || []).map((p: any) => [p.user_id, p])
+      );
+      const unreadByMatch = new Map<string, number>();
+      (unreadRes.data || []).forEach((m: any) => {
+        unreadByMatch.set(m.match_id, (unreadByMatch.get(m.match_id) || 0) + 1);
+      });
+
+      // 3. Dernier message de chaque conversation, en parallèle
+      const lastMessages = await Promise.all(
+        matchIds.map(async (matchId) => {
+          const { data } = await supabase
+            .from('messages')
+            .select('content, created_at, sender_id')
+            .eq('match_id', matchId)
+            .order('created_at', { ascending: false })
+            .limit(1);
+          return data?.[0];
+        })
+      );
+
+      const now = Date.now();
+      const convs: Conversation[] = matches.map((match, index) => {
+        const otherUserId = otherUserIds[index];
+        const profile = profilesById.get(otherUserId);
+        const presence = presenceById.get(otherUserId);
         const lastSeenDate = presence?.last_seen ? new Date(presence.last_seen) : null;
-        const isOnline = lastSeenDate ? (new Date().getTime() - lastSeenDate.getTime()) < 60000 : false;
 
-        convs.push({
+        return {
           id: match.id,
           otherUser: {
             id: otherUserId,
             first_name: profile?.first_name || 'Utilisateur',
             photos: profile?.photos || [],
-            last_seen: presence?.last_seen
+            last_seen: presence?.last_seen,
           },
-          lastMessage: lastMessages?.[0],
-          unreadCount: unreadCount || 0,
-          isOnline
-        });
-      }
+          lastMessage: lastMessages[index],
+          unreadCount: unreadByMatch.get(match.id) || 0,
+          isOnline: lastSeenDate ? now - lastSeenDate.getTime() < 60000 : false,
+        };
+      });
 
       // Trier par date du dernier message
       convs.sort((a, b) => {

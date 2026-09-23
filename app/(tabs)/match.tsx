@@ -464,7 +464,7 @@ export default function MatchScreen() {
             <LinearGradient colors={['#f43f5e', '#ec4899']} style={StyleSheet.absoluteFill} />
             <SafeAreaView style={styles.matchContent}>
               <Animated.View entering={ZoomIn.delay(300)}>
-                <Text style={styles.matchTitle}>C'est un Match ! 🎉</Text>
+                <Text style={styles.matchTitle}>C&apos;est un Match ! 🎉</Text>
                 <Text style={styles.matchSub}>Vous et {showMatch.partner.first_name} vous plaisez mutuellement.</Text>
               </Animated.View>
 

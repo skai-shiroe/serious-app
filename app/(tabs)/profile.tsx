@@ -242,7 +242,7 @@ export default function ProfileScreen() {
 
         {/* Interests */}
         <View style={[styles.card, { backgroundColor: themeColors.bgCard, borderColor: themeColors.border }]}>
-          <Text style={[styles.sectionTitle, { color: themeColors.text }]}>Mes centres d'intérêt</Text>
+          <Text style={[styles.sectionTitle, { color: themeColors.text }]}>Mes centres d&apos;intérêt</Text>
           {profile?.interests?.length > 0 ? (
             <View style={styles.tagsContainer}>
               {profile.interests.map((tag: string, i: number) => (
@@ -252,7 +252,7 @@ export default function ProfileScreen() {
               ))}
             </View>
           ) : (
-            <Text style={{ color: themeColors.textMuted }}>Aucun centre d'intérêt renseigné</Text>
+            <Text style={{ color: themeColors.textMuted }}>Aucun centre d&apos;intérêt renseigné</Text>
           )}
         </View>
 
