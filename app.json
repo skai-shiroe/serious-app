@@ -2,6 +2,7 @@
   "expo": {
     "name": "serious-app",
     "slug": "serious-app",
+    "owner": "skai-devs-team",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
@@ -59,14 +60,14 @@
     "extra": {
       "router": {},
       "eas": {
-        "projectId": "74bbbd37-e090-47e9-8950-fe52865da619"
+        "projectId": "3702286b-abe2-4a52-97b8-639f8a6c1065"
       }
     },
     "runtimeVersion": {
       "policy": "appVersion"
     },
     "updates": {
-      "url": "https://u.expo.dev/74bbbd37-e090-47e9-8950-fe52865da619"
+      "url": "https://u.expo.dev/3702286b-abe2-4a52-97b8-639f8a6c1065"
     }
   }
 }
