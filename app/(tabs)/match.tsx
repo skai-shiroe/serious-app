@@ -3,7 +3,7 @@ import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as Haptics from 'expo-haptics';
 import { Filter, Heart, MapPin, X, Info, CheckCircle2, ChevronLeft, ChevronRight } from 'lucide-react-native';
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { ActivityIndicator, Dimensions, Modal, StyleSheet, Text, TouchableOpacity, useColorScheme, View, ScrollView } from 'react-native';
 import { Gesture, GestureDetector, GestureHandlerRootView } from 'react-native-gesture-handler';
 import Animated, { useAnimatedStyle, useSharedValue, withSpring, runOnJS, interpolate, Extrapolation, withTiming, FadeIn, FadeOut, ZoomIn } from 'react-native-reanimated';
@@ -53,6 +53,12 @@ export default function MatchScreen() {
 
   const translateX = useSharedValue(0);
   const translateY = useSharedValue(0);
+
+  // Refs synchronisees : evite les closures obsoletes lors de swipes rapides
+  // et sert a la pagination du deck.
+  const profilesRef = useRef<any[]>([]);
+  const currentIndexRef = useRef(0);
+  const loadingMoreRef = useRef(false);
 
   const calculateAge = (birthDateStr: string) => {
     if (!birthDateStr) return null;
@@ -121,13 +127,119 @@ export default function MatchScreen() {
     }
   }, [filters]);
 
+  // Precharge les photos dans le cache MEMOIRE : la carte est deja decodee
+  // quand elle passe au premier plan (supprime l'effet "carte grise").
+  const prefetchPhotos = useCallback((list: any[], from: number, count: number, perProfile: number) => {
+    const urls: string[] = [];
+    for (let i = from; i < Math.min(from + count, list.length); i++) {
+      const pics: string[] = list[i]?.photos || [];
+      pics.slice(0, perProfile).forEach((uri) => {
+        if (typeof uri === 'string' && uri.startsWith('http')) urls.push(uri);
+      });
+    }
+    if (urls.length > 0) {
+      void Image.prefetch(urls, 'memory-disk').catch(() => undefined);
+    }
+  }, []);
+
+  // Deck quasi infini : recharge la suite en excluant ce qui est deja charge/swipe
+  const fetchMoreProfiles = useCallback(async () => {
+    if (loadingMoreRef.current) return;
+    loadingMoreRef.current = true;
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const { data: swipedData } = await supabase
+        .from('swipes')
+        .select('swiped_id')
+        .eq('swiper_id', user.id);
+
+      const excluded = Array.from(new Set([
+        ...profilesRef.current.map((p) => p.user_id).filter(Boolean),
+        ...(swipedData?.map((s) => s.swiped_id) || []),
+        user.id,
+      ]));
+
+      let query = supabase
+        .from('profiles')
+        .select('*');
+
+      if (excluded.length > 0) {
+        query = query.filter('user_id', 'not.in', `(${excluded.join(',')})`);
+      }
+      if (filters.city) {
+        query = query.ilike('city', `%${filters.city}%`);
+      }
+      if (filters.bloodType) {
+        query = query.eq('blood_type', filters.bloodType);
+      }
+      if (filters.sickleCell) {
+        query = query.eq('sickle_cell', filters.sickleCell);
+      }
+
+      const { data, error } = await query.limit(10);
+      if (error) throw error;
+
+      const more = (data || []).filter((p) => {
+        const age = calculateAge(p.birth_date);
+        if (!age) return true;
+        return age >= filters.ageMin && age <= filters.ageMax;
+      });
+
+      if (more.length > 0) {
+        setProfiles((prev) => [...prev, ...more]);
+      }
+    } catch (error) {
+      console.log('Error fetching more profiles', error);
+    } finally {
+      loadingMoreRef.current = false;
+    }
+  }, [filters]);
+
   useEffect(() => {
     fetchProfiles();
   }, [fetchProfiles]);
 
+  // Reference a jour de l'etat, pour les callbacks de gestes
+  useEffect(() => {
+    profilesRef.current = profiles;
+  }, [profiles]);
+
+  // Prechargement : photo principale des 3 profils suivants + toutes les photos
+  // de la carte active (pour les taps gauche/droite).
+  useEffect(() => {
+    currentIndexRef.current = currentIndex;
+    prefetchPhotos(profiles, currentIndex + 1, 3, 1);
+    prefetchPhotos(profiles, currentIndex, 1, 6);
+  }, [currentIndex, profiles, prefetchPhotos]);
+
+  useEffect(() => {
+    if (profiles.length > 0 && currentIndex >= profiles.length - 3) {
+      fetchMoreProfiles();
+    }
+  }, [currentIndex, profiles.length, fetchMoreProfiles]);
+
+  const handlePhotoTap = (delta: number) => {
+    const profile = profilesRef.current[currentIndexRef.current];
+    const total = profile?.photos?.length ?? 0;
+    if (total <= 1) return;
+    setCurrentPhotoIndex((prev) => Math.min(Math.max(prev + delta, 0), total - 1));
+  };
+
+  const handleOpenProfileSheet = () => {
+    const profile = profilesRef.current[currentIndexRef.current];
+    if (profile) openProfileSheet(profile);
+  };
+
   const onSwipeComplete = (direction: 'left' | 'right') => {
-    const swipedProfile = profiles[currentIndex];
+    const swipedProfile = profilesRef.current[currentIndexRef.current];
     if (!swipedProfile) return;
+
+    // Retour haptique immediat (avant les allers-retours reseau)
+    Haptics.impactAsync(
+      direction === 'right' ? Haptics.ImpactFeedbackStyle.Light : Haptics.ImpactFeedbackStyle.Medium
+    );
 
     setCurrentIndex((prev) => prev + 1);
     setCurrentPhotoIndex(0);
@@ -160,11 +272,7 @@ export default function MatchScreen() {
               me: currentUser,
               partner: swipedProfile
             });
-          } else {
-            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
           }
-        } else {
-          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
         }
       } catch (err) {
         console.error('Background swipe error:', err);
@@ -179,11 +287,11 @@ export default function MatchScreen() {
     })
     .onEnd((event) => {
       if (translateX.value > SWIPE_THRESHOLD) {
-        translateX.value = withSpring(SCREEN_WIDTH * 1.5, {}, () => {
+        translateX.value = withTiming(SCREEN_WIDTH * 1.5, { duration: 200 }, () => {
           runOnJS(onSwipeComplete)('right');
         });
       } else if (translateX.value < -SWIPE_THRESHOLD) {
-        translateX.value = withSpring(-SCREEN_WIDTH * 1.5, {}, () => {
+        translateX.value = withTiming(-SCREEN_WIDTH * 1.5, { duration: 200 }, () => {
           runOnJS(onSwipeComplete)('left');
         });
       } else {
@@ -196,22 +304,16 @@ export default function MatchScreen() {
     .onEnd((event) => {
       const x = event.x;
       const cardWidth = SCREEN_WIDTH - 32;
-      const profile = profiles[currentIndex];
-      if (!profile || !profile.photos) return;
 
       if (x < cardWidth * 0.3) {
         // Tap gauche -> photo précédente
-        if (currentPhotoIndex > 0) {
-          runOnJS(setCurrentPhotoIndex)(currentPhotoIndex - 1);
-        }
+        runOnJS(handlePhotoTap)(-1);
       } else if (x > cardWidth * 0.7) {
         // Tap droite -> photo suivante
-        if (currentPhotoIndex < profile.photos.length - 1) {
-          runOnJS(setCurrentPhotoIndex)(currentPhotoIndex + 1);
-        }
+        runOnJS(handlePhotoTap)(1);
       } else {
         // Tap centre -> détails
-        runOnJS(openProfileSheet)(profile);
+        runOnJS(handleOpenProfileSheet)();
       }
     });
 
@@ -243,8 +345,19 @@ export default function MatchScreen() {
     };
   });
 
+  // La carte du dessous "grandit" avec la progression du swipe : elle est deja
+  // a l'echelle 1 / pleinement opaque quand elle devient la carte active.
+  const nextCardStyle = useAnimatedStyle(() => {
+    const progress = Math.min(Math.abs(translateX.value) / SWIPE_THRESHOLD, 1);
+    return {
+      transform: [{ scale: 0.96 + 0.04 * progress }],
+      opacity: 0.85 + 0.15 * progress,
+    };
+  });
+
   const handleAction = (direction: 'left' | 'right') => {
-    translateX.value = withSpring(direction === 'right' ? SCREEN_WIDTH * 1.5 : -SCREEN_WIDTH * 1.5, {}, () => {
+    const target = direction === 'right' ? SCREEN_WIDTH * 1.5 : -SCREEN_WIDTH * 1.5;
+    translateX.value = withTiming(target, { duration: 200 }, () => {
       runOnJS(onSwipeComplete)(direction);
     });
   };
@@ -259,6 +372,8 @@ export default function MatchScreen() {
 
   const currentProfile = profiles[currentIndex];
   const nextProfile = profiles[currentIndex + 1];
+  const currentPhoto = currentProfile?.photos?.[currentPhotoIndex];
+  const nextPhoto = nextProfile?.photos?.[0];
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
@@ -279,23 +394,29 @@ export default function MatchScreen() {
 
         <View style={styles.cardContainer}>
           {nextProfile && (
-            <View style={[styles.card, styles.nextCard, { backgroundColor: themeColors.card }]}>
-               <Image 
-                source={{ uri: nextProfile.photos?.[0] || 'https://via.placeholder.com/600x800' }} 
-                style={styles.image} 
+            <Animated.View style={[styles.card, styles.nextCard, { backgroundColor: themeColors.card }, nextCardStyle]}>
+              <Image
+                source={nextPhoto ? { uri: nextPhoto } : undefined}
+                style={styles.image}
                 contentFit="cover"
+                cachePolicy="memory-disk"
+                priority="low"
+                recyclingKey={`next-${nextProfile.user_id}`}
               />
-            </View>
+            </Animated.View>
           )}
 
           {currentProfile ? (
             <GestureDetector gesture={Gesture.Exclusive(panGesture, tapGesture)}>
-              <Animated.View style={[styles.card, { backgroundColor: themeColors.card }, cardStyle]}>
-                <Image 
-                  source={{ uri: currentProfile.photos?.[currentPhotoIndex] || 'https://via.placeholder.com/600x800' }} 
-                  style={styles.image} 
+              <Animated.View style={[styles.card, styles.activeCard, { backgroundColor: themeColors.card }, cardStyle]}>
+                <Image
+                  source={currentPhoto ? { uri: currentPhoto } : undefined}
+                  style={styles.image}
                   contentFit="cover"
-                  transition={200}
+                  transition={150}
+                  cachePolicy="memory-disk"
+                  priority="high"
+                  recyclingKey={`active-${currentProfile.user_id}`}
                 />
                 
                 {/* Pagination Dots */}
@@ -469,7 +590,7 @@ export default function MatchScreen() {
               </Animated.View>
 
               <View style={styles.matchImages}>
-                <Image source={{ uri: showMatch.partner.photos?.[0] }} style={[styles.matchImage, styles.matchImageLeft]} />
+                <Image source={{ uri: showMatch.partner.photos?.[0] }} style={[styles.matchImage, styles.matchImageLeft]} cachePolicy="memory-disk" />
                 <View style={styles.matchHeart}>
                   <Heart color="#fff" size={32} fill="#fff" />
                 </View>
@@ -524,7 +645,8 @@ const styles = StyleSheet.create({
     elevation: 10,
     backgroundColor: '#000'
   },
-  nextCard: { position: 'absolute', top: 16, left: 16, right: 16, bottom: 16, zIndex: -1, opacity: 0.5 },
+  nextCard: { position: 'absolute', top: 16, left: 16, right: 16, bottom: 16, zIndex: 0 },
+  activeCard: { zIndex: 1 },
   image: { width: '100%', height: '100%', position: 'absolute' },
   paginationDots: { 
     position: 'absolute', 
