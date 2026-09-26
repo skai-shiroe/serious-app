@@ -416,7 +416,6 @@ export default function MatchScreen() {
                   transition={150}
                   cachePolicy="memory-disk"
                   priority="high"
-                  recyclingKey={`active-${currentProfile.user_id}`}
                 />
                 
                 {/* Pagination Dots */}
