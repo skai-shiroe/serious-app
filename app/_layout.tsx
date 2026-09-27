@@ -32,7 +32,7 @@ import BottomSheet, { BottomSheetScrollView, BottomSheetView } from '@gorhom/bot
 
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { supabase } from '@/lib/supabase';
-import { ensureSessionLoaded, getUser } from '@/lib/session';
+import { getUser, validateSession } from '@/lib/session';
 import { OnboardingScreen } from '@/components/onboarding-screen';
 import AuthScreen from '@/components/auth-screen';
 import ProfileCreation from '@/components/profile-creation';
@@ -386,9 +386,11 @@ export default function RootLayout() {
 
   const checkAuthState = async () => {
     try {
-      // Cache de session partage (aucun appel reseau) + suivi des changements d'auth
-      await ensureSessionLoaded();
-      const user = await getUser();
+      // Lecture locale (aucun appel reseau) + UNE validation serveur au
+      // demarrage : sans elle, un compte supprime cote Supabase laisserait
+      // l'app "connectee" avec un utilisateur inexistant. Une panne reseau,
+      // elle, conserve la session locale.
+      const user = await validateSession();
       if (user) {
         setHasSeenOnboarding(true);
         setIsAuthenticated(true);

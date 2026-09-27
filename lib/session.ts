@@ -13,6 +13,13 @@ import { supabase } from '@/lib/supabase';
  *
  * La securite reste assuree cote serveur par les policies RLS : utiliser cet
  * identifiant ne donne aucun droit supplementaire.
+ *
+ * UNE exception a la regle "aucun reseau" : `validateSession()`, appelee une
+ * seule fois au demarrage. La lecture locale ne peut pas savoir qu'un compte a
+ * ete supprime cote Supabase (la session survit dans le stockage de l'appareil,
+ * et le JWT reste signe valide jusqu'a expiration) : sans ce controle, l'app
+ * reste "connectee" avec un utilisateur inexistant et toute ecriture echoue
+ * (cle etrangere profiles.user_id -> auth.users).
  */
 
 let currentUser: User | null = null;
@@ -72,4 +79,76 @@ export function resetSessionCache() {
   currentUser = null;
   loaded = false;
   loading = null;
+}
+
+/** L'erreur signifie-t-elle que la session n'est plus valable cote serveur ? */
+function isSessionInvalid(error: any): boolean {
+  if (!error) return false;
+
+  const status = error.status ?? error.code;
+  const message = String(error.message ?? '').toLowerCase();
+
+  return (
+    status === 401 ||
+    status === 403 ||
+    message.includes('user from sub claim in jwt does not exist') ||
+    message.includes('user_not_found') ||
+    message.includes('session_not_found') ||
+    message.includes('invalid refresh token') ||
+    message.includes('refresh token not found') ||
+    message.includes('jwt expired')
+  );
+}
+
+/**
+ * Supprime la session stockee sur l'appareil, SANS appel reseau.
+ * `scope: 'local'` est indispensable pour un compte supprime : l'appel de
+ * deconnexion serveur echouerait (401) et laisserait la session en place.
+ */
+export async function forgetSession(): Promise<void> {
+  try {
+    await supabase.auth.signOut({ scope: 'local' });
+  } catch {
+    // best effort : on vide le cache local quoi qu'il arrive
+  }
+  resetSessionCache();
+}
+
+/**
+ * Valide la session aupres du serveur — a appeler UNE fois, au demarrage.
+ *
+ * - session valide            -> renvoie l'utilisateur (rafraichi depuis le serveur) ;
+ * - session morte (compte supprime, refresh impossible) -> deconnexion locale + null ;
+ * - panne reseau              -> conserve la session locale (jamais de deconnexion
+ *   parce qu'on est simplement hors ligne).
+ */
+export async function validateSession(): Promise<User | null> {
+  await ensureSessionLoaded();
+  if (!currentUser) return null;
+
+  try {
+    const { data, error } = await supabase.auth.getUser();
+
+    if (!error && data.user) {
+      syncSessionUser(data.user);
+      return data.user;
+    }
+
+    if (isSessionInvalid(error)) {
+      console.warn(
+        '[Session] session invalide cote serveur (compte supprime ?) : deconnexion locale'
+      );
+      await forgetSession();
+      return null;
+    }
+
+    console.warn(
+      '[Session] validation impossible, session locale conservee :',
+      error?.message || error
+    );
+    return currentUser;
+  } catch (error) {
+    console.warn('[Session] validation impossible, session locale conservee :', error);
+    return currentUser;
+  }
 }

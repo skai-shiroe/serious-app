@@ -31,7 +31,9 @@ Une application de rencontre moderne et engagée, conçue avec un focus particul
   - `lucide-react-native` pour l'iconographie.
 - **Session & utilisateur courant** : `lib/session.ts` — source unique de l'utilisateur connecté,
   lue depuis la **session locale** (`getSession()`) et tenue à jour par `onAuthStateChange`.
-  **Aucun appel réseau** (les `auth.getUser()` revalidaient le JWT à chaque swipe / message).
+  **Aucun appel réseau** dans la boucle swipe / message (les `auth.getUser()` revalidaient le JWT
+  à chaque appel). **Une seule exception** : `validateSession()` au démarrage, qui détecte un
+  compte supprimé côté Supabase et déconnecte localement — jamais sur une simple panne réseau.
 - **Cache d'images** : `lib/images.ts` — `cachePolicy="memory-disk"` + préchargement partagés
   par tous les écrans (plus d'écran gris au changement de carte ou d'avatar).
 - **Temps réel** : Supabase Realtime sur `messages`, `matches` et `presence` (aucun polling).
@@ -40,6 +42,11 @@ Une application de rencontre moderne et engagée, conçue avec un focus particul
   d'identifiants dans l'URL. Ville, groupe sanguin, drépanocytose et **bornes d'âge** sont filtrés
   par la RPC, côté serveur. Aucune requête ne peut plus renvoyer la table entière :
   `coaching_posts` est plafonné à 100 lignes, l'historique d'un chat aux 200 derniers messages.
+- **Création / édition de profil** : `components/profile-creation.tsx` — les photos partent **dès
+  leur sélection** (en parallèle, base64 libéré aussitôt : ~20 Mo de moins en mémoire), nom de
+  fichier versionné avec suppression de l'ancien (aucun orphelin dans `avatars`, aucune image
+  périmée en cache), état par emplacement avec « Réessayer » ciblé. La date de naissance se saisit
+  au clavier `JJ → MM → AAAA` sans avoir à toucher chaque champ.
 - **Erreurs ≠ listes vides** : `components/empty-state.tsx` — un échec réseau affiche un
   message explicite avec un bouton **Réessayer**, et non « Revenez plus tard 💤 ».
 
@@ -144,6 +151,11 @@ Le projet utilise les tables suivantes dans Supabase :
 - `coaching_posts` est actuellement lisible publiquement — à confirmer si c'est voulu.
 - En cas de clé compromise : **Supabase → Project Settings → API → Rotate keys**, puis mettre
   à jour `.env` et les variables EAS (voir la section Development Build).
+- **Repartir de zéro pour un test** : se **déconnecter dans l'app** avant de supprimer le compte
+  dans Supabase. Sinon la session reste stockée sur l'appareil (le JWT d'un compte supprimé n'est
+  pas invalidé avant son expiration) : `validateSession()` la détecte au démarrage suivant et
+  ramène à l'écran de connexion, mais pour un nettoyage immédiat :
+  **Paramètres → Applications → serious-app → Stockage → Effacer les données**.
 
 ## 🗄️ SQL à exécuter dans Supabase
 
