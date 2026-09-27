@@ -1,6 +1,8 @@
 import React, { createContext, useContext, useState, useCallback, useRef } from 'react';
 import BottomSheet from '@gorhom/bottom-sheet';
 
+import { prefetchImages } from '@/lib/images';
+
 type ProfileSheetContextType = {
   openProfileSheet: (profile: any) => void;
   closeProfileSheet: () => void;
@@ -15,6 +17,8 @@ export function ProfileSheetProvider({ children }: { children: React.ReactNode }
   const sheetRef = useRef<BottomSheet>(null);
 
   const openProfileSheet = useCallback((profile: any) => {
+    // Precharge les photos AVANT l'ouverture : le carrousel s'affiche sans flash gris
+    if (profile?.photos?.length) prefetchImages(profile.photos);
     setSelectedProfile(profile);
     sheetRef.current?.expand();
   }, []);

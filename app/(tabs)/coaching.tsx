@@ -4,6 +4,7 @@ import { View, Text, StyleSheet, ScrollView, useColorScheme, TouchableOpacity, A
 import { useRouter } from 'expo-router';
 import { Picker } from '@react-native-picker/picker';
 import { Image } from 'expo-image';
+import { IMAGE_CACHE_POLICY, imageSource } from '@/lib/images';
 import { supabase } from '@/lib/supabase';
 import { decode } from 'base64-arraybuffer';
 import * as ImagePicker from 'expo-image-picker';
@@ -293,11 +294,13 @@ export default function CoachingScreen() {
                 onPress={() => router.push({ pathname: '/coaching/[id]', params: { id: post.id } })}
               >
                 {post.image_url && (
-                  <Image 
-                    source={{ uri: post.image_url }} 
+                  <Image
+                    source={imageSource(post.image_url)}
                     style={styles.postImage}
                     contentFit="cover"
-                    transition={300}
+                    transition={150}
+                    cachePolicy={IMAGE_CACHE_POLICY}
+                    recyclingKey={post.id}
                   />
                 )}
                 <View style={styles.postContent}>

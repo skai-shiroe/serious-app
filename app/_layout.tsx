@@ -36,6 +36,8 @@ import { OnboardingScreen } from '@/components/onboarding-screen';
 import AuthScreen from '@/components/auth-screen';
 import ProfileCreation from '@/components/profile-creation';
 import { ProfileSheetProvider, useProfileSheet } from '@/contexts/ProfileSheetContext';
+import { IMAGE_CACHE_POLICY, imageSource } from '@/lib/images';
+import { usePresenceHeartbeat } from '@/hooks/use-presence';
 
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
@@ -130,11 +132,13 @@ function ProfileBottomSheet() {
       <BottomSheetScrollView contentContainerStyle={{ paddingBottom: 100 }}>
         <ScrollView horizontal pagingEnabled showsHorizontalScrollIndicator={false} style={{ height: 450 }}>
           {selectedProfile.photos?.map((photo: string, index: number) => (
-            <Image 
-              key={index} 
-              source={{ uri: photo }} 
-              style={{ width: SCREEN_WIDTH, height: 450 }} 
-              contentFit="cover" 
+            <Image
+              key={index}
+              source={imageSource(photo)}
+              style={{ width: SCREEN_WIDTH, height: 450 }}
+              contentFit="cover"
+              cachePolicy={IMAGE_CACHE_POLICY}
+              recyclingKey={`sheet-photo-${index}`}
             />
           ))}
         </ScrollView>
@@ -252,6 +256,10 @@ export default function RootLayout() {
       });
     }
   }, [isAuthenticated, profileStatus]);
+
+  // Heartbeat de presence global : le statut "En ligne" reste correct meme sans
+  // ouvrir un chat (avant, seul l'ecran de chat mettait `presence` a jour).
+  usePresenceHeartbeat(isAuthenticated);
 
   useEffect(() => {
     const responseListener = Notifications.addNotificationResponseReceivedListener((response: any) => {

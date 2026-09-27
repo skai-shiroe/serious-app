@@ -1,5 +1,5 @@
 import { SafeAreaView } from 'react-native-safe-area-context';
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useCallback, useState } from 'react';
 import { 
   View, 
   Text, 
@@ -13,6 +13,8 @@ import {
 import { useRouter, useFocusEffect } from 'expo-router';
 import { Image } from 'expo-image';
 import { supabase } from '@/lib/supabase';
+import { IMAGE_CACHE_POLICY, photoSource, prefetchImages } from '@/lib/images';
+import { isRecentlySeen } from '@/hooks/use-presence';
 
 // Helper pour le temps relatif simplifié
 const getRelativeTime = (dateString: string) => {
@@ -114,25 +116,40 @@ export default function MessagesScreen() {
         unreadByMatch.set(m.match_id, (unreadByMatch.get(m.match_id) || 0) + 1);
       });
 
-      // 3. Dernier message de chaque conversation, en parallèle
-      const lastMessages = await Promise.all(
-        matchIds.map(async (matchId) => {
-          const { data } = await supabase
-            .from('messages')
-            .select('content, created_at, sender_id')
-            .eq('match_id', matchId)
-            .order('created_at', { ascending: false })
-            .limit(1);
-          return data?.[0];
-        })
-      );
+      // 3. Dernier message de chaque conversation : UNE seule requete via la RPC
+      //    get_last_messages (avant : une requete par conversation). Repli sur
+      //    l'ancien comportement tant que la fonction SQL n'est pas deployee.
+      let lastMessages: any[] = [];
+      const { data: rpcData, error: rpcError } = await supabase.rpc('get_last_messages', {
+        match_ids: matchIds,
+      });
 
-      const now = Date.now();
+      if (!rpcError && rpcData) {
+        lastMessages = rpcData;
+      } else {
+        if (rpcError) {
+          console.warn('[Messages] RPC get_last_messages indisponible :', rpcError.message);
+        }
+        lastMessages = await Promise.all(
+          matchIds.map(async (matchId) => {
+            const { data } = await supabase
+              .from('messages')
+              .select('match_id, content, created_at, sender_id')
+              .eq('match_id', matchId)
+              .order('created_at', { ascending: false })
+              .limit(1);
+            return data?.[0];
+          })
+        );
+      }
+
+      const lastByMatch = new Map<string, any>();
+      lastMessages.filter(Boolean).forEach((m: any) => lastByMatch.set(m.match_id, m));
+
       const convs: Conversation[] = matches.map((match, index) => {
         const otherUserId = otherUserIds[index];
         const profile = profilesById.get(otherUserId);
         const presence = presenceById.get(otherUserId);
-        const lastSeenDate = presence?.last_seen ? new Date(presence.last_seen) : null;
 
         return {
           id: match.id,
@@ -142,9 +159,9 @@ export default function MessagesScreen() {
             photos: profile?.photos || [],
             last_seen: presence?.last_seen,
           },
-          lastMessage: lastMessages[index],
+          lastMessage: lastByMatch.get(match.id),
           unreadCount: unreadByMatch.get(match.id) || 0,
-          isOnline: lastSeenDate ? now - lastSeenDate.getTime() < 60000 : false,
+          isOnline: isRecentlySeen(presence?.last_seen),
         };
       });
 
@@ -156,6 +173,9 @@ export default function MessagesScreen() {
       });
 
       setConversations(convs);
+
+      // Avatars precharges en memoire : la liste s'affiche sans flash gris
+      prefetchImages(convs.map((c) => c.otherUser.photos?.[0]));
     } catch (error) {
       console.error('Error fetching conversations:', error);
     } finally {
@@ -164,20 +184,36 @@ export default function MessagesScreen() {
     }
   }, []);
 
-  // Recharger au focus
+  // Rechargement au focus + TEMPS REEL (plus de polling toutes les 30 s) :
+  // nouveaux messages, presence et matchs mettent la liste a jour d'eux-memes,
+  // avec un debounce pour eviter les rafales de requetes.
   useFocusEffect(
     useCallback(() => {
-      fetchConversations();
+      void fetchConversations();
+
+      let debounce: ReturnType<typeof setTimeout> | null = null;
+      const refreshSoon = () => {
+        if (debounce) clearTimeout(debounce);
+        debounce = setTimeout(() => { void fetchConversations(); }, 800);
+      };
+
+      const channel = supabase
+        .channel('messages-tab')
+        .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages' }, refreshSoon)
+        .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'matches' }, refreshSoon)
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'presence' }, refreshSoon)
+        .subscribe();
+
+      // Filet de securite, uniquement si l'ecran est au premier plan
+      const fallback = setInterval(() => { void fetchConversations(); }, 90000);
+
+      return () => {
+        if (debounce) clearTimeout(debounce);
+        clearInterval(fallback);
+        supabase.removeChannel(channel);
+      };
     }, [fetchConversations])
   );
-
-  // Polling Présence toutes les 30s
-  useEffect(() => {
-    const interval = setInterval(() => {
-      fetchConversations();
-    }, 30000);
-    return () => clearInterval(interval);
-  }, [fetchConversations]);
 
   const onRefresh = () => {
     setRefreshing(true);
@@ -191,9 +227,12 @@ export default function MessagesScreen() {
       activeOpacity={0.7}
     >
       <View>
-        <Image 
-          source={{ uri: item.otherUser.photos?.[0] || 'https://via.placeholder.com/150' }} 
-          style={styles.avatar} 
+        <Image
+          source={photoSource(item.otherUser.photos)}
+          style={styles.avatar}
+          cachePolicy={IMAGE_CACHE_POLICY}
+          recyclingKey={item.otherUser.id}
+          transition={120}
         />
         {item.isOnline && <View style={styles.onlineDot} />}
       </View>

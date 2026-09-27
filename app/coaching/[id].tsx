@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { supabase } from '@/lib/supabase';
 import { Image } from 'expo-image';
+import { IMAGE_CACHE_POLICY, imageSource } from '@/lib/images';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { ChevronLeft, Share2, Heart, Clock, Bookmark, Sparkles, Send, MessageCircle, User } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -269,11 +270,12 @@ export default function CoachingDetailScreen() {
         
         {/* Hero Image Section */}
         <View style={styles.heroContainer}>
-          <Image 
-            source={{ uri: post.image_url }} 
+          <Image
+            source={imageSource(post.image_url)}
             style={styles.heroImage}
             contentFit="cover"
             transition={500}
+            cachePolicy={IMAGE_CACHE_POLICY}
           />
           <LinearGradient 
             colors={['rgba(0,0,0,0.4)', 'transparent', 'rgba(0,0,0,0.8)']} 
@@ -395,7 +397,7 @@ export default function CoachingDetailScreen() {
               comments.map((comment) => (
                 <View key={comment.id} style={styles.commentItem}>
                   {comment.profiles?.photos?.[0] ? (
-                    <Image source={{ uri: comment.profiles.photos[0] }} style={styles.commentAvatar} />
+                    <Image source={imageSource(comment.profiles.photos?.[0])} style={styles.commentAvatar} cachePolicy={IMAGE_CACHE_POLICY} recyclingKey={comment.profiles.photos[0]} />
                   ) : (
                     <View style={[styles.commentAvatar, { backgroundColor: themeColors.input, justifyContent: 'center', alignItems: 'center' }]}>
                       <User size={16} color={themeColors.textMuted} />

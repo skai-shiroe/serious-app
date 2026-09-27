@@ -2,6 +2,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import React, { useState, useCallback } from 'react';
 import { View, Text, StyleSheet, ScrollView, ActivityIndicator, useColorScheme, TouchableOpacity, Alert, Switch, Appearance, Platform, Dimensions } from 'react-native';
 import { Image } from 'expo-image';
+import { IMAGE_CACHE_POLICY, imageSource } from '@/lib/images';
 import { supabase } from '@/lib/supabase';
 import { LinearGradient } from 'expo-linear-gradient';
 import { LogOut, Edit3, MapPin, BookOpen, Briefcase, Droplet, Activity, Calendar, Moon, Sun, Camera, Bookmark } from 'lucide-react-native';
@@ -151,7 +152,7 @@ export default function ProfileScreen() {
   }
 
   const completionPercent = calculateCompletion();
-  const mainPhoto = profile?.photos?.[0] || 'https://via.placeholder.com/150';
+  const mainPhoto = profile?.photos?.[0];
 
   return (
     <SafeAreaView style={[styles.safeArea, { backgroundColor: themeColors.bg }]}>
@@ -163,7 +164,12 @@ export default function ProfileScreen() {
 
         <View style={styles.profileHeader}>
           <LinearGradient colors={['#f43f5e', '#ec4899']} style={styles.avatarGradient}>
-            <Image source={{ uri: mainPhoto }} style={styles.avatarLarge} />
+            <Image
+              source={imageSource(mainPhoto)}
+              style={styles.avatarLarge}
+              cachePolicy={IMAGE_CACHE_POLICY}
+              transition={120}
+            />
           </LinearGradient>
           <Text style={[styles.name, { color: themeColors.text }]}>
             {profile?.displayName}
@@ -267,11 +273,13 @@ export default function ProfileScreen() {
                 <View key={i} style={[styles.slotWrapper, { width: slotSize, height: slotSize }]}>
                   {uri ? (
                     <View style={[styles.photoSlotFull, styles.shadow]}>
-                      <Image 
-                        source={{ uri }} 
-                        style={styles.fullImage} 
-                        contentFit="cover" 
-                        transition={300}
+                      <Image
+                        source={imageSource(uri)}
+                        style={styles.fullImage}
+                        contentFit="cover"
+                        transition={150}
+                        cachePolicy={IMAGE_CACHE_POLICY}
+                        recyclingKey={`profile-photo-${i}`}
                       />
                     </View>
                   ) : (
@@ -300,7 +308,12 @@ export default function ProfileScreen() {
                   style={[styles.savedPostCard, { backgroundColor: themeColors.bg }]}
                   onPress={() => router.push({ pathname: '/coaching/[id]', params: { id: post.id } })}
                 >
-                  <Image source={{ uri: post.image_url }} style={styles.savedPostImage} />
+                  <Image
+                    source={imageSource(post.image_url)}
+                    style={styles.savedPostImage}
+                    cachePolicy={IMAGE_CACHE_POLICY}
+                    recyclingKey={post.id}
+                  />
                   <View style={styles.savedPostInfo}>
                     <Text style={[styles.savedPostTitle, { color: themeColors.text }]} numberOfLines={1}>{post.title}</Text>
                     <Text style={[styles.savedPostCategory, { color: themeColors.accent }]}>{post.category}</Text>

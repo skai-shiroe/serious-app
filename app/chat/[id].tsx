@@ -18,6 +18,8 @@ import { ArrowLeft, Send, Check, CheckCheck } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Image } from 'expo-image';
 import { supabase } from '@/lib/supabase';
+import { IMAGE_CACHE_POLICY, photoSource, prefetchImages } from '@/lib/images';
+import { isRecentlySeen } from '@/hooks/use-presence';
 
 // Helper pour le temps relatif simplifié
 const formatTime = (dateString: string) => {
@@ -86,6 +88,9 @@ export default function ChatScreen() {
           
           setPartner(profile);
 
+          // Avatar du partenaire en cache des l'arrivee : pas de flash gris
+          if (profile?.photos?.length) prefetchImages(profile.photos);
+
           // 3. Charger l''historique
           const { data: history } = await supabase
             .from('messages')
@@ -140,37 +145,39 @@ export default function ChatScreen() {
     };
   }, [matchId, currentUser?.id]);
 
-  // Polling Présence & Mise à jour de soi
+  // Presence du partenaire en TEMPS REEL : un seul abonnement, plus aucune
+  // lecture toutes les 30 s. Le heartbeat d'ecriture est desormais global
+  // (hooks/use-presence) : il fonctionne meme hors de l'ecran de chat.
   useEffect(() => {
-    const updatePresence = async () => {
-      if (!currentUser) return;
-      await supabase.from('presence').upsert({ user_id: currentUser.id, last_seen: new Date().toISOString() });
+    if (!partner?.user_id) return;
+
+    let cancelled = false;
+    const apply = (lastSeen?: string | null) => {
+      if (!cancelled) setIsPartnerOnline(isRecentlySeen(lastSeen));
     };
 
-    const checkPartnerPresence = async () => {
-      if (!partner) return;
-      const { data } = await supabase
-        .from('presence')
-        .select('last_seen')
-        .eq('user_id', partner.user_id)
-        .maybeSingle();
-      
-      if (data?.last_seen) {
-        const lastSeen = new Date(data.last_seen);
-        setIsPartnerOnline((new Date().getTime() - lastSeen.getTime()) < 60000);
-      }
+    supabase
+      .from('presence')
+      .select('last_seen')
+      .eq('user_id', partner.user_id)
+      .maybeSingle()
+      .then(({ data }) => apply(data?.last_seen));
+
+    const channel = supabase
+      .channel(`presence:${partner.user_id}`)
+      .on('postgres_changes', {
+        event: '*',
+        schema: 'public',
+        table: 'presence',
+        filter: `user_id=eq.${partner.user_id}`,
+      }, (payload: any) => apply(payload?.new?.last_seen))
+      .subscribe();
+
+    return () => {
+      cancelled = true;
+      supabase.removeChannel(channel);
     };
-
-    updatePresence();
-    checkPartnerPresence();
-
-    const interval = setInterval(() => {
-      updatePresence();
-      checkPartnerPresence();
-    }, 30000);
-
-    return () => clearInterval(interval);
-  }, [currentUser, partner]);
+  }, [partner?.user_id]);
 
   const handleSend = async () => {
     if (!inputText.trim() || !currentUser || !matchId) return;
@@ -236,9 +243,11 @@ export default function ChatScreen() {
           </TouchableOpacity>
           
           <View style={styles.headerInfo}>
-            <Image 
-              source={{ uri: partner?.photos?.[0] || 'https://via.placeholder.com/150' }} 
-              style={styles.headerAvatar} 
+            <Image
+              source={photoSource(partner?.photos)}
+              style={styles.headerAvatar}
+              cachePolicy={IMAGE_CACHE_POLICY}
+              transition={120}
             />
             <View>
               <Text style={[styles.headerTitle, { color: themeColors.text }]}>{partner?.first_name || 'Chat'}</Text>
