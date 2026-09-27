@@ -8,6 +8,7 @@ import { IMAGE_CACHE_POLICY, imageSource } from '@/lib/images';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { ChevronLeft, Share2, Heart, Clock, Bookmark, Sparkles, Send, MessageCircle, User } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
+import { StatusBar } from 'expo-status-bar';
 import Animated, { FadeIn, FadeInDown } from 'react-native-reanimated';
 import { useColorScheme } from 'react-native';
 
@@ -267,6 +268,9 @@ export default function CoachingDetailScreen() {
 
   return (
     <View style={[styles.container, { backgroundColor: themeColors.bg }]}>
+      {/* Pas de header natif : la photo passe sous la barre de statut, dont les
+          icones doivent rester lisibles sur l'overlay sombre du hero. */}
+      <StatusBar style="light" />
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
         
         {/* Hero Image Section */}

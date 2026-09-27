@@ -1,6 +1,6 @@
 import { supabase } from '@/lib/supabase';
 import { getUser } from '@/lib/session';
-import { fetchCandidateProfiles } from '@/lib/candidates';
+import { fetchCandidateProfiles, isAgeInRange } from '@/lib/candidates';
 import { EmptyState } from '@/components/empty-state';
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -98,11 +98,11 @@ export default function MatchScreen() {
 
       deckCursorRef.current = page.cursor;
 
-      const filtered = page.profiles.filter((p) => {
-        const age = calculateAge(p.birth_date);
-        if (!age) return true;
-        return age >= filters.ageMin && age <= filters.ageMax;
-      });
+      // Filet de securite : les bornes d'age sont deja filtrees par la RPC
+      // (ou par la boucle du repli client).
+      const filtered = page.profiles.filter((p) =>
+        isAgeInRange(p.birth_date, filters.ageMin, filters.ageMax)
+      );
 
       setProfiles(filtered);
       setCurrentIndex(0);
@@ -151,11 +151,9 @@ export default function MatchScreen() {
 
       if (page.cursor) deckCursorRef.current = page.cursor;
 
-      const more = page.profiles.filter((p) => {
-        const age = calculateAge(p.birth_date);
-        if (!age) return true;
-        return age >= filters.ageMin && age <= filters.ageMax;
-      });
+      const more = page.profiles.filter((p) =>
+        isAgeInRange(p.birth_date, filters.ageMin, filters.ageMax)
+      );
 
       if (more.length > 0) {
         setProfiles((prev) => [...prev, ...more]);

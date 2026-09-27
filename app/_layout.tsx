@@ -495,10 +495,11 @@ export default function RootLayout() {
     <GestureHandlerRootView style={{ flex: 1 }}>
       <ProfileSheetProvider>
         <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-          <Stack>
-            <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-            <Stack.Screen name="chat/[id]" options={{ headerShown: false }} />
-            <Stack.Screen name="modal" options={{ presentation: 'modal', title: 'Modal' }} />
+          <Stack screenOptions={{ headerShown: false }}>
+            {/* Tous les ecrans dessinent leur propre entete (ou sont des
+                transitions) : le header natif affichait le nom de route brut
+                (« coaching/[id] », « edit-profile »...). */}
+            <Stack.Screen name="modal" options={{ presentation: 'modal' }} />
           </Stack>
           <StatusBar style="auto" />
           <ProfileBottomSheet />

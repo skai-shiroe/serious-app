@@ -37,7 +37,8 @@ Une application de rencontre moderne et engagée, conçue avec un focus particul
 - **Temps réel** : Supabase Realtime sur `messages`, `matches` et `presence` (aucun polling).
 - **Requêtes bornées** : `lib/candidates.ts` — le deck « Découvrir » se charge par **pages**
   (curseur `user_id` croissant) au lieu d'exclure les profils déjà swipés via une liste
-  d'identifiants dans l'URL. Aucune requête ne peut plus renvoyer la table entière :
+  d'identifiants dans l'URL. Ville, groupe sanguin, drépanocytose et **bornes d'âge** sont filtrés
+  par la RPC, côté serveur. Aucune requête ne peut plus renvoyer la table entière :
   `coaching_posts` est plafonné à 100 lignes, l'historique d'un chat aux 200 derniers messages.
 - **Erreurs ≠ listes vides** : `components/empty-state.tsx` — un échec réseau affiche un
   message explicite avec un bouton **Réessayer**, et non « Revenez plus tard 💤 ».
@@ -146,10 +147,20 @@ Le projet utilise les tables suivantes dans Supabase :
 
 ## 🗄️ SQL à exécuter dans Supabase
 
-À lancer une fois dans **Supabase → SQL Editor** :
+À lancer dans **Supabase → SQL Editor**. ⚠️ L'éditeur exécute le script entier dans **une seule
+transaction** : une erreur en fin de script annule **aussi** toutes les instructions précédentes.
+D'où 4 blocs séparés, chacun ré-exécutable sans risque (idempotent).
+
+**Bloc 0 — état actuel (contrôle)**
 
 ```sql
--- Dernier message de chaque conversation en UNE requête (écran Messages)
+select proname from pg_proc where proname in ('get_last_messages', 'get_candidate_profiles');
+select schemaname, tablename from pg_publication_tables where pubname = 'supabase_realtime';
+```
+
+**Bloc 1 — dernier message de chaque conversation (écran Messages)**
+
+```sql
 create or replace function get_last_messages(match_ids uuid[])
 returns table (match_id uuid, content text, created_at timestamptz, sender_id uuid)
 language sql stable as $$
@@ -158,16 +169,25 @@ language sql stable as $$
   where m.match_id = any(match_ids)
   order by m.match_id, m.created_at desc;
 $$;
+```
 
--- Profils du deck « Découvrir » : l'exclusion des profils déjà swipés est faite
--- par PostgreSQL (jamais par une liste d'identifiants dans l'URL de la requête),
--- et la pagination se fait par curseur (p_after = dernier user_id parcouru).
+**Bloc 2 — profils du deck « Découvrir »**
+
+```sql
+-- L'ancienne signature (sans les bornes d'âge) est retirée si elle existe.
+drop function if exists get_candidate_profiles(integer, uuid, text, text, text);
+
+-- Exclusion des profils déjà swipés faite par PostgreSQL (jamais par une liste
+-- d'identifiants dans l'URL de la requête), pagination par curseur
+-- (p_after = dernier user_id parcouru) et filtre d'âge côté serveur.
 create or replace function get_candidate_profiles(
   p_limit integer default 30,
   p_after uuid default null,
   p_city text default null,
   p_blood_type text default null,
-  p_sickle_cell text default null
+  p_sickle_cell text default null,
+  p_age_min integer default null,
+  p_age_max integer default null
 )
 returns setof profiles
 language sql stable
@@ -184,22 +204,89 @@ as $$
     and (p_city is null or p.city ilike '%' || p_city || '%')
     and (p_blood_type is null or p.blood_type = p_blood_type)
     and (p_sickle_cell is null or p.sickle_cell = p_sickle_cell)
+    -- Âge en années révolues : équivalent exact du calculateAge de l'app.
+    and (
+      p.birth_date is null
+      or (
+        date_part('year', age(p.birth_date::date)) >= coalesce(p_age_min, 0)
+        and date_part('year', age(p.birth_date::date)) <= coalesce(p_age_max, 200)
+      )
+    )
   order by p.user_id
   limit greatest(p_limit, 1);
 $$;
 
-revoke execute on function get_candidate_profiles(integer, uuid, text, text, text) from public;
-grant execute on function get_candidate_profiles(integer, uuid, text, text, text) to authenticated;
-
--- Temps réel sur la présence et les matchs (messages l'est déjà)
-alter publication supabase_realtime add table presence, matches;
+revoke execute on function get_candidate_profiles(integer, uuid, text, text, text, integer, integer) from public;
+grant execute on function get_candidate_profiles(integer, uuid, text, text, text, integer, integer) to authenticated;
 ```
 
-> Sans la 1ʳᵉ instruction, l'app bascule automatiquement sur le repli « une requête par conversation ».
-> Sans la 2ᵉ (profils du deck), elle utilise un **repli paginé côté client** : quelques requêtes
-> supplémentaires, mais aucune liste d'identifiants dans l'URL. Le repli est mémorisé, donc le
-> premier appel log un `console.warn` puis n'essaie plus la RPC jusqu'au prochain démarrage.
-> Sans la 3ᵉ, elle utilise un rafraîchissement de secours toutes les 90 s au lieu du temps réel.
+**Bloc 3 — temps réel sur la présence et les matchs (idempotent)**
+
+```sql
+do $$
+begin
+  if not exists (select 1 from pg_publication_tables
+                 where pubname = 'supabase_realtime' and schemaname = 'public'
+                   and tablename = 'presence') then
+    alter publication supabase_realtime add table public.presence;
+  end if;
+
+  if not exists (select 1 from pg_publication_tables
+                 where pubname = 'supabase_realtime' and schemaname = 'public'
+                   and tablename = 'matches') then
+    alter publication supabase_realtime add table public.matches;
+  end if;
+end $$;
+```
+
+> ⚠️ Ne pas remplacer ce bloc par `alter publication … set table …` : cette forme **écrase** la
+> liste des tables publiées et retirerait `messages`.
+> `ERROR: 42710: relation "…" is already member of publication` signifie simplement que la table
+> est **déjà** publiée : le bloc ci-dessus devient un no-op. En revanche, comme l'éditeur SQL
+> exécute tout le script dans une transaction, une telle erreur **annule aussi les instructions
+> précédentes** — d'où l'intérêt des 4 blocs séparés.
+
+> Sans le bloc 1, l'app bascule automatiquement sur le repli « une requête par conversation ».
+> Sans le bloc 2, elle utilise un **repli paginé côté client** : profils lus par pages (50 par page,
+> 8 pages maximum), exclusion des swipes et filtre d'âge appliqués localement — quelques requêtes
+> en plus, mais aucune liste d'identifiants dans l'URL. L'absence est mémorisée : un seul
+> `console.warn` puis plus aucune tentative jusqu'au prochain démarrage.
+> Sans le bloc 3, un rafraîchissement de secours toutes les 90 s remplace le temps réel.
+
+## 📦 Build « preview » & mises à jour OTA
+
+### 1. APK de test — installable sans Metro
+
+```bash
+npx eas build --profile preview --platform android
+```
+
+Le profil `preview` (`eas.json` : `distribution: internal`, `channel: preview`, `environment: preview`)
+produit un **APK en distribution interne** embarquant le code natif compilé **et** le bundle JS.
+Plus besoin de câble, de Metro ou du même Wi-Fi : c'est le test en conditions réelles (réseau mobile,
+caméra, notifications, deep links OAuth), et la base sur laquelle s'appliquent les mises à jour OTA.
+
+### 2. Correctifs JS sans rebuild
+
+```bash
+npx eas update --branch preview --message "fix swipe + états d'erreur"
+```
+
+À chaque lancement, l'app installée compare son `runtimeVersion` (`app.json` → `policy: appVersion`)
+à `updates.url` et télécharge le bundle du canal correspondant : **~1 min au lieu de 15-30 min de
+file EAS + réinstallation de l'APK**. Il faut relancer l'app **deux fois** (téléchargement au premier
+lancement, application au suivant).
+
+| ✅ passe en OTA (`eas update`) | ❌ exige un nouveau build (`eas build`) |
+|---|---|
+| TS/JS, écrans, styles, textes, `lib/` | nouvelle lib **native**, `plugins` de `app.json` |
+| assets ajoutés au bundle | permissions, icône/splash, `android.package` |
+| corrections de bugs, libs JS pures | bump de SDK ou de `version` (= `runtimeVersion`) |
+
+- **Retour arrière** : `npx eas update:rollback`, ou republier l'update précédent sur la branche.
+- **Isolation** : `runtimeVersion` suit `appVersion`, donc une app 1.0.0 ne recevra jamais un update
+  écrit pour 1.0.1 → aucun risque d'incompatibilité entre natif et JS.
+- **Production** : `npx eas build --profile production` puis `npx eas submit --profile production`.
 
 ## ✨ Design & Expérience
 

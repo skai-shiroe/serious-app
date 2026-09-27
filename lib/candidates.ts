@@ -11,13 +11,15 @@ import { supabase } from '@/lib/supabase';
  * table `swipes` se faisait elle aussi sans limite.
  *
  * Trois regles desormais :
- *  1. priorite a la RPC `get_candidate_profiles` (exclusion cote serveur) ;
+ *  1. priorite a la RPC `get_candidate_profiles` : exclusion des swipes ET bornes
+ *     d'age appliquees cote serveur ;
  *  2. pagination par CURSEUR (`user_id` croissant) : chaque page reste petite,
  *     et comme le curseur avance, le filtrage ne saute jamais de profil ;
- *  3. repli sans RPC : lecture des profils par pages bornees + filtre client.
+ *  3. repli sans RPC : profils lus par pages bornees, avec exclusion et age
+ *     filtres dans la MEME boucle (on ne lit pas des pages pour rien).
  */
 
-/** Filtres du deck (les bornes d'age sont appliquees cote client). */
+/** Filtres du deck (les bornes d'age sont appliquees par la RPC). */
 export type CandidateFilters = {
   ageMin: number;
   ageMax: number;
@@ -38,7 +40,7 @@ export type CandidatePage = {
 const RPC_PAGE_MAX = 50;
 /** Taille d'une page de profils dans le repli sans RPC. */
 const FALLBACK_PROFILE_PAGE = 50;
-/** Nombre maximum de pages de profils parcourues dans le repli (garde-fou). */
+/** Nombre maximum de pages de profils parcourues dans le repli (8 x 50 = 400 profils). */
 const FALLBACK_MAX_PAGES = 8;
 /** Taille d'une page de swipes dans le repli. */
 const SWIPES_PAGE = 1000;
@@ -55,6 +57,40 @@ let rpcMissing = false;
 function normalizeFilter(value: string): string | null {
   const trimmed = (value || '').trim();
   return trimmed.length > 0 ? trimmed : null;
+}
+
+/** Age en annees revolues, ou `null` si la date est absente/illisible. */
+function calculateAge(birthDate?: string | null): number | null {
+  if (!birthDate) return null;
+
+  const birth = new Date(birthDate);
+  if (Number.isNaN(birth.getTime())) return null;
+
+  const today = new Date();
+  let age = today.getFullYear() - birth.getFullYear();
+  const monthDiff = today.getMonth() - birth.getMonth();
+  if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birth.getDate())) {
+    age--;
+  }
+  return age;
+}
+
+/**
+ * Profil dans la tranche d'age demandee ?
+ *
+ * Meme regle que la RPC (`date_part('year', age(birth_date))`) : une date de
+ * naissance absente ou illisible n'exclut pas le profil.
+ */
+export function isAgeInRange(
+  birthDate: string | null | undefined,
+  min: number | null,
+  max: number | null
+): boolean {
+  const age = calculateAge(birthDate);
+  if (age === null) return true;
+  if (min !== null && age < min) return false;
+  if (max !== null && age > max) return false;
+  return true;
 }
 
 /**
@@ -93,13 +129,18 @@ async function fetchViaRpc(
     p_city: normalizeFilter(filters.city),
     p_blood_type: normalizeFilter(filters.bloodType),
     p_sickle_cell: normalizeFilter(filters.sickleCell),
+    p_age_min: filters.ageMin,
+    p_age_max: filters.ageMax,
   });
 
   if (error) throw error;
   return data || [];
 }
 
-/** Repli sans RPC : profils parcourus par pages, filtrage cote client. */
+/**
+ * Repli sans RPC : profils parcourus par pages bornees, avec exclusion des
+ * swipes et bornes d'age filtrees ici (equivalent de ce que fait la RPC).
+ */
 async function fetchViaFallback(
   userId: string,
   limit: number,
@@ -136,6 +177,9 @@ async function fetchViaFallback(
       cursor = profile.user_id;
       if (profile.user_id === userId) continue;
       if (swiped.has(profile.user_id)) continue;
+      // Age filtre DANS la boucle : on continue a paginer jusqu'a obtenir
+      // `limit` profils reellement dans la tranche demandee.
+      if (!isAgeInRange(profile.birth_date, filters.ageMin, filters.ageMax)) continue;
 
       profiles.push(profile);
       if (profiles.length >= limit) break;
