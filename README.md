@@ -7,11 +7,11 @@ Une application de rencontre moderne et engagée, conçue avec un focus particul
 - **Authentification Sécurisée** : Gestion des sessions via Supabase Auth.
 - **Profils Avancés** :
   - Upload de photos multiples.
-  - Calcul dynamique de l''âge via la date de naissance.
+  - Calcul dynamique de l'âge via la date de naissance.
   - Informations de santé intégrées (Pills visuelles).
 - **Matching Immersif (Tinder-style)** :
   - Swipe Cards à 60 FPS avec `react-native-reanimated` et `gesture-handler`.
-  - Gestes multicouches : Tap pour les photos/détails, Swipe pour l''action.
+  - Gestes multicouches : Tap pour les photos/détails, Swipe pour l'action.
   - Filtres de recherche par ville, âge et critères de santé.
 - **Messagerie Temps Réel** :
   - Détection instantanée des matchs mutuels (Popup de célébration).
@@ -27,8 +27,14 @@ Une application de rencontre moderne et engagée, conçue avec un focus particul
 - **Animations** : React Native Reanimated 3
 - **Composants UI** :
   - `@gorhom/bottom-sheet` pour des détails de profil immersifs.
-  - `expo-image` pour un cache d''images ultra-performant.
-  - `lucide-react-native` pour l''iconographie.
+  - `expo-image` pour un cache d'images ultra-performant.
+  - `lucide-react-native` pour l'iconographie.
+- **Session & utilisateur courant** : `lib/session.ts` — source unique de l'utilisateur connecté,
+  lue depuis la **session locale** (`getSession()`) et tenue à jour par `onAuthStateChange`.
+  **Aucun appel réseau** (les `auth.getUser()` revalidaient le JWT à chaque swipe / message).
+- **Cache d'images** : `lib/images.ts` — `cachePolicy="memory-disk"` + préchargement partagés
+  par tous les écrans (plus d'écran gris au changement de carte ou d'avatar).
+- **Temps réel** : Supabase Realtime sur `messages`, `matches` et `presence` (aucun polling).
 
 ## 🛠️ Installation & Lancement
 
@@ -37,7 +43,7 @@ Une application de rencontre moderne et engagée, conçue avec un focus particul
    npm install
    ```
 
-2. **Variables d''environnement** :
+2. **Variables d'environnement** :
    Créez un fichier `.env` à la racine avec vos accès Supabase :
    Utilisez le modele fourni (aucun secret n'est versionne, le depot est public) :
    ```bash
@@ -83,7 +89,7 @@ Et dans **Google Cloud Console → Identifiants OAuth → Authorized redirect UR
 https://<PROJECT_REF>.supabase.co/auth/v1/callback
 ```
 
-> `seriousapp://auth-callback` est l''URL utilisée par les builds natifs (dev build / production),
+> `seriousapp://auth-callback` est l'URL utilisée par les builds natifs (dev build / production),
 > `exp+seriousapp://auth-callback` par Expo Go, et les URLs `http://...` servent au développement web.
 
 ## 📲 Development Build (sans Expo Go)
@@ -95,12 +101,12 @@ npx expo install expo-dev-client
 # 2. Build cloud de développement (APK installable)
 npx eas-cli build --profile development --platform android
 
-# 3. Installer l''APK sur l''appareil, puis lancer le bundler
+# 3. Installer l'APK sur l'appareil, puis lancer le bundler
 npx expo start --dev-client
 ```
 
-**Pré-requis push notifications (Android)** : les dev builds n''utilisent plus les credentials
-FCM d''Expo Go. Il faut ajouter un **FCM Service Account Key** dans
+**Pré-requis push notifications (Android)** : les dev builds n'utilisent plus les credentials
+FCM d'Expo Go. Il faut ajouter un **FCM Service Account Key** dans
 EAS → Project → Credentials → Android, sinon les Edge Functions `notify-*` échoueront.
 
 **Pré-requis variables d'environnement** : `.env` n'étant pas versionné, les builds cloud
@@ -118,9 +124,9 @@ eas env:create --name EXPO_PUBLIC_SUPABASE_ANON_KEY --value "<nouvelle_cle>" \
 Le projet utilise les tables suivantes dans Supabase :
 - `profiles` : Informations détaillées des membres.
 - `swipes` : Historique des interactions Gauche/Droite.
-- `matches` : Paires d''utilisateurs ayant matché.
+- `matches` : Paires d'utilisateurs ayant matché.
 - `messages` : Échanges textuels sécurisés.
-- `presence` : Suivi léger de l''activité des utilisateurs.
+- `presence` : Suivi léger de l'activité des utilisateurs.
 
 ## 🔐 Sécurité
 
@@ -156,4 +162,4 @@ alter publication supabase_realtime add table presence, matches;
 
 ## ✨ Design & Expérience
 
-L''application suit une charte graphique premium articulée autour de dégradés vibrants (`#f43f5e` ➡️ `#ec4899`), optimisée pour le **Dark Mode** et offrant un retour haptique à chaque interaction clé pour une expérience utilisateur tactile et vivante.
+L'application suit une charte graphique premium articulée autour de dégradés vibrants (`#f43f5e` ➡️ `#ec4899`), optimisée pour le **Dark Mode** et offrant un retour haptique à chaque interaction clé pour une expérience utilisateur tactile et vivante.
