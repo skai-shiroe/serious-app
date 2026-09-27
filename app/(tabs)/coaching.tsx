@@ -10,7 +10,8 @@ import { getUser } from '@/lib/session';
 import { decode } from 'base64-arraybuffer';
 import * as ImagePicker from 'expo-image-picker';
 import { LinearGradient } from 'expo-linear-gradient';
-import { Heart, Activity, Sparkles, Clock, ChevronRight, Plus, X, Camera, Image as ImageIcon } from 'lucide-react-native';
+import { Heart, Activity, Sparkles, Clock, ChevronRight, Plus, X, Camera, Image as ImageIcon, WifiOff } from 'lucide-react-native';
+import { EmptyState } from '@/components/empty-state';
 
 interface CoachingPost {
   id: string;
@@ -46,6 +47,8 @@ export default function CoachingScreen() {
     image_url: '' 
   });
   const [submitting, setSubmitting] = useState(false);
+  // Distingue « aucun conseil » (flux vide) de « chargement echoue »
+  const [loadError, setLoadError] = useState<string | null>(null);
 
   const themeColors = {
     text: isDark ? '#ffffff' : '#111827',
@@ -58,10 +61,12 @@ export default function CoachingScreen() {
 
   const fetchPosts = async () => {
     try {
+      setLoadError(null);
       let query = supabase
         .from('coaching_posts')
         .select('*')
-        .order('created_at', { ascending: false });
+        .order('created_at', { ascending: false })
+        .limit(100);
 
       if (activeCategory !== 'all') {
         query = query.eq('category', activeCategory);
@@ -73,6 +78,9 @@ export default function CoachingScreen() {
       setPosts(data || []);
     } catch (error) {
       console.error('Error fetching coaching posts:', error);
+      setLoadError(
+        'Impossible de charger les conseils. Vérifiez votre connexion puis réessayez.'
+      );
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -278,12 +286,21 @@ export default function CoachingScreen() {
           <View style={styles.loaderContainer}>
             <ActivityIndicator size="large" color={themeColors.accent} />
           </View>
+        ) : loadError && posts.length === 0 ? (
+          <EmptyState
+            isError
+            icon={<WifiOff color={themeColors.textMuted} size={48} />}
+            title="Chargement impossible"
+            message={loadError}
+            actionLabel="Réessayer"
+            onAction={() => fetchPosts()}
+          />
         ) : posts.length === 0 ? (
-          <View style={styles.emptyContainer}>
-            <Text style={[styles.emptyText, { color: themeColors.textMuted }]}>
-              Aucun conseil disponible pour le moment.
-            </Text>
-          </View>
+          <EmptyState
+            icon={<Sparkles color={themeColors.accent} size={48} />}
+            title="Aucun conseil disponible"
+            message="De nouveaux conseils seront publiés très bientôt."
+          />
         ) : (
           posts.map((post) => {
             const theme = getCategoryTheme(post.category);
@@ -467,8 +484,6 @@ const styles = StyleSheet.create({
   categoryLabel: { fontSize: 14, fontWeight: '600' },
 
   loaderContainer: { marginTop: 100, alignItems: 'center' },
-  emptyContainer: { marginTop: 100, paddingHorizontal: 48, alignItems: 'center' },
-  emptyText: { textAlign: 'center', fontSize: 16 },
 
   postCard: {
     marginHorizontal: 24,

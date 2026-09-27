@@ -25,7 +25,7 @@ export function ProfileSheetProvider({ children }: { children: React.ReactNode }
 
   const closeProfileSheet = useCallback(() => {
     sheetRef.current?.close();
-    // On attend la fin de l''animation pour vider le profil
+    // On attend la fin de l'animation pour vider le profil
     setTimeout(() => setSelectedProfile(null), 300);
   }, []);
 

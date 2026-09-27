@@ -6,7 +6,8 @@ import { IMAGE_CACHE_POLICY, imageSource } from '@/lib/images';
 import { supabase } from '@/lib/supabase';
 import { getUser } from '@/lib/session';
 import { LinearGradient } from 'expo-linear-gradient';
-import { LogOut, Edit3, MapPin, BookOpen, Briefcase, Droplet, Activity, Calendar, Moon, Sun, Camera, Bookmark } from 'lucide-react-native';
+import { LogOut, Edit3, MapPin, BookOpen, Briefcase, Droplet, Activity, Calendar, Moon, Sun, Camera, Bookmark, WifiOff } from 'lucide-react-native';
+import { EmptyState } from '@/components/empty-state';
 import { useRouter, useFocusEffect } from 'expo-router';
 
 export default function ProfileScreen() {
@@ -16,6 +17,9 @@ export default function ProfileScreen() {
   const [loading, setLoading] = useState(true);
   const [profile, setProfile] = useState<any>(null);
   const [savedPosts, setSavedPosts] = useState<any[]>([]);
+  // Distingue « section vide » de « chargement echoue »
+  const [profileError, setProfileError] = useState<string | null>(null);
+  const [savedError, setSavedError] = useState<string | null>(null);
   const router = useRouter();
   const colorScheme = useColorScheme();
   const isDark = colorScheme === 'dark';
@@ -53,6 +57,7 @@ export default function ProfileScreen() {
   const fetchProfile = async () => {
     try {
       setLoading(true);
+      setProfileError(null);
       const user = await getUser();
       if (!user) return;
 
@@ -73,6 +78,9 @@ export default function ProfileScreen() {
       });
     } catch (error: any) {
       console.log('Error fetching profile', error);
+      setProfileError(
+        'Impossible de charger votre profil. Vérifiez votre connexion puis réessayez.'
+      );
     } finally {
       setLoading(false);
     }
@@ -80,6 +88,7 @@ export default function ProfileScreen() {
 
   const fetchSavedPosts = async () => {
     try {
+      setSavedError(null);
       const user = await getUser();
       if (!user) return;
 
@@ -98,6 +107,7 @@ export default function ProfileScreen() {
       setSavedPosts(posts);
     } catch (error) {
       console.log('Error fetching saved posts', error);
+      setSavedError('Conseils enregistrés indisponibles.');
     }
   };
 
@@ -149,6 +159,25 @@ export default function ProfileScreen() {
       <View style={[styles.centerContainer, { backgroundColor: themeColors.bg }]}>
         <ActivityIndicator size="large" color="#f43f5e" />
       </View>
+    );
+  }
+
+  // Echec de chargement : on n'affiche pas un profil vide et trompeur.
+  if (!profile && profileError) {
+    return (
+      <SafeAreaView style={[styles.safeArea, { backgroundColor: themeColors.bg }]}>
+        <EmptyState
+          isError
+          icon={<WifiOff color={themeColors.textMuted} size={48} />}
+          title="Chargement impossible"
+          message={profileError}
+          actionLabel="Réessayer"
+          onAction={() => {
+            fetchProfile();
+            fetchSavedPosts();
+          }}
+        />
+      </SafeAreaView>
     );
   }
 
@@ -322,6 +351,13 @@ export default function ProfileScreen() {
                 </TouchableOpacity>
               ))}
             </ScrollView>
+          ) : savedError ? (
+            <View style={styles.savedErrorRow}>
+              <Text style={[styles.emptyText, { color: themeColors.textMuted }]}>{savedError}</Text>
+              <TouchableOpacity onPress={() => fetchSavedPosts()} activeOpacity={0.8}>
+                <Text style={[styles.savedRetryText, { color: themeColors.accent }]}>Réessayer</Text>
+              </TouchableOpacity>
+            </View>
           ) : (
             <Text style={[styles.emptyText, { color: themeColors.textMuted }]}>Aucun conseil enregistré pour le moment.</Text>
           )}
@@ -395,4 +431,6 @@ const styles = StyleSheet.create({
   savedPostTitle: { fontSize: 14, fontWeight: 'bold', marginBottom: 4 },
   savedPostCategory: { fontSize: 10, fontWeight: '700', textTransform: 'uppercase' },
   emptyText: { fontSize: 14, fontStyle: 'italic', marginTop: 8 },
+  savedErrorRow: { marginTop: 8, gap: 6, alignItems: 'flex-start' },
+  savedRetryText: { fontSize: 14, fontWeight: '700' },
 });

@@ -1,9 +1,11 @@
 import { supabase } from '@/lib/supabase';
 import { getUser } from '@/lib/session';
+import { fetchCandidateProfiles } from '@/lib/candidates';
+import { EmptyState } from '@/components/empty-state';
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as Haptics from 'expo-haptics';
-import { Filter, Heart, MapPin, X, Info, CheckCircle2, ChevronLeft, ChevronRight } from 'lucide-react-native';
+import { Filter, Heart, MapPin, X, Info, CheckCircle2, ChevronLeft, ChevronRight, WifiOff } from 'lucide-react-native';
 import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { ActivityIndicator, Dimensions, Modal, StyleSheet, Text, TouchableOpacity, useColorScheme, View, ScrollView } from 'react-native';
 import { Gesture, GestureDetector, GestureHandlerRootView } from 'react-native-gesture-handler';
@@ -29,6 +31,8 @@ export default function MatchScreen() {
   const [currentPhotoIndex, setCurrentPhotoIndex] = useState(0);
   const [showMatch, setShowMatch] = useState<any>(null);
   const [filterVisible, setFilterVisible] = useState(false);
+  // Distingue « aucun profil » (liste reellement vide) de « chargement echoue »
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [filters, setFilters] = useState({
     ageMin: 18,
     ageMax: 50,
@@ -60,6 +64,8 @@ export default function MatchScreen() {
   const profilesRef = useRef<any[]>([]);
   const currentIndexRef = useRef(0);
   const loadingMoreRef = useRef(false);
+  // Curseur de pagination du deck : `user_id` du dernier profil parcouru.
+  const deckCursorRef = useRef<string | null>(null);
 
   const calculateAge = (birthDateStr: string) => {
     if (!birthDateStr) return null;
@@ -76,53 +82,36 @@ export default function MatchScreen() {
   const fetchProfiles = useCallback(async () => {
     try {
       setLoading(true);
+      setLoadError(null);
       const user = await getUser();
       if (!user) return;
 
-      const { data: swipedData } = await supabase
-        .from('swipes')
-        .select('swiped_id')
-        .eq('swiper_id', user.id);
-      
-      const swipedIds = swipedData?.map(s => s.swiped_id) || [];
-      swipedIds.push(user.id);
+      // Le deck repart du debut : le curseur est remis a zero.
+      deckCursorRef.current = null;
 
-      let query = supabase
-        .from('profiles')
-        .select('*');
+      const page = await fetchCandidateProfiles({
+        userId: user.id,
+        limit: 30,
+        after: null,
+        filters,
+      });
 
-      if (swipedIds.length > 0) {
-        query = query.filter('user_id', 'not.in', `(${swipedIds.join(',')})`);
-      }
+      deckCursorRef.current = page.cursor;
 
-      if (filters.city) {
-        query = query.ilike('city', `%${filters.city}%`);
-      }
-      if (filters.bloodType) {
-        query = query.eq('blood_type', filters.bloodType);
-      }
-      if (filters.sickleCell) {
-        query = query.eq('sickle_cell', filters.sickleCell);
-      }
-
-      const { data, error } = await query.limit(30);
-
-      if (error) {
-        console.error('Fetch profiles error:', error);
-        throw error;
-      }
-      
-      const filtered = data?.filter(p => {
+      const filtered = page.profiles.filter((p) => {
         const age = calculateAge(p.birth_date);
         if (!age) return true;
         return age >= filters.ageMin && age <= filters.ageMax;
-      }) || [];
-      
+      });
+
       setProfiles(filtered);
       setCurrentIndex(0);
       setCurrentPhotoIndex(0);
     } catch (error) {
       console.log('Error fetching potential matches', error);
+      setLoadError(
+        'Impossible de charger les profils. Vérifiez votre connexion puis réessayez.'
+      );
     } finally {
       setLoading(false);
     }
@@ -143,7 +132,9 @@ export default function MatchScreen() {
     }
   }, []);
 
-  // Deck quasi infini : recharge la suite en excluant ce qui est deja charge/swipe
+  // Deck quasi infini : la page suivante est demandee par CURSEUR
+  // (`user_id` croissant), sans jamais mettre de liste d'identifiants dans
+  // l'URL de la requete (cf. lib/candidates.ts).
   const fetchMoreProfiles = useCallback(async () => {
     if (loadingMoreRef.current) return;
     loadingMoreRef.current = true;
@@ -151,38 +142,16 @@ export default function MatchScreen() {
       const user = await getUser();
       if (!user) return;
 
-      const { data: swipedData } = await supabase
-        .from('swipes')
-        .select('swiped_id')
-        .eq('swiper_id', user.id);
+      const page = await fetchCandidateProfiles({
+        userId: user.id,
+        limit: 10,
+        after: deckCursorRef.current,
+        filters,
+      });
 
-      const excluded = Array.from(new Set([
-        ...profilesRef.current.map((p) => p.user_id).filter(Boolean),
-        ...(swipedData?.map((s) => s.swiped_id) || []),
-        user.id,
-      ]));
+      if (page.cursor) deckCursorRef.current = page.cursor;
 
-      let query = supabase
-        .from('profiles')
-        .select('*');
-
-      if (excluded.length > 0) {
-        query = query.filter('user_id', 'not.in', `(${excluded.join(',')})`);
-      }
-      if (filters.city) {
-        query = query.ilike('city', `%${filters.city}%`);
-      }
-      if (filters.bloodType) {
-        query = query.eq('blood_type', filters.bloodType);
-      }
-      if (filters.sickleCell) {
-        query = query.eq('sickle_cell', filters.sickleCell);
-      }
-
-      const { data, error } = await query.limit(10);
-      if (error) throw error;
-
-      const more = (data || []).filter((p) => {
+      const more = page.profiles.filter((p) => {
         const age = calculateAge(p.birth_date);
         if (!age) return true;
         return age >= filters.ageMin && age <= filters.ageMax;
@@ -472,22 +441,23 @@ export default function MatchScreen() {
                 </LinearGradient>
               </Animated.View>
             </GestureDetector>
+          ) : loadError ? (
+            <EmptyState
+              isError
+              icon={<WifiOff color={themeColors.textMuted} size={48} />}
+              title="Chargement impossible"
+              message={loadError}
+              actionLabel="Réessayer"
+              onAction={() => fetchProfiles()}
+            />
           ) : (
-            <View style={styles.emptyContainer}>
-              <View style={styles.emptyCircle}>
-                <Heart color={themeColors.accent} size={48} />
-              </View>
-              <Text style={[styles.emptyText, { color: themeColors.text }]}>Revenez plus tard 💤</Text>
-              <Text style={[styles.emptySub, { color: themeColors.textMuted }]}>
-                Nous cherchons de nouveaux profils basés sur vos critères.
-              </Text>
-              <TouchableOpacity 
-                style={[styles.resetFilterBtn, { backgroundColor: themeColors.accent }]}
-                onPress={() => setFilterVisible(true)}
-              >
-                <Text style={styles.resetFilterText}>Affiner les filtres</Text>
-              </TouchableOpacity>
-            </View>
+            <EmptyState
+              icon={<Heart color={themeColors.accent} size={48} />}
+              title="Revenez plus tard 💤"
+              message="Nous cherchons de nouveaux profils basés sur vos critères."
+              actionLabel="Affiner les filtres"
+              onAction={() => setFilterVisible(true)}
+            />
           )}
         </View>
 
@@ -692,20 +662,6 @@ const styles = StyleSheet.create({
   },
   dislikeBtn: { borderColor: '#ef4444', borderWidth: 2 },
   likeBtn: { borderColor: '#10b981', borderWidth: 2 },
-  emptyContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 24 },
-  emptyCircle: { 
-    width: 140, 
-    height: 140, 
-    borderRadius: 70, 
-    backgroundColor: 'rgba(244,63,94,0.1)', 
-    justifyContent: 'center', 
-    alignItems: 'center', 
-    marginBottom: 32 
-  },
-  emptyText: { fontSize: 24, fontWeight: 'bold', marginBottom: 12 },
-  emptySub: { fontSize: 16, textAlign: 'center', marginBottom: 32 },
-  resetFilterBtn: { paddingHorizontal: 24, paddingVertical: 14, borderRadius: 28 },
-  resetFilterText: { color: '#fff', fontSize: 16, fontWeight: 'bold' },
   stamp: { position: 'absolute', top: 120, paddingHorizontal: 16, paddingVertical: 8, borderRadius: 12, borderWidth: 6, transform: [{ rotate: '-20deg' }], zIndex: 10 },
   stampLike: { left: 40, borderColor: '#10b981' },
   stampTextLike: { color: '#10b981', fontSize: 32, fontWeight: 'bold', letterSpacing: 3 },

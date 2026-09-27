@@ -16,6 +16,8 @@ import { supabase } from '@/lib/supabase';
 import { getUser } from '@/lib/session';
 import { IMAGE_CACHE_POLICY, photoSource, prefetchImages } from '@/lib/images';
 import { isRecentlySeen } from '@/hooks/use-presence';
+import { EmptyState } from '@/components/empty-state';
+import { MessageCircle, WifiOff } from 'lucide-react-native';
 
 // Helper pour le temps relatif simplifié
 const getRelativeTime = (dateString: string) => {
@@ -55,6 +57,8 @@ export default function MessagesScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [conversations, setConversations] = useState<Conversation[]>([]);
+  // Distingue « aucun match » (liste vide) de « chargement echoue »
+  const [loadError, setLoadError] = useState<string | null>(null);
 
   const themeColors = {
     text: isDark ? '#ffffff' : '#111827',
@@ -66,6 +70,7 @@ export default function MessagesScreen() {
 
   const fetchConversations = useCallback(async () => {
     try {
+      setLoadError(null);
       const user = await getUser();
       if (!user) return;
 
@@ -179,6 +184,9 @@ export default function MessagesScreen() {
       prefetchImages(convs.map((c) => c.otherUser.photos?.[0]));
     } catch (error) {
       console.error('Error fetching conversations:', error);
+      setLoadError(
+        'Impossible de charger vos conversations. Vérifiez votre connexion puis réessayez.'
+      );
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -281,12 +289,21 @@ export default function MessagesScreen() {
         <View style={styles.centerContainer}>
           <ActivityIndicator size="large" color="#f43f5e" />
         </View>
+      ) : loadError && conversations.length === 0 ? (
+        <EmptyState
+          isError
+          icon={<WifiOff color={themeColors.textMuted} size={48} />}
+          title="Chargement impossible"
+          message={loadError}
+          actionLabel="Réessayer"
+          onAction={() => fetchConversations()}
+        />
       ) : conversations.length === 0 ? (
-        <View style={styles.centerContainer}>
-          <Text style={[styles.emptyText, { color: themeColors.textMuted }]}>
-            Pas encore de match 💔{"\n"}Continuez à swiper !
-          </Text>
-        </View>
+        <EmptyState
+          icon={<MessageCircle color="#f43f5e" size={48} />}
+          title="Pas encore de match 💔"
+          message="Continuez à swiper pour trouver votre compatibilité."
+        />
       ) : (
         <FlatList
           data={conversations}
@@ -330,5 +347,4 @@ const styles = StyleSheet.create({
   badge: { backgroundColor: '#f43f5e', minWidth: 22, height: 22, borderRadius: 11, justifyContent: 'center', alignItems: 'center', paddingHorizontal: 6 },
   badgeText: { color: '#ffffff', fontSize: 12, fontWeight: 'bold' },
   centerContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 32 },
-  emptyText: { fontSize: 18, textAlign: 'center', lineHeight: 28 },
 });

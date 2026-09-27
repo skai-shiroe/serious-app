@@ -35,6 +35,12 @@ Une application de rencontre moderne et engagée, conçue avec un focus particul
 - **Cache d'images** : `lib/images.ts` — `cachePolicy="memory-disk"` + préchargement partagés
   par tous les écrans (plus d'écran gris au changement de carte ou d'avatar).
 - **Temps réel** : Supabase Realtime sur `messages`, `matches` et `presence` (aucun polling).
+- **Requêtes bornées** : `lib/candidates.ts` — le deck « Découvrir » se charge par **pages**
+  (curseur `user_id` croissant) au lieu d'exclure les profils déjà swipés via une liste
+  d'identifiants dans l'URL. Aucune requête ne peut plus renvoyer la table entière :
+  `coaching_posts` est plafonné à 100 lignes, l'historique d'un chat aux 200 derniers messages.
+- **Erreurs ≠ listes vides** : `components/empty-state.tsx` — un échec réseau affiche un
+  message explicite avec un bouton **Réessayer**, et non « Revenez plus tard 💤 ».
 
 ## 🛠️ Installation & Lancement
 
@@ -153,12 +159,47 @@ language sql stable as $$
   order by m.match_id, m.created_at desc;
 $$;
 
+-- Profils du deck « Découvrir » : l'exclusion des profils déjà swipés est faite
+-- par PostgreSQL (jamais par une liste d'identifiants dans l'URL de la requête),
+-- et la pagination se fait par curseur (p_after = dernier user_id parcouru).
+create or replace function get_candidate_profiles(
+  p_limit integer default 30,
+  p_after uuid default null,
+  p_city text default null,
+  p_blood_type text default null,
+  p_sickle_cell text default null
+)
+returns setof profiles
+language sql stable
+as $$
+  select p.*
+  from profiles p
+  where p.user_id <> auth.uid()
+    and not exists (
+      select 1 from swipes s
+      where s.swiper_id = auth.uid()
+        and s.swiped_id = p.user_id
+    )
+    and (p_after is null or p.user_id > p_after)
+    and (p_city is null or p.city ilike '%' || p_city || '%')
+    and (p_blood_type is null or p.blood_type = p_blood_type)
+    and (p_sickle_cell is null or p.sickle_cell = p_sickle_cell)
+  order by p.user_id
+  limit greatest(p_limit, 1);
+$$;
+
+revoke execute on function get_candidate_profiles(integer, uuid, text, text, text) from public;
+grant execute on function get_candidate_profiles(integer, uuid, text, text, text) to authenticated;
+
 -- Temps réel sur la présence et les matchs (messages l'est déjà)
 alter publication supabase_realtime add table presence, matches;
 ```
 
 > Sans la 1ʳᵉ instruction, l'app bascule automatiquement sur le repli « une requête par conversation ».
-> Sans la 2ᵉ, elle utilise un rafraîchissement de secours toutes les 90 s au lieu du temps réel.
+> Sans la 2ᵉ (profils du deck), elle utilise un **repli paginé côté client** : quelques requêtes
+> supplémentaires, mais aucune liste d'identifiants dans l'URL. Le repli est mémorisé, donc le
+> premier appel log un `console.warn` puis n'essaie plus la RPC jusqu'au prochain démarrage.
+> Sans la 3ᵉ, elle utilise un rafraîchissement de secours toutes les 90 s au lieu du temps réel.
 
 ## ✨ Design & Expérience
 

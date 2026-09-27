@@ -14,13 +14,14 @@ import {
   Keyboard 
 } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { ArrowLeft, Send, Check, CheckCheck } from 'lucide-react-native';
+import { ArrowLeft, Send, Check, CheckCheck, WifiOff } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Image } from 'expo-image';
 import { supabase } from '@/lib/supabase';
 import { getUser } from '@/lib/session';
 import { IMAGE_CACHE_POLICY, photoSource, prefetchImages } from '@/lib/images';
 import { isRecentlySeen } from '@/hooks/use-presence';
+import { EmptyState } from '@/components/empty-state';
 
 // Helper pour le temps relatif simplifié
 const formatTime = (dateString: string) => {
@@ -49,6 +50,10 @@ export default function ChatScreen() {
   const [inputText, setInputText] = useState('');
   const [loading, setLoading] = useState(true);
   const [isPartnerOnline, setIsPartnerOnline] = useState(false);
+  // Distingue « conversation vide » de « chargement echoue »
+  const [loadError, setLoadError] = useState<string | null>(null);
+  // Incremente pour relancer l'initialisation apres un echec
+  const [reloadKey, setReloadKey] = useState(0);
   
   const flatListRef = useRef<FlatList>(null);
 
@@ -66,51 +71,73 @@ export default function ChatScreen() {
   useEffect(() => {
     const initChat = async () => {
       try {
+        setLoadError(null);
         const user = await getUser();
-        if (!user) return;
+
+        if (!user) {
+          setLoadError('Session expirée. Reconnectez-vous pour continuer.');
+          return;
+        }
+
         setCurrentUser(user);
 
         // 1. Récupérer les détails du match pour trouver le partenaire
-        const { data: match } = await supabase
+        //    (maybeSingle : un match supprimé ne doit pas passer pour un chat vide)
+        const { data: match, error: matchError } = await supabase
           .from('matches')
           .select('*')
           .eq('id', matchId)
-          .single();
+          .maybeSingle();
 
-        if (match) {
-          const partnerId = match.user_id_1 === user.id ? match.user_id_2 : match.user_id_1;
-          
-          // 2. Récupérer le profil du partenaire
-          const { data: profile } = await supabase
-            .from('profiles')
-            .select('user_id, first_name, photos')
-            .eq('user_id', partnerId)
-            .single();
-          
-          setPartner(profile);
+        if (matchError) throw matchError;
 
-          // Avatar du partenaire en cache des l'arrivee : pas de flash gris
-          if (profile?.photos?.length) prefetchImages(profile.photos);
-
-          // 3. Charger l''historique
-          const { data: history } = await supabase
-            .from('messages')
-            .select('*')
-            .eq('match_id', matchId)
-            .order('created_at', { ascending: true });
-          
-          setMessages(history || []);
-
-          // 4. Marquer comme lu
-          await supabase
-            .from('messages')
-            .update({ read: true })
-            .eq('match_id', matchId)
-            .neq('sender_id', user.id)
-            .eq('read', false);
+        if (!match) {
+          setLoadError("Cette conversation n'existe plus.");
+          return;
         }
+
+        const partnerId = match.user_id_1 === user.id ? match.user_id_2 : match.user_id_1;
+
+        // 2. Récupérer le profil du partenaire
+        const { data: profile, error: profileError } = await supabase
+          .from('profiles')
+          .select('user_id, first_name, photos')
+          .eq('user_id', partnerId)
+          .maybeSingle();
+
+        if (profileError) throw profileError;
+
+        setPartner(profile);
+
+        // Avatar du partenaire en cache des l'arrivee : pas de flash gris
+        if (profile?.photos?.length) prefetchImages(profile.photos);
+
+        // 3. Charger l'historique, borné aux 200 derniers messages : une longue
+        //    conversation ne doit pas charger un payload illimité.
+        const { data: history, error: historyError } = await supabase
+          .from('messages')
+          .select('*')
+          .eq('match_id', matchId)
+          .order('created_at', { ascending: false })
+          .limit(200);
+
+        if (historyError) throw historyError;
+
+        // Reçu du plus récent au plus ancien : on remet dans l'ordre du chat.
+        setMessages((history || []).slice().reverse());
+
+        // 4. Marquer comme lu
+        await supabase
+          .from('messages')
+          .update({ read: true })
+          .eq('match_id', matchId)
+          .neq('sender_id', user.id)
+          .eq('read', false);
       } catch (err) {
         console.error('Error initializing chat:', err);
+        setLoadError(
+          'Impossible de charger la conversation. Vérifiez votre connexion puis réessayez.'
+        );
       } finally {
         setLoading(false);
       }
@@ -144,7 +171,7 @@ export default function ChatScreen() {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [matchId, currentUser?.id]);
+  }, [matchId, currentUser?.id, reloadKey]);
 
   // Presence du partenaire en TEMPS REEL : un seul abonnement, plus aucune
   // lecture toutes les 30 s. Le heartbeat d'ecriture est desormais global
@@ -193,7 +220,7 @@ export default function ChatScreen() {
         sender_id: currentUser.id,
         content: text,
       });
-      // Le Realtime s''occupera de l''ajouter à la liste
+      // Le Realtime s'occupera de l'ajouter à la liste
     } catch (err) {
       console.error('Error sending message:', err);
     }
@@ -226,6 +253,29 @@ export default function ChatScreen() {
       <View style={[styles.centerContainer, { backgroundColor: themeColors.bg }]}>
         <ActivityIndicator size="large" color="#f43f5e" />
       </View>
+    );
+  }
+
+  if (loadError) {
+    return (
+      <SafeAreaView style={[styles.safeArea, { backgroundColor: themeColors.bg }]}>
+        <View style={[styles.header, { backgroundColor: themeColors.headerBg, borderBottomColor: themeColors.border }]}>
+          <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
+            <ArrowLeft color={themeColors.text} size={24} />
+          </TouchableOpacity>
+        </View>
+        <EmptyState
+          isError
+          icon={<WifiOff color={themeColors.textMuted} size={48} />}
+          title="Conversation indisponible"
+          message={loadError}
+          actionLabel="Réessayer"
+          onAction={() => {
+            setLoading(true);
+            setReloadKey((k) => k + 1);
+          }}
+        />
+      </SafeAreaView>
     );
   }
 
