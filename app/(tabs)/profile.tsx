@@ -4,6 +4,7 @@ import { View, Text, StyleSheet, ScrollView, ActivityIndicator, useColorScheme, 
 import { Image } from 'expo-image';
 import { IMAGE_CACHE_POLICY, imageSource } from '@/lib/images';
 import { supabase } from '@/lib/supabase';
+import { getUser } from '@/lib/session';
 import { LinearGradient } from 'expo-linear-gradient';
 import { LogOut, Edit3, MapPin, BookOpen, Briefcase, Droplet, Activity, Calendar, Moon, Sun, Camera, Bookmark } from 'lucide-react-native';
 import { useRouter, useFocusEffect } from 'expo-router';
@@ -52,7 +53,7 @@ export default function ProfileScreen() {
   const fetchProfile = async () => {
     try {
       setLoading(true);
-      const { data: { user } } = await supabase.auth.getUser();
+      const user = await getUser();
       if (!user) return;
 
       const { data, error } = await supabase
@@ -79,7 +80,7 @@ export default function ProfileScreen() {
 
   const fetchSavedPosts = async () => {
     try {
-      const { data: { user } } = await supabase.auth.getUser();
+      const user = await getUser();
       if (!user) return;
 
       const { data, error } = await supabase

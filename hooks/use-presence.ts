@@ -2,6 +2,7 @@ import { useEffect } from 'react';
 import { AppState } from 'react-native';
 
 import { supabase } from '@/lib/supabase';
+import { getUserId } from '@/lib/session';
 
 /** Frequence d'ecriture du heartbeat `presence` (app au premier plan). */
 export const PRESENCE_HEARTBEAT_MS = 45000;
@@ -32,14 +33,12 @@ export function usePresenceHeartbeat(enabled: boolean) {
 
     const beat = async () => {
       try {
-        // getSession() lit la session locale : aucun aller-retour reseau,
-        // contrairement a getUser() qui revalide le JWT cote serveur.
-        const { data: { session } } = await supabase.auth.getSession();
-        const user = session?.user;
-        if (!user || cancelled) return;
+        // Identifiant lu depuis le cache local de session : aucun aller-retour reseau
+        const userId = await getUserId();
+        if (!userId || cancelled) return;
         await supabase
           .from('presence')
-          .upsert({ user_id: user.id, last_seen: new Date().toISOString() });
+          .upsert({ user_id: userId, last_seen: new Date().toISOString() });
       } catch {
         // Indicateur "best effort" : une erreur reseau ne doit rien casser
       }

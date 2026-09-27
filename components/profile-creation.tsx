@@ -1,4 +1,5 @@
 import { supabase } from '@/lib/supabase';
+import { getUser } from '@/lib/session';
 import { decode } from 'base64-arraybuffer';
 import { Image } from 'expo-image';
 import * as ImagePicker from 'expo-image-picker';
@@ -173,7 +174,7 @@ export default function ProfileCreation({ onComplete, initialData }: ProfileCrea
   const handleSave = async () => {
     setLoading(true);
     try {
-      const { data: { user } } = await supabase.auth.getUser();
+      const user = await getUser();
       if (!user) throw new Error("Utilisateur non connecté");
 
       // Upload photos

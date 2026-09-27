@@ -18,6 +18,7 @@ import { ArrowLeft, Send, Check, CheckCheck } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Image } from 'expo-image';
 import { supabase } from '@/lib/supabase';
+import { getUser } from '@/lib/session';
 import { IMAGE_CACHE_POLICY, photoSource, prefetchImages } from '@/lib/images';
 import { isRecentlySeen } from '@/hooks/use-presence';
 
@@ -65,7 +66,7 @@ export default function ChatScreen() {
   useEffect(() => {
     const initChat = async () => {
       try {
-        const { data: { user } } = await supabase.auth.getUser();
+        const user = await getUser();
         if (!user) return;
         setCurrentUser(user);
 

@@ -32,6 +32,7 @@ import BottomSheet, { BottomSheetScrollView, BottomSheetView } from '@gorhom/bot
 
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { supabase } from '@/lib/supabase';
+import { ensureSessionLoaded, getUser } from '@/lib/session';
 import { OnboardingScreen } from '@/components/onboarding-screen';
 import AuthScreen from '@/components/auth-screen';
 import ProfileCreation from '@/components/profile-creation';
@@ -316,7 +317,7 @@ export default function RootLayout() {
 
   async function savePushToken(token: string) {
     try {
-      const { data: { user } } = await supabase.auth.getUser();
+      const user = await getUser();
       if (user) {
         await supabase
           .from('profiles')
@@ -385,11 +386,13 @@ export default function RootLayout() {
 
   const checkAuthState = async () => {
     try {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (session?.user) {
+      // Cache de session partage (aucun appel reseau) + suivi des changements d'auth
+      await ensureSessionLoaded();
+      const user = await getUser();
+      if (user) {
         setHasSeenOnboarding(true);
         setIsAuthenticated(true);
-        checkProfile(session.user.id);
+        checkProfile(user.id);
       }
     } catch (e) {
       console.log(e);
@@ -478,9 +481,7 @@ export default function RootLayout() {
         onComplete={async () => {
           setProfileStatus('ready');
           try {
-            const {
-              data: { user },
-            } = await supabase.auth.getUser();
+            const user = await getUser();
             if (user) await writeProfileCache(user.id, true);
           } catch {
             // cache best effort

@@ -13,6 +13,7 @@ import {
 import { useRouter, useFocusEffect } from 'expo-router';
 import { Image } from 'expo-image';
 import { supabase } from '@/lib/supabase';
+import { getUser } from '@/lib/session';
 import { IMAGE_CACHE_POLICY, photoSource, prefetchImages } from '@/lib/images';
 import { isRecentlySeen } from '@/hooks/use-presence';
 
@@ -65,7 +66,7 @@ export default function MessagesScreen() {
 
   const fetchConversations = useCallback(async () => {
     try {
-      const { data: { user } } = await supabase.auth.getUser();
+      const user = await getUser();
       if (!user) return;
 
       // 1. Récupérer tous les matches de l'utilisateur

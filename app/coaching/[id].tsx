@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, Dimensions, Platform, Share, TextInput, KeyboardAvoidingView, Alert } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { supabase } from '@/lib/supabase';
+import { getUser } from '@/lib/session';
 import { Image } from 'expo-image';
 import { IMAGE_CACHE_POLICY, imageSource } from '@/lib/images';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -85,7 +86,7 @@ export default function CoachingDetailScreen() {
 
   const fetchInteractions = async () => {
     try {
-      const { data: { user } } = await supabase.auth.getUser();
+      const user = await getUser();
       if (!user) return;
 
       // Check if liked
@@ -144,7 +145,7 @@ export default function CoachingDetailScreen() {
 
   const toggleLike = async () => {
     try {
-      const { data: { user } } = await supabase.auth.getUser();
+      const user = await getUser();
       if (!user) {
         Alert.alert('Connexion requise', 'Connectez-vous pour liker ce conseil.');
         return;
@@ -171,7 +172,7 @@ export default function CoachingDetailScreen() {
 
   const toggleFavorite = async () => {
     try {
-      const { data: { user } } = await supabase.auth.getUser();
+      const user = await getUser();
       if (!user) {
         Alert.alert('Connexion requise', 'Connectez-vous pour enregistrer ce conseil.');
         return;
@@ -199,7 +200,7 @@ export default function CoachingDetailScreen() {
 
     try {
       setCommentLoading(true);
-      const { data: { user } } = await supabase.auth.getUser();
+      const user = await getUser();
       if (!user) {
         Alert.alert('Connexion requise', 'Connectez-vous pour commenter.');
         return;

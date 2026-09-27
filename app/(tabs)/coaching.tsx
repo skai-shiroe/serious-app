@@ -6,6 +6,7 @@ import { Picker } from '@react-native-picker/picker';
 import { Image } from 'expo-image';
 import { IMAGE_CACHE_POLICY, imageSource } from '@/lib/images';
 import { supabase } from '@/lib/supabase';
+import { getUser } from '@/lib/session';
 import { decode } from 'base64-arraybuffer';
 import * as ImagePicker from 'expo-image-picker';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -80,7 +81,7 @@ export default function CoachingScreen() {
 
   const fetchUserRole = async () => {
     try {
-      const { data: { user } } = await supabase.auth.getUser();
+      const user = await getUser();
       if (!user) {
         setUserRole(null);
         return;
@@ -141,7 +142,7 @@ export default function CoachingScreen() {
           finalImageUrl = newPost.image_url;
         } else if (newPost.image_url.startsWith('data:image')) {
           // Upload to Supabase Storage
-          const { data: { user } } = await supabase.auth.getUser();
+          const user = await getUser();
           if (!user) throw new Error("Utilisateur non connecté");
 
           const filePath = `${user.id}/${Date.now()}.jpg`;

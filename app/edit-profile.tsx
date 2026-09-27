@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { View, ActivityIndicator, StyleSheet, useColorScheme } from 'react-native';
 import { supabase } from '@/lib/supabase';
+import { getUser } from '@/lib/session';
 import { useRouter } from 'expo-router';
 import ProfileCreation from '@/components/profile-creation';
 
@@ -17,7 +18,7 @@ export default function EditProfileScreen() {
   const fetchProfile = async () => {
     try {
       setLoading(true);
-      const { data: { user } } = await supabase.auth.getUser();
+      const user = await getUser();
       if (!user) {
         router.back();
         return;

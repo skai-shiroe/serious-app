@@ -1,4 +1,5 @@
 import { supabase } from '@/lib/supabase';
+import { getUser } from '@/lib/session';
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as Haptics from 'expo-haptics';
@@ -75,7 +76,7 @@ export default function MatchScreen() {
   const fetchProfiles = useCallback(async () => {
     try {
       setLoading(true);
-      const { data: { user } } = await supabase.auth.getUser();
+      const user = await getUser();
       if (!user) return;
 
       const { data: swipedData } = await supabase
@@ -147,7 +148,7 @@ export default function MatchScreen() {
     if (loadingMoreRef.current) return;
     loadingMoreRef.current = true;
     try {
-      const { data: { user } } = await supabase.auth.getUser();
+      const user = await getUser();
       if (!user) return;
 
       const { data: swipedData } = await supabase
@@ -248,7 +249,7 @@ export default function MatchScreen() {
 
     (async () => {
       try {
-        const { data: { user: currentUser } } = await supabase.auth.getUser();
+        const currentUser = await getUser();
         if (!currentUser) return;
 
         const swipeDir = direction === 'right' ? 'like' : 'dislike';
