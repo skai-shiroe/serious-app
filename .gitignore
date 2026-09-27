@@ -34,7 +34,8 @@ yarn-error.*
 .DS_Store
 *.pem
 
-# local env files
+# local env files (ne jamais versionner de secrets : le depot est public)
+.env
 .env*.local
 
 # typescript
