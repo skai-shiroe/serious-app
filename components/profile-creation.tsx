@@ -5,9 +5,9 @@ import { decode } from 'base64-arraybuffer';
 import { Image } from 'expo-image';
 import * as ImagePicker from 'expo-image-picker';
 import { LinearGradient } from 'expo-linear-gradient';
-import { Activity, Camera, ChevronLeft, ChevronRight, CircleAlert, Heart, Images, User } from 'lucide-react-native';
+import { Activity, Camera, ChevronLeft, ChevronRight, Check, CircleAlert, Heart, Images, MapPin, Search, User, X } from 'lucide-react-native';
 import React, { useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, Alert, Keyboard, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, useColorScheme, View, } from 'react-native';
+import { ActivityIndicator, Alert, FlatList, Keyboard, KeyboardAvoidingView, Modal, Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, useColorScheme, View, } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 interface ProfileCreationProps {
@@ -29,6 +29,31 @@ type PhotoSlot = {
 const MAX_PHOTOS = 6;
 /** Qualite JPEG demandee au picker : 0.6 suffit largement pour un mobile. */
 const PHOTO_QUALITY = 0.6;
+
+/**
+ * Villes proposees dans le selecteur (constante simple a editer : ajouter ou
+ * retirer une ville ici suffit). Triee automatiquement a l'execution.
+ */
+const CITIES = [
+  'Agadir', 'Al Hoceïma', 'Asilah', 'Azrou', 'Béni Mellal', 'Berkane',
+  'Berrechid', 'Bouznika', 'Bouskoura', 'Casablanca', 'Chefchaouen', 'Dakhla',
+  'Dar Bouazza', 'El Jadida', 'Errachidia', 'Essaouira', 'Fès', 'Guelmim',
+  'Ifrane', 'Kénitra', 'Khouribga', 'Ksar El Kébir', 'Laâyoune', 'Larache',
+  'Marrakech', 'Martil', 'Meknès', 'Midelt', 'Mohammedia', 'Nador',
+  'Ouarzazate', 'Oued Zem', 'Oujda', 'Rabat', 'Safi', 'Salé',
+  'Settat', 'Sidi Kacem', 'Sidi Slimane', 'Tanger', 'Tan-Tan', 'Taroudant',
+  'Taza', 'Témara', 'Tétouan', 'Tinghir', 'Tiznit', 'Youssoufia',
+  'Zagora',
+].sort((a, b) => a.localeCompare(b, 'fr'));
+
+/** Minuscules sans accents : « fes » doit trouver « Fès ». */
+function normalizeText(value: string): string {
+  return value
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase();
+}
+
 /** Resultat d'un envoi de photo : l'URL publique, ou null si echec. */
 type PhotoUploadResult = { index: number; url: string } | null;
 
@@ -178,6 +203,15 @@ export default function ProfileCreation({ onComplete, initialData }: ProfileCrea
     sickleCell: initialData?.sickle_cell || '',
     bio: initialData?.bio || '',
   });
+
+  // Selecteur de ville (popup) : liste + recherche.
+  const [cityModalVisible, setCityModalVisible] = useState(false);
+  const [cityQuery, setCityQuery] = useState('');
+
+  const closeCityModal = () => {
+    setCityModalVisible(false);
+    setCityQuery('');
+  };
 
   // Pour la saisie structurée de la date de naissance
   const [bd, setBd] = useState({
@@ -631,13 +665,19 @@ export default function ProfileCreation({ onComplete, initialData }: ProfileCrea
         </View>
         <View style={{ flex: 1, marginLeft: 8 }}>
           <Text style={[styles.label, { color: themeColors.text }]}>Ville</Text>
-          <TextInput
-            style={[styles.input, { backgroundColor: themeColors.inputBg, borderColor: themeColors.border, color: themeColors.text }]}
-            placeholder="Paris, France"
-            placeholderTextColor={themeColors.icon}
-            value={formData.city}
-            onChangeText={(t) => setFormData({ ...formData, city: t })}
-          />
+          <TouchableOpacity
+            style={[styles.pickerBtn, { backgroundColor: themeColors.inputBg, borderColor: themeColors.border }]}
+            onPress={() => setCityModalVisible(true)}
+            activeOpacity={0.7}
+          >
+            <MapPin color={themeColors.icon} size={16} style={{ marginRight: 6 }} />
+            <Text
+              style={{ color: formData.city ? themeColors.text : themeColors.icon, fontSize: 16, flex: 1 }}
+              numberOfLines={1}
+            >
+              {formData.city || 'Choisir'}
+            </Text>
+          </TouchableOpacity>
         </View>
       </View>
     </View>
@@ -911,6 +951,11 @@ export default function ProfileCreation({ onComplete, initialData }: ProfileCrea
     }
   };
 
+  // Liste filtree du selecteur de ville (recherche insensible aux accents).
+  const visibleCities = cityQuery.trim()
+    ? CITIES.filter((city) => normalizeText(city).includes(normalizeText(cityQuery.trim())))
+    : CITIES;
+
   // ── Rendu principal ───────────────────────────────────────────────────
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -993,6 +1038,80 @@ export default function ProfileCreation({ onComplete, initialData }: ProfileCrea
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
+
+      {/* Selecteur de ville : popup avec recherche */}
+      <Modal
+        visible={cityModalVisible}
+        transparent
+        animationType="slide"
+        onRequestClose={closeCityModal}
+      >
+        <View style={styles.cityOverlay}>
+          <View style={[styles.citySheet, { backgroundColor: themeColors.bgCard }]}>
+            <View style={styles.citySheetHeader}>
+              <Text style={[styles.citySheetTitle, { color: themeColors.text }]}>Votre ville</Text>
+              <TouchableOpacity onPress={closeCityModal} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+                <X color={themeColors.icon} size={22} />
+              </TouchableOpacity>
+            </View>
+
+            <View style={[styles.citySearch, { backgroundColor: themeColors.inputBg, borderColor: themeColors.border }]}>
+              <Search color={themeColors.icon} size={18} />
+              <TextInput
+                style={[styles.citySearchInput, { color: themeColors.text }]}
+                placeholder="Rechercher une ville..."
+                placeholderTextColor={themeColors.icon}
+                value={cityQuery}
+                onChangeText={setCityQuery}
+                autoCorrect={false}
+              />
+              {cityQuery.length > 0 && (
+                <TouchableOpacity onPress={() => setCityQuery('')}>
+                  <X color={themeColors.icon} size={16} />
+                </TouchableOpacity>
+              )}
+            </View>
+
+            <FlatList
+              data={visibleCities}
+              keyExtractor={(city) => city}
+              style={styles.cityList}
+              contentContainerStyle={styles.cityListContent}
+              keyboardShouldPersistTaps="handled"
+              showsVerticalScrollIndicator={false}
+              renderItem={({ item }) => {
+                const isSelected = formData.city === item;
+                return (
+                  <TouchableOpacity
+                    style={[styles.cityRow, { borderBottomColor: themeColors.border }]}
+                    onPress={() => {
+                      setFormData((prev) => ({ ...prev, city: item }));
+                      closeCityModal();
+                    }}
+                    activeOpacity={0.7}
+                  >
+                    <Text
+                      style={{
+                        color: isSelected ? '#f43f5e' : themeColors.text,
+                        fontSize: 16,
+                        fontWeight: isSelected ? '700' : '400',
+                      }}
+                    >
+                      {item}
+                    </Text>
+                    {isSelected && <Check color="#f43f5e" size={18} />}
+                  </TouchableOpacity>
+                );
+              }}
+              ListEmptyComponent={
+                <Text style={[styles.cityEmpty, { color: themeColors.textMuted }]}>
+                  Aucune ville trouvée.
+                </Text>
+              }
+            />
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -1078,6 +1197,45 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     borderBottomWidth: StyleSheet.hairlineWidth,
   },
+
+  /* Selecteur de ville (popup) */
+  cityOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
+  citySheet: {
+    borderTopLeftRadius: 32,
+    borderTopRightRadius: 32,
+    paddingHorizontal: 24,
+    paddingTop: 24,
+    paddingBottom: 32,
+    maxHeight: '75%',
+  },
+  citySheetHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  citySheetTitle: { fontSize: 20, fontWeight: 'bold' },
+  citySearch: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    height: 48,
+    borderWidth: 1,
+    borderRadius: 12,
+    paddingHorizontal: 16,
+    marginBottom: 8,
+  },
+  citySearchInput: { flex: 1, fontSize: 16, height: '100%' },
+  cityList: { flexGrow: 0 },
+  cityListContent: { paddingBottom: 8 },
+  cityRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 14,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+  },
+  cityEmpty: { textAlign: 'center', paddingVertical: 24, fontSize: 15 },
 
   /* Info box */
   infoBox: {
