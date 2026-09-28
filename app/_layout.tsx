@@ -29,6 +29,11 @@ import {
   GraduationCap 
 } from 'lucide-react-native';
 import BottomSheet, { BottomSheetScrollView, BottomSheetView } from '@gorhom/bottom-sheet';
+import {
+  GenotypeVerifiedBadge,
+  IdentityVerifiedIcon,
+  VERIFIED_COLOR,
+} from '@/components/verified-badge';
 
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { supabase } from '@/lib/supabase';
@@ -150,6 +155,9 @@ function ProfileBottomSheet() {
               <Text style={{ fontSize: 32, fontWeight: 'bold', color: isDark ? '#fff' : '#111827' }}>
                 {selectedProfile.first_name}
               </Text>
+              {selectedProfile.identity_verified && (
+                <IdentityVerifiedIcon size={22} color={VERIFIED_COLOR} />
+              )}
               <Text style={{ fontSize: 24, color: isDark ? '#fff' : '#111827', opacity: 0.8 }}>
                 {calculateAge(selectedProfile.birth_date)}
               </Text>
@@ -178,13 +186,16 @@ function ProfileBottomSheet() {
             )}
           </View>
 
-          <View style={{ flexDirection: 'row', gap: 10, marginBottom: 24 }}>
+          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginBottom: 24 }}>
             <View style={{ backgroundColor: 'rgba(244,63,94,0.15)', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 12 }}>
               <Text style={{ color: '#f43f5e', fontWeight: 'bold' }}>{selectedProfile.blood_type}</Text>
             </View>
             <View style={{ backgroundColor: 'rgba(59,130,246,0.15)', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 12 }}>
               <Text style={{ color: '#3b82f6', fontWeight: 'bold' }}>Drépanocytose : {selectedProfile.sickle_cell}</Text>
             </View>
+            {selectedProfile.genotype_verified && (
+              <GenotypeVerifiedBadge genotype={selectedProfile.sickle_cell} />
+            )}
           </View>
 
           {selectedProfile.bio && (

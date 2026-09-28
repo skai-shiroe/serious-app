@@ -22,6 +22,7 @@ import { getUser } from '@/lib/session';
 import { IMAGE_CACHE_POLICY, photoSource, prefetchImages } from '@/lib/images';
 import { isRecentlySeen } from '@/hooks/use-presence';
 import { EmptyState } from '@/components/empty-state';
+import { IdentityVerifiedIcon } from '@/components/verified-badge';
 
 // Helper pour le temps relatif simplifié
 const formatTime = (dateString: string) => {
@@ -101,7 +102,7 @@ export default function ChatScreen() {
         // 2. Récupérer le profil du partenaire
         const { data: profile, error: profileError } = await supabase
           .from('profiles')
-          .select('user_id, first_name, photos')
+          .select('user_id, first_name, photos, identity_verified')
           .eq('user_id', partnerId)
           .maybeSingle();
 
@@ -301,7 +302,10 @@ export default function ChatScreen() {
               transition={120}
             />
             <View>
-              <Text style={[styles.headerTitle, { color: themeColors.text }]}>{partner?.first_name || 'Chat'}</Text>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                <Text style={[styles.headerTitle, { color: themeColors.text }]}>{partner?.first_name || 'Chat'}</Text>
+                {partner?.identity_verified && <IdentityVerifiedIcon size={16} />}
+              </View>
               <View style={styles.statusRow}>
                 <View style={[styles.statusDot, { backgroundColor: isPartnerOnline ? '#10b981' : '#9ca3af' }]} />
                 <Text style={[styles.statusText, { color: themeColors.textMuted }]}>

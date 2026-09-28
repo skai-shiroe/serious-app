@@ -2,6 +2,7 @@ import { supabase } from '@/lib/supabase';
 import { getUser } from '@/lib/session';
 import { fetchCandidateProfiles, isAgeInRange } from '@/lib/candidates';
 import { EmptyState } from '@/components/empty-state';
+import { GenotypeVerifiedBadge, IdentityVerifiedIcon } from '@/components/verified-badge';
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as Haptics from 'expo-haptics';
@@ -414,6 +415,9 @@ export default function MatchScreen() {
                 >
                   <View style={styles.infoRow}>
                     <Text style={styles.name}>{currentProfile.first_name}</Text>
+                    {currentProfile.identity_verified && (
+                      <IdentityVerifiedIcon size={22} color="#22d3ee" />
+                    )}
                     <Text style={styles.age}>{calculateAge(currentProfile.birth_date)}</Text>
                   </View>
                   <View style={styles.locationRow}>
@@ -428,6 +432,12 @@ export default function MatchScreen() {
                     <View style={[styles.tag, { backgroundColor: 'rgba(59,130,246,0.3)' }]}>
                       <Text style={styles.tagText}>{currentProfile.sickle_cell}</Text>
                     </View>
+                    {currentProfile.genotype_verified && (
+                      <GenotypeVerifiedBadge
+                        genotype={currentProfile.sickle_cell}
+                        variant="onPhoto"
+                      />
+                    )}
                   </View>
 
                   <TouchableOpacity 
@@ -634,7 +644,7 @@ const styles = StyleSheet.create({
   age: { color: '#ffffff', fontSize: 24, fontWeight: '400' },
   locationRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginBottom: 12 },
   city: { color: '#e5e7eb', fontSize: 16 },
-  tagsRow: { flexDirection: 'row', gap: 10 },
+  tagsRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
   tag: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 12 },
   tagText: { color: '#ffffff', fontSize: 13, fontWeight: '700' },
   infoIcon: { position: 'absolute', right: 24, bottom: 24, width: 44, height: 44, borderRadius: 22, backgroundColor: 'rgba(255,255,255,0.2)', justifyContent: 'center', alignItems: 'center' },

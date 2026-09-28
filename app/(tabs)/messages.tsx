@@ -17,6 +17,7 @@ import { getUser } from '@/lib/session';
 import { IMAGE_CACHE_POLICY, photoSource, prefetchImages } from '@/lib/images';
 import { isRecentlySeen } from '@/hooks/use-presence';
 import { EmptyState } from '@/components/empty-state';
+import { IdentityVerifiedIcon } from '@/components/verified-badge';
 import { MessageCircle, WifiOff } from 'lucide-react-native';
 
 // Helper pour le temps relatif simplifié
@@ -38,6 +39,7 @@ interface Conversation {
     id: string;
     first_name: string;
     photos: string[];
+    identity_verified?: boolean;
     last_seen?: string;
   };
   lastMessage?: {
@@ -97,7 +99,7 @@ export default function MessagesScreen() {
       const [profilesRes, presenceRes, unreadRes] = await Promise.all([
         supabase
           .from('profiles')
-          .select('user_id, first_name, photos')
+          .select('user_id, first_name, photos, identity_verified')
           .in('user_id', otherUserIds),
         supabase
           .from('presence')
@@ -163,6 +165,7 @@ export default function MessagesScreen() {
             id: otherUserId,
             first_name: profile?.first_name || 'Utilisateur',
             photos: profile?.photos || [],
+            identity_verified: profile?.identity_verified === true,
             last_seen: presence?.last_seen,
           },
           lastMessage: lastByMatch.get(match.id),
@@ -248,7 +251,10 @@ export default function MessagesScreen() {
       
       <View style={styles.chatInfo}>
         <View style={styles.chatHeader}>
-          <Text style={[styles.name, { color: themeColors.text }]}>{item.otherUser.first_name}</Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flex: 1 }}>
+            <Text style={[styles.name, { color: themeColors.text }]}>{item.otherUser.first_name}</Text>
+            {item.otherUser.identity_verified && <IdentityVerifiedIcon size={15} />}
+          </View>
           {item.lastMessage && (
             <Text style={[styles.time, { color: item.unreadCount > 0 ? '#f43f5e' : themeColors.textMuted }]}>
               {getRelativeTime(item.lastMessage.created_at)}

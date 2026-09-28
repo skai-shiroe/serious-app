@@ -49,6 +49,11 @@ Une application de rencontre moderne et engagée, conçue avec un focus particul
   au clavier `JJ → MM → AAAA` sans avoir à toucher chaque champ.
 - **Erreurs ≠ listes vides** : `components/empty-state.tsx` — un échec réseau affiche un
   message explicite avec un bouton **Réessayer**, et non « Revenez plus tard 💤 ».
+- **Vérification d'identité & génotype** : `app/verification.tsx` (dépôt des pièces) et
+  `app/admin/verifications.tsx` (revue admin). Documents dans le bucket **privé**
+  `verifications`, lus uniquement via des URLs signées de 5 min ; validation atomique par la RPC
+  `review_verification` (droits vérifiés côté serveur) ; badges sur le deck, la fiche, les
+  messages et le chat.
 
 ## 🛠️ Installation & Lancement
 
@@ -251,6 +256,105 @@ begin
 end $$;
 ```
 
+**Bloc 4 — vérification d'identité & génotype**
+
+```sql
+-- Journal des demandes (audit : qui, quand, quoi, pourquoi refuse)
+create table if not exists public.verifications (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references auth.users(id) on delete cascade,
+  type text not null check (type in ('identity','genotype')),
+  status text not null default 'pending' check (status in ('pending','approved','rejected')),
+  documents jsonb not null default '[]'::jsonb,
+  declared_value text,
+  verified_value text,
+  rejection_reason text,
+  reviewer_id uuid references auth.users(id) on delete set null,
+  reviewed_at timestamptz,
+  created_at timestamptz not null default now()
+);
+create index if not exists verifications_user_idx on public.verifications (user_id, type, created_at desc);
+create index if not exists verifications_pending_idx on public.verifications (status) where status = 'pending';
+
+-- Badges denormalises : le deck les lit deja via `select *` sur profiles
+alter table public.profiles
+  add column if not exists identity_verified boolean not null default false,
+  add column if not exists genotype_verified boolean not null default false,
+  add column if not exists verified_at timestamptz;
+
+-- Est-admin ? (security definer : evite la recursion RLS sur profiles)
+create or replace function public.is_admin()
+returns boolean language sql stable security definer set search_path = public as $$
+  select exists (select 1 from public.profiles
+                 where user_id = auth.uid() and role in ('admin','manager'));
+$$;
+
+alter table public.verifications enable row level security;
+
+drop policy if exists verifications_select on public.verifications;
+create policy verifications_select on public.verifications for select
+  using (user_id = auth.uid() or public.is_admin());
+
+drop policy if exists verifications_insert on public.verifications;
+create policy verifications_insert on public.verifications for insert
+  with check (user_id = auth.uid());
+-- Aucune policy UPDATE/DELETE pour l'utilisateur : pas d'auto-validation.
+-- Apres un refus, il cree une NOUVELLE demande (l'historique est conserve).
+
+-- Bucket PRIVE : une piece d'identite ne doit jamais etre publique
+insert into storage.buckets (id, name, public) values ('verifications','verifications', false)
+  on conflict (id) do update set public = false;
+
+drop policy if exists verif_upload on storage.objects;
+create policy verif_upload on storage.objects for insert to authenticated
+  with check (bucket_id = 'verifications'
+              and (storage.foldername(name))[1] = auth.uid()::text);
+
+drop policy if exists verif_read on storage.objects;
+create policy verif_read on storage.objects for select to authenticated
+  using (bucket_id = 'verifications'
+         and ((storage.foldername(name))[1] = auth.uid()::text or public.is_admin()));
+
+-- Validation atomique, reservee aux admins
+create or replace function public.review_verification(
+  p_id uuid, p_approve boolean, p_verified_value text default null, p_reason text default null)
+returns void language plpgsql security definer set search_path = public as $$
+declare v_type text; v_user uuid;
+begin
+  if not public.is_admin() then
+    raise exception 'not allowed';
+  end if;
+
+  update public.verifications
+     set status = case when p_approve then 'approved' else 'rejected' end,
+         verified_value = p_verified_value,
+         rejection_reason = case when p_approve then null else p_reason end,
+         reviewer_id = auth.uid(),
+         reviewed_at = now()
+   where id = p_id and status = 'pending'
+   returning type, user_id into v_type, v_user;
+
+  if v_user is null then
+    raise exception 'demande introuvable ou deja traitee';
+  end if;
+
+  if p_approve then
+    update public.profiles
+       set identity_verified = case when v_type = 'identity' then true else identity_verified end,
+           genotype_verified = case when v_type = 'genotype' then true else genotype_verified end,
+           verified_at = now()
+     where user_id = v_user;
+  end if;
+end $$;
+
+revoke execute on function public.review_verification(uuid, boolean, text, text) from public;
+grant execute on function public.review_verification(uuid, boolean, text, text) to authenticated;
+
+-- Controle de securite : cette policy ne doit PAS laisser modifier `role`
+select policyname, cmd, qual, with_check from pg_policies
+where schemaname = 'public' and tablename = 'profiles' and cmd = 'UPDATE';
+```
+
 > ⚠️ Ne pas remplacer ce bloc par `alter publication … set table …` : cette forme **écrase** la
 > liste des tables publiées et retirerait `messages`.
 > `ERROR: 42710: relation "…" is already member of publication` signifie simplement que la table
@@ -264,6 +368,27 @@ end $$;
 > en plus, mais aucune liste d'identifiants dans l'URL. L'absence est mémorisée : un seul
 > `console.warn` puis plus aucune tentative jusqu'au prochain démarrage.
 > Sans le bloc 3, un rafraîchissement de secours toutes les 90 s remplace le temps réel.
+> Sans le bloc 4, la table `verifications` manque : l'écran **Vérifications** et la file admin
+> remontent une erreur explicite (avec bouton Réessayer) au lieu de planter.
+
+## 🛡️ Vérification d'identité & génotype
+
+Deux vérifications indépendantes, lancées depuis **Mon Profil → Confiance** :
+
+| | Pièces demandées | Ce qui est contrôlé |
+|---|---|---|
+| **Identité** | CNIE (ou passeport) recto + verso | le nom du document correspond au profil |
+| **Génotype** | analyse de laboratoire (électrophorèse de l'hémoglobine) | le génotype du document correspond à celui déclaré (AA / AS / SS) |
+
+- **Côté utilisateur** (`app/verification.tsx`) : statut `À vérifier → En relecture → Vérifiée / Refusée (motif)`, photo prise à l'appareil ou choisie dans la galerie, envoi immédiat vers le bucket privé.
+- **Côté admin** (`app/admin/verifications.tsx`, réservé à `role ∈ {admin, manager}`) : file d'attente, documents affichés via **URL signée 5 min**, boutons **Valider** / **Refuser** (motif obligatoire, visible par l'utilisateur).
+- **Badges** : icône de vérification d'identité à côté du prénom, pastille « Génotype AS vérifié » sur la carte du deck, la fiche profil, la liste des messages et l'en-tête du chat. Les colonnes `identity_verified` / `genotype_verified` étant dénormalisées dans `profiles`, cela ne coûte **aucune requête supplémentaire**.
+- **Sécurité** : bucket privé ; l'utilisateur n'a ni UPDATE ni DELETE sur sa demande (donc aucune auto-validation) ; `review_verification` est `security definer` et vérifie elle-même `is_admin()` ; les deux colonnes de badges ne sont modifiables que par cette RPC.
+- **Vie privée** : seules les décisions sont conservées (`reviewer_id`, `verified_value`, `reviewed_at`). Pour purger les documents au-delà de 90 jours :
+  ```sql
+  delete from storage.objects
+  where bucket_id = 'verifications' and created_at < now() - interval '90 days';
+  ```
 
 ## 📦 Build « preview » & mises à jour OTA
 

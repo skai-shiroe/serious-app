@@ -34,17 +34,21 @@ const PHOTO_QUALITY = 0.6;
  * Villes proposees dans le selecteur (constante simple a editer : ajouter ou
  * retirer une ville ici suffit). Triee automatiquement a l'execution.
  */
-const CITIES = [
-  'Agadir', 'Al Hoceïma', 'Asilah', 'Azrou', 'Béni Mellal', 'Berkane',
-  'Berrechid', 'Bouznika', 'Bouskoura', 'Casablanca', 'Chefchaouen', 'Dakhla',
-  'Dar Bouazza', 'El Jadida', 'Errachidia', 'Essaouira', 'Fès', 'Guelmim',
-  'Ifrane', 'Kénitra', 'Khouribga', 'Ksar El Kébir', 'Laâyoune', 'Larache',
-  'Marrakech', 'Martil', 'Meknès', 'Midelt', 'Mohammedia', 'Nador',
-  'Ouarzazate', 'Oued Zem', 'Oujda', 'Rabat', 'Safi', 'Salé',
-  'Settat', 'Sidi Kacem', 'Sidi Slimane', 'Tanger', 'Tan-Tan', 'Taroudant',
-  'Taza', 'Témara', 'Tétouan', 'Tinghir', 'Tiznit', 'Youssoufia',
-  'Zagora',
-].sort((a, b) => a.localeCompare(b, 'fr'));
+const CITIES = Array.from(
+  new Set([
+  'Lomé', 'Sokodé', 'Kara', 'Atakpamé',
+  'Dapaong', 'Tsévié', 'Aného', 'Kpalimé',
+  'Notsé', 'Bassar', 'Amlamé', 'Badou',
+  'Bafilo', 'Baguida', 'Bohou', 'Cinkassé',
+  'Danyi', 'Kévé', 'Kandé', 'Kpagouda',
+  'Mango', 'Niamtougou', 'Pagouda', 'Tchamba',
+  'Tchaoudjo', 'Vogan', 'Tabligbo', 'Guérin-Kouka',
+  'Kanté', 'Kozah', 'Mô', 'Ogou',
+  'Assoli', 'Binah', 'Doufelgou', 'Oti',
+  'Oti-Sud', 'Tandjouaré', 'Tone', 'Vo',
+  'Yoto', 'Zio',
+  ])
+).sort((a, b) => a.localeCompare(b, 'fr'));
 
 /** Minuscules sans accents : « fes » doit trouver « Fès ». */
 function normalizeText(value: string): string {

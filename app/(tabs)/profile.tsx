@@ -6,7 +6,7 @@ import { IMAGE_CACHE_POLICY, imageSource } from '@/lib/images';
 import { supabase } from '@/lib/supabase';
 import { getUser } from '@/lib/session';
 import { LinearGradient } from 'expo-linear-gradient';
-import { LogOut, Edit3, MapPin, BookOpen, Briefcase, Droplet, Activity, Calendar, Moon, Sun, Camera, Bookmark, WifiOff } from 'lucide-react-native';
+import { LogOut, Edit3, MapPin, BookOpen, Briefcase, Droplet, Activity, Calendar, Moon, Sun, Camera, Bookmark, WifiOff, ShieldCheck, ChevronRight } from 'lucide-react-native';
 import { EmptyState } from '@/components/empty-state';
 import { useRouter, useFocusEffect } from 'expo-router';
 
@@ -182,6 +182,7 @@ export default function ProfileScreen() {
   }
 
   const completionPercent = calculateCompletion();
+  const isAdmin = profile?.role === 'admin' || profile?.role === 'manager';
   const mainPhoto = profile?.photos?.[0];
 
   return (
@@ -363,6 +364,60 @@ export default function ProfileScreen() {
           )}
         </View>
 
+        {/* Confiance : identité + génotype */}
+        <View style={[styles.card, { backgroundColor: themeColors.bgCard, borderColor: themeColors.border }]}>
+          <View style={styles.sectionHeader}>
+            <ShieldCheck size={20} color={themeColors.accent} />
+            <Text style={[styles.sectionTitle, { color: themeColors.text, marginBottom: 0 }]}>Confiance</Text>
+          </View>
+
+          <TouchableOpacity
+            style={styles.trustRow}
+            onPress={() => router.push('/verification')}
+            activeOpacity={0.8}
+          >
+            <View style={{ flex: 1 }}>
+              <Text style={[styles.infoText, { color: themeColors.text }]}>Identité</Text>
+              <Text
+                style={[
+                  styles.trustStatus,
+                  { color: profile?.identity_verified ? '#10b981' : themeColors.textMuted },
+                ]}
+              >
+                {profile?.identity_verified ? 'Vérifiée' : 'À vérifier'}
+              </Text>
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={[styles.infoText, { color: themeColors.text }]}>Génotype</Text>
+              <Text
+                style={[
+                  styles.trustStatus,
+                  { color: profile?.genotype_verified ? '#10b981' : themeColors.textMuted },
+                ]}
+              >
+                {profile?.genotype_verified
+                  ? `Vérifié (${profile?.sickle_cell || '?'})`
+                  : 'À vérifier'}
+              </Text>
+            </View>
+            <ChevronRight size={20} color={themeColors.icon} />
+          </TouchableOpacity>
+
+          {isAdmin && (
+            <TouchableOpacity
+              style={[styles.adminRow, { borderTopColor: themeColors.border }]}
+              onPress={() => router.push('/admin/verifications')}
+              activeOpacity={0.8}
+            >
+              <ShieldCheck size={18} color={themeColors.accent} />
+              <Text style={[styles.infoText, { color: themeColors.text, flex: 1 }]}>
+                Demandes à valider
+              </Text>
+              <ChevronRight size={18} color={themeColors.icon} />
+            </TouchableOpacity>
+          )}
+        </View>
+
         <TouchableOpacity style={styles.actionBtn} activeOpacity={0.8} onPress={() => router.push('/edit-profile')}>
           <LinearGradient
             colors={['#f43f5e', '#ec4899']}
@@ -431,6 +486,16 @@ const styles = StyleSheet.create({
   savedPostTitle: { fontSize: 14, fontWeight: 'bold', marginBottom: 4 },
   savedPostCategory: { fontSize: 10, fontWeight: '700', textTransform: 'uppercase' },
   emptyText: { fontSize: 14, fontStyle: 'italic', marginTop: 8 },
+  trustRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  trustStatus: { fontSize: 13, fontWeight: '600', marginTop: 2 },
+  adminRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    paddingTop: 14,
+    marginTop: 14,
+    borderTopWidth: StyleSheet.hairlineWidth,
+  },
   savedErrorRow: { marginTop: 8, gap: 6, alignItems: 'flex-start' },
   savedRetryText: { fontSize: 14, fontWeight: '700' },
 });
