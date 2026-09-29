@@ -103,6 +103,15 @@ export default function VerificationScreen() {
         if (!latest[row.type]) latest[row.type] = row;
       });
       setRequests(latest);
+
+      // Accuse de lecture : les decisions non vues le sont desormais (le badge
+      // « Nouveau » du profil disparait au retour sur cet ecran).
+      const hasUnseen = (requestsRes.data || []).some(
+        (row: any) => row.reviewed_at && !row.user_seen_at
+      );
+      if (hasUnseen) {
+        await supabase.rpc('mark_verifications_seen');
+      }
     } catch (error: any) {
       console.warn('[Verification] chargement impossible', error?.message || error);
       setLoadError(

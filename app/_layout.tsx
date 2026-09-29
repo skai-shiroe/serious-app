@@ -30,9 +30,12 @@ import {
 } from 'lucide-react-native';
 import BottomSheet, { BottomSheetScrollView, BottomSheetView } from '@gorhom/bottom-sheet';
 import {
+  CertifiedBadge,
+  CertifiedIcon,
   GenotypeVerifiedBadge,
   IdentityVerifiedIcon,
   VERIFIED_COLOR,
+  isFullyVerified,
 } from '@/components/verified-badge';
 
 import { useColorScheme } from '@/hooks/use-color-scheme';
@@ -155,8 +158,12 @@ function ProfileBottomSheet() {
               <Text style={{ fontSize: 32, fontWeight: 'bold', color: isDark ? '#fff' : '#111827' }}>
                 {selectedProfile.first_name}
               </Text>
-              {selectedProfile.identity_verified && (
-                <IdentityVerifiedIcon size={22} color={VERIFIED_COLOR} />
+              {isFullyVerified(selectedProfile) ? (
+                <CertifiedIcon size={22} />
+              ) : (
+                selectedProfile.identity_verified && (
+                  <IdentityVerifiedIcon size={22} color={VERIFIED_COLOR} />
+                )
               )}
               <Text style={{ fontSize: 24, color: isDark ? '#fff' : '#111827', opacity: 0.8 }}>
                 {calculateAge(selectedProfile.birth_date)}
@@ -193,8 +200,12 @@ function ProfileBottomSheet() {
             <View style={{ backgroundColor: 'rgba(59,130,246,0.15)', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 12 }}>
               <Text style={{ color: '#3b82f6', fontWeight: 'bold' }}>Drépanocytose : {selectedProfile.sickle_cell}</Text>
             </View>
-            {selectedProfile.genotype_verified && (
-              <GenotypeVerifiedBadge genotype={selectedProfile.sickle_cell} />
+            {isFullyVerified(selectedProfile) ? (
+              <CertifiedBadge />
+            ) : (
+              selectedProfile.genotype_verified && (
+                <GenotypeVerifiedBadge genotype={selectedProfile.sickle_cell} />
+              )
             )}
           </View>
 
@@ -283,6 +294,9 @@ export default function RootLayout() {
       } else if (data?.type === 'coaching' && data?.id) {
         // Redirige vers la page du conseil de coaching
         router.push(`/coaching/${data.id}`);
+      } else if (data?.type === 'verification') {
+        // Une décision (validation ou refus) vient d'être rendue
+        router.push('/verification');
       }
     });
 
@@ -304,6 +318,16 @@ export default function RootLayout() {
       if (finalStatus !== 'granted') {
         console.log('Permission refusée pour les notifications push !');
         return;
+      }
+
+      // Canal Android dedie : l'utilisateur peut le couper ou le personnaliser
+      // depuis les reglages du telephone sans affecter les autres notifications.
+      if (Platform.OS === 'android') {
+        await Notifications.setNotificationChannelAsync('verifications', {
+          name: 'Vérifications',
+          importance: Notifications.AndroidImportance.DEFAULT,
+          sound: 'default',
+        });
       }
       try {
         // Toujours lire le projectId depuis app.json (EAS) :

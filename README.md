@@ -355,6 +355,69 @@ select policyname, cmd, qual, with_check from pg_policies
 where schemaname = 'public' and tablename = 'profiles' and cmd = 'UPDATE';
 ```
 
+**Bloc 5 — notification de décision + accusé de lecture**
+
+```sql
+-- 5a) Marque une décision comme vue par l'utilisateur (indicateur « Nouveau »)
+alter table public.verifications
+  add column if not exists user_seen_at timestamptz;
+
+create or replace function public.mark_verifications_seen()
+returns void language sql security definer set search_path = public as $$
+  update public.verifications
+     set user_seen_at = now()
+   where user_id = auth.uid()
+     and reviewed_at is not null
+     and user_seen_at is null;
+$$;
+
+revoke execute on function public.mark_verifications_seen() from public;
+grant execute on function public.mark_verifications_seen() to authenticated;
+
+-- 5b) Push a chaque décision (pg_net -> API Expo Push)
+create extension if not exists pg_net;
+
+create or replace function public.notify_verification_status()
+returns trigger language plpgsql security definer set search_path = public as $$
+declare v_token text; v_label text; v_status text;
+begin
+  if new.status = old.status or new.status not in ('approved','rejected') then
+    return new;
+  end if;
+
+  select push_token into v_token from public.profiles where user_id = new.user_id;
+  if v_token is null or v_token = '' then return new; end if;   -- pas de token : on saute
+
+  v_label  := case new.type when 'identity' then 'Pièce d''identité' else 'Génotype' end;
+  v_status := case when new.status = 'approved' then 'validée' else 'refusée' end;
+
+  perform net.http_post(
+    url := 'https://exp.host/--/api/v2/push/send',
+    headers := '{"Content-Type":"application/json"}'::jsonb,
+    body := jsonb_build_object(
+      'to', v_token,
+      'title', v_label || ' ' || v_status,
+      'body', case when new.status = 'approved'
+                   then 'Votre vérification a été validée. Merci !'
+                   else coalesce(new.rejection_reason, 'Votre document n''a pas pu être validé.') end,
+      'sound', 'default',
+      'channelId', 'verifications',
+      'data', jsonb_build_object('type', 'verification', 'status', new.status)
+    )
+  );
+  return new;
+end $$;
+
+drop trigger if exists on_verification_reviewed on public.verifications;
+create trigger on_verification_reviewed
+after update on public.verifications
+for each row execute function public.notify_verification_status();
+```
+
+> Si `create extension pg_net` répond *not available* : **Dashboard → Database → Extensions → pg_net**, puis relance.
+> Le trigger est **asynchrone** (il ne bloque jamais la validation admin). Pour vérifier un envoi :
+> `select * from net._http_response order by created desc limit 5;`
+
 > ⚠️ Ne pas remplacer ce bloc par `alter publication … set table …` : cette forme **écrase** la
 > liste des tables publiées et retirerait `messages`.
 > `ERROR: 42710: relation "…" is already member of publication` signifie simplement que la table
@@ -389,6 +452,21 @@ Deux vérifications indépendantes, lancées depuis **Mon Profil → Confiance**
   delete from storage.objects
   where bucket_id = 'verifications' and created_at < now() - interval '90 days';
   ```
+
+### Notifications et certification
+
+- **Déclencheur** : à chaque `approved` / `rejected`, `notify_verification_status()` (bloc 5) envoie une push via l'API Expo Push — pas d'Edge Function à déployer. Sans `push_token` enregistré, rien n'est envoyé (silencieux).
+- **Tap sur la notification** : `data.type = 'verification'` → ouverture directe de l'écran Vérifications, via un canal Android dédié « Vérifications » (l'utilisateur peut le couper sans perdre les autres notifications).
+- **Indicateur « Nouveau »** : `verifications.user_seen_at` marque une décision déjà vue. La carte **Confiance** de Mon Profil affiche « Nouveau » tant que l'utilisateur n'a pas ouvert l'écran (la RPC `mark_verifications_seen` ne touche que cette colonne, jamais le statut). L'état vit **en base** : il suit l'utilisateur d'un appareil à l'autre, contrairement à un drapeau local.
+- **Badge « Profil certifié »** : affiché dès que **l'identité ET le génotype** sont validés. Il remplace alors les badges individuels (carte du deck, fiche profil, liste des messages, en-tête du chat) pour ne pas surcharger.
+
+> ⚠️ **Prérequis Android pour que la push soit réellement délivrée :** le projet n'a **pas** de `google-services.json` → FCM n'est pas configuré, donc le token est enregistré mais l'envoi échoue côté Google. Il faut :
+> 1. créer un projet **Firebase** + une app Android `com.skylimit.seriousapp` ;
+> 2. `google-services.json` à la racine + `android.googleServicesFile` dans `app.json` (ou upload via `eas credentials`) ;
+> 3. la clé **FCM v1** (service account) dans `eas credentials` → Android ;
+> 4. **un nouveau build** (`eas build --profile preview`) — non poussable en OTA.
+>
+> En attendant, la décision reste visible dans le profil (statut + « Nouveau »).
 
 ## 📦 Build « preview » & mises à jour OTA
 

@@ -2,7 +2,13 @@ import { supabase } from '@/lib/supabase';
 import { getUser } from '@/lib/session';
 import { fetchCandidateProfiles, isAgeInRange } from '@/lib/candidates';
 import { EmptyState } from '@/components/empty-state';
-import { GenotypeVerifiedBadge, IdentityVerifiedIcon } from '@/components/verified-badge';
+import {
+  CertifiedBadge,
+  CertifiedIcon,
+  GenotypeVerifiedBadge,
+  IdentityVerifiedIcon,
+  isFullyVerified,
+} from '@/components/verified-badge';
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as Haptics from 'expo-haptics';
@@ -415,8 +421,12 @@ export default function MatchScreen() {
                 >
                   <View style={styles.infoRow}>
                     <Text style={styles.name}>{currentProfile.first_name}</Text>
-                    {currentProfile.identity_verified && (
-                      <IdentityVerifiedIcon size={22} color="#22d3ee" />
+                    {isFullyVerified(currentProfile) ? (
+                      <CertifiedIcon size={22} />
+                    ) : (
+                      currentProfile.identity_verified && (
+                        <IdentityVerifiedIcon size={22} color="#22d3ee" />
+                      )
                     )}
                     <Text style={styles.age}>{calculateAge(currentProfile.birth_date)}</Text>
                   </View>
@@ -432,11 +442,15 @@ export default function MatchScreen() {
                     <View style={[styles.tag, { backgroundColor: 'rgba(59,130,246,0.3)' }]}>
                       <Text style={styles.tagText}>{currentProfile.sickle_cell}</Text>
                     </View>
-                    {currentProfile.genotype_verified && (
-                      <GenotypeVerifiedBadge
-                        genotype={currentProfile.sickle_cell}
-                        variant="onPhoto"
-                      />
+                    {isFullyVerified(currentProfile) ? (
+                      <CertifiedBadge variant="onPhoto" />
+                    ) : (
+                      currentProfile.genotype_verified && (
+                        <GenotypeVerifiedBadge
+                          genotype={currentProfile.sickle_cell}
+                          variant="onPhoto"
+                        />
+                      )
                     )}
                   </View>
 

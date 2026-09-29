@@ -171,6 +171,12 @@ export default function AdminVerificationsScreen() {
       if (error) throw error;
 
       await load();
+      Alert.alert(
+        approve ? 'Demande validée' : 'Demande refusée',
+        approve
+          ? 'Le badge de certification est mis à jour, et la décision apparaît immédiatement dans le profil de l’utilisateur.'
+          : 'La personne voit le motif du refus dans son écran Vérifications.'
+      );
     } catch (error: any) {
       Alert.alert('Action impossible', error?.message || 'Réessayez plus tard.');
     } finally {

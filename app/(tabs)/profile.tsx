@@ -8,6 +8,7 @@ import { getUser } from '@/lib/session';
 import { LinearGradient } from 'expo-linear-gradient';
 import { LogOut, Edit3, MapPin, BookOpen, Briefcase, Droplet, Activity, Calendar, Moon, Sun, Camera, Bookmark, WifiOff, ShieldCheck, ChevronRight } from 'lucide-react-native';
 import { EmptyState } from '@/components/empty-state';
+import { CertifiedBadge, isFullyVerified } from '@/components/verified-badge';
 import { useRouter, useFocusEffect } from 'expo-router';
 
 export default function ProfileScreen() {
@@ -20,6 +21,10 @@ export default function ProfileScreen() {
   // Distingue « section vide » de « chargement echoue »
   const [profileError, setProfileError] = useState<string | null>(null);
   const [savedError, setSavedError] = useState<string | null>(null);
+  // Derniere demande de verification par type : statut + decision non vue
+  const [verifState, setVerifState] = useState<
+    Record<string, { status: string; unseen: boolean }>
+  >({});
   const router = useRouter();
   const colorScheme = useColorScheme();
   const isDark = colorScheme === 'dark';
@@ -51,8 +56,44 @@ export default function ProfileScreen() {
     useCallback(() => {
       fetchProfile();
       fetchSavedPosts();
+      fetchVerifications();
     }, [])
   );
+
+  /**
+   * Derniere demande de verification par type.
+   * `unseen` = decision rendue mais jamais ouverte par l'utilisateur : c'est ce
+   * qui alimente l'indicateur « Nouveau ». Cet etat vit en base (user_seen_at),
+   * donc il survit a une reinstallation et suit l'utilisateur d'un appareil a
+   * l'autre — contrairement a un drapeau stocke sur le telephone.
+   */
+  const fetchVerifications = async () => {
+    try {
+      const user = await getUser();
+      if (!user) return;
+
+      const { data, error } = await supabase
+        .from('verifications')
+        .select('type, status, reviewed_at, user_seen_at, created_at')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+
+      const latest: Record<string, { status: string; unseen: boolean }> = {};
+      (data || []).forEach((row: any) => {
+        if (latest[row.type]) return; // deja la plus recente
+        latest[row.type] = {
+          status: row.status,
+          unseen: !!row.reviewed_at && !row.user_seen_at,
+        };
+      });
+      setVerifState(latest);
+    } catch (e) {
+      // Indicateur purement informatif : un echec ne doit rien bloquer ici.
+      console.log('Error fetching verifications', e);
+    }
+  };
 
   const fetchProfile = async () => {
     try {
@@ -183,6 +224,26 @@ export default function ProfileScreen() {
 
   const completionPercent = calculateCompletion();
   const isAdmin = profile?.role === 'admin' || profile?.role === 'manager';
+
+  /** Libelle et couleur d'une verification, selon sa derniere demande. */
+  const trustLabel = (type: 'identity' | 'genotype') => {
+    const state = verifState[type];
+    if (!state) return { text: 'À vérifier', color: themeColors.textMuted };
+
+    switch (state.status) {
+      case 'approved':
+        return {
+          text: type === 'identity' ? 'Vérifiée' : `Vérifié (${profile?.sickle_cell || '?'})`,
+          color: '#10b981',
+        };
+      case 'pending':
+        return { text: 'En relecture', color: '#f59e0b' };
+      case 'rejected':
+        return { text: 'Refusée', color: '#ef4444' };
+      default:
+        return { text: 'À vérifier', color: themeColors.textMuted };
+    }
+  };
   const mainPhoto = profile?.photos?.[0];
 
   return (
@@ -208,6 +269,12 @@ export default function ProfileScreen() {
           <View style={[styles.completionBadge, { backgroundColor: 'rgba(244, 63, 94, 0.1)' }]}>
             <Text style={[styles.completionText, { color: '#f43f5e' }]}>{completionPercent}% complété</Text>
           </View>
+
+          {isFullyVerified(profile) && (
+            <View style={{ marginTop: 10 }}>
+              <CertifiedBadge />
+            </View>
+          )}
         </View>
 
         {/* Section Stats (âge, sang, drépanocytaire) */}
@@ -369,6 +436,11 @@ export default function ProfileScreen() {
           <View style={styles.sectionHeader}>
             <ShieldCheck size={20} color={themeColors.accent} />
             <Text style={[styles.sectionTitle, { color: themeColors.text, marginBottom: 0 }]}>Confiance</Text>
+            {isFullyVerified(profile) && (
+              <View style={{ marginLeft: 8 }}>
+                <CertifiedBadge />
+              </View>
+            )}
           </View>
 
           <TouchableOpacity
@@ -376,30 +448,20 @@ export default function ProfileScreen() {
             onPress={() => router.push('/verification')}
             activeOpacity={0.8}
           >
-            <View style={{ flex: 1 }}>
-              <Text style={[styles.infoText, { color: themeColors.text }]}>Identité</Text>
-              <Text
-                style={[
-                  styles.trustStatus,
-                  { color: profile?.identity_verified ? '#10b981' : themeColors.textMuted },
-                ]}
-              >
-                {profile?.identity_verified ? 'Vérifiée' : 'À vérifier'}
-              </Text>
-            </View>
-            <View style={{ flex: 1 }}>
-              <Text style={[styles.infoText, { color: themeColors.text }]}>Génotype</Text>
-              <Text
-                style={[
-                  styles.trustStatus,
-                  { color: profile?.genotype_verified ? '#10b981' : themeColors.textMuted },
-                ]}
-              >
-                {profile?.genotype_verified
-                  ? `Vérifié (${profile?.sickle_cell || '?'})`
-                  : 'À vérifier'}
-              </Text>
-            </View>
+            {(['identity', 'genotype'] as const).map((type) => {
+              const label = trustLabel(type);
+              return (
+                <View key={type} style={{ flex: 1 }}>
+                  <Text style={[styles.infoText, { color: themeColors.text }]}>
+                    {type === 'identity' ? 'Identité' : 'Génotype'}
+                  </Text>
+                  <View style={styles.trustStatusRow}>
+                    <Text style={[styles.trustStatus, { color: label.color }]}>{label.text}</Text>
+                    {verifState[type]?.unseen && <Text style={styles.newPill}>Nouveau</Text>}
+                  </View>
+                </View>
+              );
+            })}
             <ChevronRight size={20} color={themeColors.icon} />
           </TouchableOpacity>
 
@@ -488,6 +550,17 @@ const styles = StyleSheet.create({
   emptyText: { fontSize: 14, fontStyle: 'italic', marginTop: 8 },
   trustRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   trustStatus: { fontSize: 13, fontWeight: '600', marginTop: 2 },
+  trustStatusRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  newPill: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: '#ffffff',
+    backgroundColor: '#f43f5e',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 8,
+    overflow: 'hidden',
+  },
   adminRow: {
     flexDirection: 'row',
     alignItems: 'center',
