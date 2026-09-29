@@ -17,7 +17,11 @@ import { getUser } from '@/lib/session';
 import { IMAGE_CACHE_POLICY, photoSource, prefetchImages } from '@/lib/images';
 import { isRecentlySeen } from '@/hooks/use-presence';
 import { EmptyState } from '@/components/empty-state';
-import { CertifiedIcon, IdentityVerifiedIcon, isFullyVerified } from '@/components/verified-badge';
+import {
+  CertifiedPhotoBadge,
+  IdentityVerifiedIcon,
+  isFullyVerified,
+} from '@/components/verified-badge';
 import { MessageCircle, WifiOff } from 'lucide-react-native';
 
 // Helper pour le temps relatif simplifié
@@ -248,6 +252,9 @@ export default function MessagesScreen() {
           recyclingKey={item.otherUser.id}
           transition={120}
         />
+        {isFullyVerified(item.otherUser) && (
+          <CertifiedPhotoBadge size={22} style={{ bottom: 0, right: 0 }} />
+        )}
         {item.isOnline && <View style={styles.onlineDot} />}
       </View>
       
@@ -255,10 +262,8 @@ export default function MessagesScreen() {
         <View style={styles.chatHeader}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flex: 1 }}>
             <Text style={[styles.name, { color: themeColors.text }]}>{item.otherUser.first_name}</Text>
-            {isFullyVerified(item.otherUser) ? (
-              <CertifiedIcon size={15} />
-            ) : (
-              item.otherUser.identity_verified && <IdentityVerifiedIcon size={15} />
+            {!isFullyVerified(item.otherUser) && item.otherUser.identity_verified && (
+              <IdentityVerifiedIcon size={15} />
             )}
           </View>
           {item.lastMessage && (

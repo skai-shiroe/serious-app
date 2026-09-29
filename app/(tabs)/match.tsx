@@ -1,10 +1,14 @@
 import { supabase } from '@/lib/supabase';
 import { getUser } from '@/lib/session';
-import { fetchCandidateProfiles, isAgeInRange } from '@/lib/candidates';
+import {
+  fetchCandidateProfiles,
+  isAgeInRange,
+  matchesTargetGender,
+} from '@/lib/candidates';
+import { CITIES, normalizeText } from '@/lib/cities';
 import { EmptyState } from '@/components/empty-state';
 import {
-  CertifiedBadge,
-  CertifiedIcon,
+  CertifiedPhotoBadge,
   GenotypeVerifiedBadge,
   IdentityVerifiedIcon,
   isFullyVerified,
@@ -12,9 +16,9 @@ import {
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as Haptics from 'expo-haptics';
-import { Filter, Heart, MapPin, X, Info, CheckCircle2, ChevronLeft, ChevronRight, WifiOff } from 'lucide-react-native';
+import { Filter, Heart, MapPin, X, Info, ChevronDown, ChevronLeft, ChevronRight, WifiOff } from 'lucide-react-native';
 import React, { useEffect, useState, useCallback, useRef } from 'react';
-import { ActivityIndicator, Dimensions, Modal, StyleSheet, Text, TouchableOpacity, useColorScheme, View, ScrollView } from 'react-native';
+import { ActivityIndicator, Dimensions, Modal, StyleSheet, Text, TextInput, TouchableOpacity, useColorScheme, View, ScrollView } from 'react-native';
 import { Gesture, GestureDetector, GestureHandlerRootView } from 'react-native-gesture-handler';
 import Animated, { useAnimatedStyle, useSharedValue, withSpring, runOnJS, interpolate, Extrapolation, withTiming, FadeIn, FadeOut, ZoomIn } from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -31,6 +35,19 @@ const SICKLE_CELL_STATUS = [
   { label: 'Inconnu', value: 'inconnu' },
 ];
 
+/** Filtres au repos (compteur « filtres actifs » + bouton reinitialiser). */
+const DEFAULT_FILTERS = {
+  ageMin: 18,
+  ageMax: 70,
+  city: '',
+  bloodType: '',
+  sickleCell: '',
+};
+
+/** Tranches proposees pour l'age (pas de slider : puces comme les autres filtres). */
+const AGE_MIN_CHOICES = [18, 21, 25, 30, 35, 40, 45, 50, 55, 60];
+const AGE_MAX_CHOICES = [25, 30, 35, 40, 45, 50, 55, 60, 65, 70];
+
 export default function MatchScreen() {
   const [loading, setLoading] = useState(true);
   const [profiles, setProfiles] = useState<any[]>([]);
@@ -40,13 +57,12 @@ export default function MatchScreen() {
   const [filterVisible, setFilterVisible] = useState(false);
   // Distingue « aucun profil » (liste reellement vide) de « chargement echoue »
   const [loadError, setLoadError] = useState<string | null>(null);
-  const [filters, setFilters] = useState({
-    ageMin: 18,
-    ageMax: 50,
-    city: '',
-    bloodType: '',
-    sickleCell: '',
-  });
+  const [filters, setFilters] = useState({ ...DEFAULT_FILTERS });
+  // Brouillon edite dans la modale : rien ne part en requete avant « Appliquer »
+  // (avant, chaque pucelle rechargait le deck pendant la saisie).
+  const [draftFilters, setDraftFilters] = useState({ ...DEFAULT_FILTERS });
+  const [cityPickerOpen, setCityPickerOpen] = useState(false);
+  const [citySearch, setCitySearch] = useState('');
 
   const { openProfileSheet } = useProfileSheet();
   const colorScheme = useColorScheme();
@@ -73,6 +89,30 @@ export default function MatchScreen() {
   const loadingMoreRef = useRef(false);
   // Curseur de pagination du deck : `user_id` du dernier profil parcouru.
   const deckCursorRef = useRef<string | null>(null);
+  // Genre du visiteur, lu une seule fois puis mis en cache : il conditionne le
+  // filtrage strict du deck (voir lib/candidates.ts).
+  const viewerGenderRef = useRef<string | null | undefined>(undefined);
+  const loadViewerGender = useCallback(async (): Promise<string | null> => {
+    if (viewerGenderRef.current !== undefined) return viewerGenderRef.current;
+    try {
+      const user = await getUser();
+      if (!user) {
+        viewerGenderRef.current = null;
+      } else {
+        const { data } = await supabase
+          .from('profiles')
+          .select('gender')
+          .eq('user_id', user.id)
+          .maybeSingle();
+        viewerGenderRef.current = data?.gender ?? null;
+      }
+    } catch {
+      viewerGenderRef.current = null;
+    }
+    // `?? null` : la ref est declaree `| undefined` (jamais indeterminee ici,
+    // mais TypeScript ne le prouve pas).
+    return viewerGenderRef.current ?? null;
+  }, []);
 
   const calculateAge = (birthDateStr: string) => {
     if (!birthDateStr) return null;
@@ -86,12 +126,58 @@ export default function MatchScreen() {
     return age;
   };
 
+  /** Ouvre la modale en repartant des filtres deja appliques. */
+  const openFilters = () => {
+    setDraftFilters({ ...filters });
+    setCitySearch('');
+    setCityPickerOpen(false);
+    setFilterVisible(true);
+  };
+
+  /**
+   * Borne d'age : la minimum ne peut pas depasser la maximum. Si le choix
+   * traverse l'autre borne, on translate la fenetre (largeur conservee) plutot
+   * que de laisser un etat incoherent.
+   */
+  const setDraftAge = (key: 'ageMin' | 'ageMax', value: number) => {
+    setDraftFilters((prev) => {
+      const ageMin = key === 'ageMin' ? value : prev.ageMin;
+      const ageMax = key === 'ageMax' ? value : prev.ageMax;
+      return ageMin > ageMax
+        ? { ...prev, ageMin: Math.min(ageMin, ageMax), ageMax: Math.max(ageMin, ageMax) }
+        : { ...prev, ageMin, ageMax };
+    });
+  };
+
+  const selectCity = (city: string) => {
+    setDraftFilters((prev) => ({ ...prev, city }));
+    setCityPickerOpen(false);
+    setCitySearch('');
+  };
+
+  /** Nombre de filtres qui s'ecartent des valeurs par defaut. */
+  const activeFilterCount =
+    (filters.city ? 1 : 0) +
+    (filters.bloodType ? 1 : 0) +
+    (filters.sickleCell ? 1 : 0) +
+    (filters.ageMin !== DEFAULT_FILTERS.ageMin || filters.ageMax !== DEFAULT_FILTERS.ageMax
+      ? 1
+      : 0);
+
+  // Villes proposees dans le selecteur, filtrees par la recherche (sans egard
+  // aux accents : « fes » trouve « Fès »).
+  const cityQuery = normalizeText(citySearch.trim());
+  const visibleCities = cityQuery
+    ? CITIES.filter((city) => normalizeText(city).includes(cityQuery))
+    : CITIES;
+
   const fetchProfiles = useCallback(async () => {
     try {
       setLoading(true);
       setLoadError(null);
       const user = await getUser();
       if (!user) return;
+      const viewerGender = await loadViewerGender();
 
       // Le deck repart du debut : le curseur est remis a zero.
       deckCursorRef.current = null;
@@ -101,14 +187,17 @@ export default function MatchScreen() {
         limit: 30,
         after: null,
         filters,
+        viewerGender,
       });
 
       deckCursorRef.current = page.cursor;
 
       // Filet de securite : les bornes d'age sont deja filtrees par la RPC
       // (ou par la boucle du repli client).
-      const filtered = page.profiles.filter((p) =>
-        isAgeInRange(p.birth_date, filters.ageMin, filters.ageMax)
+      const filtered = page.profiles.filter(
+        (p) =>
+          isAgeInRange(p.birth_date, filters.ageMin, filters.ageMax) &&
+          matchesTargetGender(p.gender, viewerGender)
       );
 
       setProfiles(filtered);
@@ -122,7 +211,7 @@ export default function MatchScreen() {
     } finally {
       setLoading(false);
     }
-  }, [filters]);
+  }, [filters, loadViewerGender]);
 
   // Precharge les photos dans le cache MEMOIRE : la carte est deja decodee
   // quand elle passe au premier plan (supprime l'effet "carte grise").
@@ -148,18 +237,22 @@ export default function MatchScreen() {
     try {
       const user = await getUser();
       if (!user) return;
+      const viewerGender = await loadViewerGender();
 
       const page = await fetchCandidateProfiles({
         userId: user.id,
         limit: 10,
         after: deckCursorRef.current,
         filters,
+        viewerGender,
       });
 
       if (page.cursor) deckCursorRef.current = page.cursor;
 
-      const more = page.profiles.filter((p) =>
-        isAgeInRange(p.birth_date, filters.ageMin, filters.ageMax)
+      const more = page.profiles.filter(
+        (p) =>
+          isAgeInRange(p.birth_date, filters.ageMin, filters.ageMax) &&
+          matchesTargetGender(p.gender, viewerGender)
       );
 
       if (more.length > 0) {
@@ -170,7 +263,7 @@ export default function MatchScreen() {
     } finally {
       loadingMoreRef.current = false;
     }
-  }, [filters]);
+  }, [filters, loadViewerGender]);
 
   useEffect(() => {
     fetchProfiles();
@@ -359,11 +452,19 @@ export default function MatchScreen() {
             <Text style={[styles.headerTitle, { color: themeColors.text }]}>Découvrir</Text>
             <Text style={[styles.headerSub, { color: themeColors.textMuted }]}>Trouvez votre compatibilité</Text>
           </View>
-          <TouchableOpacity 
-            style={[styles.filterBtn, { backgroundColor: themeColors.card, borderColor: themeColors.border }]}
-            onPress={() => setFilterVisible(true)}
+          <TouchableOpacity
+            style={[
+              styles.filterBtn,
+              { backgroundColor: themeColors.card, borderColor: themeColors.border, position: 'relative' },
+            ]}
+            onPress={openFilters}
           >
-            <Filter color={themeColors.text} size={20} />
+            <Filter color={activeFilterCount > 0 ? themeColors.accent : themeColors.text} size={20} />
+            {activeFilterCount > 0 && (
+              <View style={styles.filterBadge}>
+                <Text style={styles.filterBadgeText}>{activeFilterCount}</Text>
+              </View>
+            )}
           </TouchableOpacity>
         </View>
 
@@ -392,6 +493,10 @@ export default function MatchScreen() {
                   cachePolicy="memory-disk"
                   priority="high"
                 />
+
+                {isFullyVerified(currentProfile) && (
+                  <CertifiedPhotoBadge size={30} style={{ top: 16, right: 16 }} />
+                )}
                 
                 {/* Pagination Dots */}
                 {currentProfile.photos && currentProfile.photos.length > 1 && (
@@ -421,12 +526,8 @@ export default function MatchScreen() {
                 >
                   <View style={styles.infoRow}>
                     <Text style={styles.name}>{currentProfile.first_name}</Text>
-                    {isFullyVerified(currentProfile) ? (
-                      <CertifiedIcon size={22} />
-                    ) : (
-                      currentProfile.identity_verified && (
-                        <IdentityVerifiedIcon size={22} color="#22d3ee" />
-                      )
+                    {!isFullyVerified(currentProfile) && currentProfile.identity_verified && (
+                      <IdentityVerifiedIcon size={22} color="#22d3ee" />
                     )}
                     <Text style={styles.age}>{calculateAge(currentProfile.birth_date)}</Text>
                   </View>
@@ -442,15 +543,11 @@ export default function MatchScreen() {
                     <View style={[styles.tag, { backgroundColor: 'rgba(59,130,246,0.3)' }]}>
                       <Text style={styles.tagText}>{currentProfile.sickle_cell}</Text>
                     </View>
-                    {isFullyVerified(currentProfile) ? (
-                      <CertifiedBadge variant="onPhoto" />
-                    ) : (
-                      currentProfile.genotype_verified && (
-                        <GenotypeVerifiedBadge
-                          genotype={currentProfile.sickle_cell}
-                          variant="onPhoto"
-                        />
-                      )
+                    {!isFullyVerified(currentProfile) && currentProfile.genotype_verified && (
+                      <GenotypeVerifiedBadge
+                        genotype={currentProfile.sickle_cell}
+                        variant="onPhoto"
+                      />
                     )}
                   </View>
 
@@ -478,7 +575,7 @@ export default function MatchScreen() {
               title="Revenez plus tard 💤"
               message="Nous cherchons de nouveaux profils basés sur vos critères."
               actionLabel="Affiner les filtres"
-              onAction={() => setFilterVisible(true)}
+              onAction={openFilters}
             />
           )}
         </View>
@@ -515,9 +612,141 @@ export default function MatchScreen() {
               <ScrollView showsVerticalScrollIndicator={false}>
                 <View style={styles.filterSection}>
                   <Text style={[styles.filterLabel, { color: themeColors.textMuted }]}>Ville</Text>
-                  <TouchableOpacity style={[styles.filterOption, { backgroundColor: themeColors.inputBg }]}>
-                    <Text style={{ color: themeColors.text }}>{filters.city || 'Toutes les villes'}</Text>
+                  <TouchableOpacity
+                    style={[
+                      styles.filterOption,
+                      {
+                        backgroundColor: themeColors.inputBg,
+                        flexDirection: 'row',
+                        justifyContent: 'space-between',
+                        alignItems: 'center',
+                      },
+                    ]}
+                    onPress={() => setCityPickerOpen((open) => !open)}
+                    activeOpacity={0.8}
+                  >
+                    <Text style={{ color: themeColors.text }}>
+                      {draftFilters.city || 'Toutes les villes'}
+                    </Text>
+                    <ChevronDown
+                      color={themeColors.textMuted}
+                      size={18}
+                      style={{ transform: [{ rotate: cityPickerOpen ? '180deg' : '0deg' }] }}
+                    />
                   </TouchableOpacity>
+
+                  {cityPickerOpen && (
+                    <View style={{ marginTop: 10 }}>
+                      <TextInput
+                        style={[
+                          styles.citySearch,
+                          {
+                            backgroundColor: themeColors.inputBg,
+                            borderColor: themeColors.border,
+                            color: themeColors.text,
+                          },
+                        ]}
+                        placeholder="Rechercher une ville"
+                        placeholderTextColor={themeColors.textMuted}
+                        value={citySearch}
+                        onChangeText={setCitySearch}
+                        autoCorrect={false}
+                        autoCapitalize="words"
+                      />
+                      <ScrollView style={styles.cityList} keyboardShouldPersistTaps="handled">
+                        <TouchableOpacity
+                          onPress={() => selectCity('')}
+                          style={[
+                            styles.cityOption,
+                            { backgroundColor: themeColors.inputBg },
+                            !draftFilters.city && { backgroundColor: themeColors.accent },
+                          ]}
+                        >
+                          <Text style={{ color: !draftFilters.city ? '#fff' : themeColors.text }}>
+                            Toutes les villes
+                          </Text>
+                        </TouchableOpacity>
+                        {visibleCities.map((city) => {
+                          const selected = draftFilters.city === city;
+                          return (
+                            <TouchableOpacity
+                              key={city}
+                              onPress={() => selectCity(city)}
+                              style={[
+                                styles.cityOption,
+                                { backgroundColor: themeColors.inputBg },
+                                selected && { backgroundColor: themeColors.accent },
+                              ]}
+                            >
+                              <Text style={{ color: selected ? '#fff' : themeColors.text }}>
+                                {city}
+                              </Text>
+                            </TouchableOpacity>
+                          );
+                        })}
+                        {visibleCities.length === 0 && (
+                          <Text style={{ color: themeColors.textMuted, paddingVertical: 10 }}>
+                            Aucune ville trouvée
+                          </Text>
+                        )}
+                      </ScrollView>
+                    </View>
+                  )}
+                </View>
+
+                <View style={styles.filterSection}>
+                  <Text style={[styles.filterLabel, { color: themeColors.textMuted }]}>Âge</Text>
+                  <Text style={[styles.ageSubLabel, { color: themeColors.textMuted }]}>
+                    Âge minimum
+                  </Text>
+                  <View style={styles.filterGrid}>
+                    {AGE_MIN_CHOICES.map((age) => (
+                      <TouchableOpacity
+                        key={`min-${age}`}
+                        onPress={() => setDraftAge('ageMin', age)}
+                        style={[
+                          styles.filterChip,
+                          { borderColor: themeColors.border },
+                          draftFilters.ageMin === age && {
+                            backgroundColor: themeColors.accent,
+                            borderColor: themeColors.accent,
+                          },
+                        ]}
+                      >
+                        <Text style={{ color: draftFilters.ageMin === age ? '#fff' : themeColors.text }}>
+                          {age} ans
+                        </Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                  <Text
+                    style={[
+                      styles.ageSubLabel,
+                      { color: themeColors.textMuted, marginTop: 16 },
+                    ]}
+                  >
+                    Âge maximum
+                  </Text>
+                  <View style={styles.filterGrid}>
+                    {AGE_MAX_CHOICES.map((age) => (
+                      <TouchableOpacity
+                        key={`max-${age}`}
+                        onPress={() => setDraftAge('ageMax', age)}
+                        style={[
+                          styles.filterChip,
+                          { borderColor: themeColors.border },
+                          draftFilters.ageMax === age && {
+                            backgroundColor: themeColors.accent,
+                            borderColor: themeColors.accent,
+                          },
+                        ]}
+                      >
+                        <Text style={{ color: draftFilters.ageMax === age ? '#fff' : themeColors.text }}>
+                          {age} ans
+                        </Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
                 </View>
 
                 <View style={styles.filterSection}>
@@ -526,14 +755,14 @@ export default function MatchScreen() {
                     {BLOOD_TYPES.map(type => (
                       <TouchableOpacity 
                         key={type}
-                        onPress={() => setFilters({...filters, bloodType: filters.bloodType === type ? '' : type})}
+                        onPress={() => setDraftFilters({ ...draftFilters, bloodType: draftFilters.bloodType === type ? '' : type })}
                         style={[
                           styles.filterChip, 
                           { borderColor: themeColors.border },
-                          filters.bloodType === type && { backgroundColor: themeColors.accent, borderColor: themeColors.accent }
+                          draftFilters.bloodType === type && { backgroundColor: themeColors.accent, borderColor: themeColors.accent }
                         ]}
                       >
-                        <Text style={{ color: filters.bloodType === type ? '#fff' : themeColors.text }}>{type}</Text>
+                        <Text style={{ color: draftFilters.bloodType === type ? '#fff' : themeColors.text }}>{type}</Text>
                       </TouchableOpacity>
                     ))}
                   </View>
@@ -545,27 +774,42 @@ export default function MatchScreen() {
                     {SICKLE_CELL_STATUS.map(status => (
                       <TouchableOpacity 
                         key={status.value}
-                        onPress={() => setFilters({...filters, sickleCell: filters.sickleCell === status.value ? '' : status.value})}
+                        onPress={() => setDraftFilters({ ...draftFilters, sickleCell: draftFilters.sickleCell === status.value ? '' : status.value })}
                         style={[
                           styles.filterChip, 
                           { borderColor: themeColors.border, width: '47%' },
-                          filters.sickleCell === status.value && { backgroundColor: '#3b82f6', borderColor: '#3b82f6' }
+                          draftFilters.sickleCell === status.value && { backgroundColor: '#3b82f6', borderColor: '#3b82f6' }
                         ]}
                       >
-                        <Text style={{ color: filters.sickleCell === status.value ? '#fff' : themeColors.text }}>{status.label}</Text>
+                        <Text style={{ color: draftFilters.sickleCell === status.value ? '#fff' : themeColors.text }}>{status.label}</Text>
                       </TouchableOpacity>
                     ))}
                   </View>
                 </View>
 
-                <TouchableOpacity 
+                <TouchableOpacity
                   style={[styles.applyBtn, { backgroundColor: themeColors.accent }]}
                   onPress={() => {
                     setFilterVisible(false);
-                    fetchProfiles();
+                    // Nouvelle identite d'objet => le deck se recharge tout seul
+                    // (useEffect sur fetchProfiles).
+                    setFilters({ ...draftFilters });
                   }}
                 >
                   <Text style={styles.applyBtnText}>Appliquer</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={[styles.resetBtn, { borderColor: themeColors.border }]}
+                  onPress={() => {
+                    setDraftFilters({ ...DEFAULT_FILTERS });
+                    setCitySearch('');
+                    setCityPickerOpen(false);
+                  }}
+                >
+                  <Text style={[styles.resetBtnText, { color: themeColors.textMuted }]}>
+                    Réinitialiser les filtres
+                  </Text>
                 </TouchableOpacity>
               </ScrollView>
             </View>
@@ -698,6 +942,38 @@ const styles = StyleSheet.create({
   filterOption: { padding: 16, borderRadius: 12 },
   filterGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
   filterChip: { paddingHorizontal: 16, paddingVertical: 10, borderRadius: 20, borderWidth: 1, minWidth: 60, alignItems: 'center' },
+  ageSubLabel: { fontSize: 13, fontWeight: '600', marginBottom: 10 },
+  citySearch: {
+    borderWidth: 1,
+    borderRadius: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 11,
+    fontSize: 15,
+    marginBottom: 8,
+  },
+  cityList: { maxHeight: 230 },
+  cityOption: { paddingVertical: 12, paddingHorizontal: 14, borderRadius: 10, marginBottom: 6 },
+  resetBtn: {
+    borderWidth: 1,
+    borderRadius: 14,
+    paddingVertical: 14,
+    alignItems: 'center',
+    marginTop: 10,
+  },
+  resetBtnText: { fontSize: 15, fontWeight: '600' },
+  filterBadge: {
+    position: 'absolute',
+    top: -5,
+    right: -5,
+    minWidth: 18,
+    height: 18,
+    borderRadius: 9,
+    paddingHorizontal: 4,
+    backgroundColor: '#f43f5e',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  filterBadgeText: { color: '#ffffff', fontSize: 11, fontWeight: '700' },
   applyBtn: { paddingVertical: 18, borderRadius: 30, alignItems: 'center', marginTop: 16 },
   applyBtnText: { color: '#fff', fontSize: 18, fontWeight: 'bold' },
   matchOverlay: { zIndex: 100, justifyContent: 'center' },

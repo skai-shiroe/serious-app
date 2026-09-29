@@ -1,6 +1,6 @@
 import { BadgeCheck, ShieldCheck } from 'lucide-react-native';
 import React from 'react';
-import { StyleSheet, Text, useColorScheme, View } from 'react-native';
+import { StyleSheet, Text, useColorScheme, View, type StyleProp, type ViewStyle } from 'react-native';
 
 /** Couleur des badges « par etape » (identite, genotype). */
 export const VERIFIED_COLOR = '#22d3ee';
@@ -86,6 +86,27 @@ export function CertifiedBadge({
   );
 }
 
+/**
+ * Pastille ronde de certification, a poser sur une photo ou un avatar.
+ * Le conteneur parent doit etre en position relative ; c'est l'appelant qui
+ * choisit le coin (ex. `style={{ bottom: 0, right: 0 }}`).
+ */
+export function CertifiedPhotoBadge({
+  size = 26,
+  style,
+}: {
+  size?: number;
+  style?: StyleProp<ViewStyle>;
+}) {
+  return (
+    <View
+      style={[styles.pastille, { width: size, height: size, borderRadius: size / 2 }, style]}
+    >
+      <ShieldCheck color="#ffffff" size={Math.round(size * 0.58)} strokeWidth={2.5} />
+    </View>
+  );
+}
+
 const styles = StyleSheet.create({
   badge: {
     flexDirection: 'row',
@@ -96,6 +117,14 @@ const styles = StyleSheet.create({
     borderRadius: 10,
   },
   genotypeOnPhoto: { backgroundColor: 'rgba(34,211,238,0.35)' },
+  pastille: {
+    position: 'absolute',
+    backgroundColor: '#f59e0b',
+    borderWidth: 2,
+    borderColor: '#ffffff',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
   cyanInline: { backgroundColor: 'rgba(34,211,238,0.15)' },
   text: { fontSize: 12, fontWeight: '700' },
 });

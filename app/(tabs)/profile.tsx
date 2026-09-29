@@ -8,7 +8,7 @@ import { getUser } from '@/lib/session';
 import { LinearGradient } from 'expo-linear-gradient';
 import { LogOut, Edit3, MapPin, BookOpen, Briefcase, Droplet, Activity, Calendar, Moon, Sun, Camera, Bookmark, WifiOff, ShieldCheck, ChevronRight } from 'lucide-react-native';
 import { EmptyState } from '@/components/empty-state';
-import { CertifiedBadge, isFullyVerified } from '@/components/verified-badge';
+import { CertifiedIcon, CertifiedPhotoBadge, isFullyVerified } from '@/components/verified-badge';
 import { useRouter, useFocusEffect } from 'expo-router';
 
 export default function ProfileScreen() {
@@ -255,14 +255,22 @@ export default function ProfileScreen() {
         </View>
 
         <View style={styles.profileHeader}>
-          <LinearGradient colors={['#f43f5e', '#ec4899']} style={styles.avatarGradient}>
-            <Image
-              source={imageSource(mainPhoto)}
-              style={styles.avatarLarge}
-              cachePolicy={IMAGE_CACHE_POLICY}
-              transition={120}
-            />
-          </LinearGradient>
+          <View style={{ marginBottom: 16 }}>
+            <LinearGradient
+              colors={['#f43f5e', '#ec4899']}
+              style={[styles.avatarGradient, { marginBottom: 0 }]}
+            >
+              <Image
+                source={imageSource(mainPhoto)}
+                style={styles.avatarLarge}
+                cachePolicy={IMAGE_CACHE_POLICY}
+                transition={120}
+              />
+            </LinearGradient>
+            {isFullyVerified(profile) && (
+              <CertifiedPhotoBadge size={34} style={{ bottom: 0, right: 0 }} />
+            )}
+          </View>
           <Text style={[styles.name, { color: themeColors.text }]}>
             {profile?.displayName}
           </Text>
@@ -270,11 +278,6 @@ export default function ProfileScreen() {
             <Text style={[styles.completionText, { color: '#f43f5e' }]}>{completionPercent}% complété</Text>
           </View>
 
-          {isFullyVerified(profile) && (
-            <View style={{ marginTop: 10 }}>
-              <CertifiedBadge />
-            </View>
-          )}
         </View>
 
         {/* Section Stats (âge, sang, drépanocytaire) */}
@@ -438,7 +441,7 @@ export default function ProfileScreen() {
             <Text style={[styles.sectionTitle, { color: themeColors.text, marginBottom: 0 }]}>Confiance</Text>
             {isFullyVerified(profile) && (
               <View style={{ marginLeft: 8 }}>
-                <CertifiedBadge />
+                <CertifiedIcon size={20} />
               </View>
             )}
           </View>

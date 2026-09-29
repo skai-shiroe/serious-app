@@ -191,15 +191,20 @@ $$;
 **Bloc 2 — profils du deck « Découvrir »**
 
 ```sql
--- L'ancienne signature (sans les bornes d'âge) est retirée si elle existe.
+-- Les anciennes signatures sont retirées : sans cela, `create or replace`
+-- crée une SURCHARGE (deux fonctions de noms identiques) et les appels de
+-- l'app deviennent ambigus.
 drop function if exists get_candidate_profiles(integer, uuid, text, text, text);
+drop function if exists get_candidate_profiles(integer, uuid, text, text, text, integer, integer);
 
 -- Exclusion des profils déjà swipés faite par PostgreSQL (jamais par une liste
 -- d'identifiants dans l'URL de la requête), pagination par curseur
--- (p_after = dernier user_id parcouru) et filtre d'âge côté serveur.
+-- (p_after = dernier user_id parcouru), filtre d'âge ET matching strict par
+-- genre côté serveur (p_gender = genre du visiteur).
 create or replace function get_candidate_profiles(
   p_limit integer default 30,
   p_after uuid default null,
+  p_gender text default null,
   p_city text default null,
   p_blood_type text default null,
   p_sickle_cell text default null,
@@ -218,6 +223,8 @@ as $$
         and s.swiped_id = p.user_id
     )
     and (p_after is null or p.user_id > p_after)
+    -- Matching strict : un profil ne voit QUE le genre opposé.
+    and (p_gender is null or lower(p.gender) = lower(p_gender))
     and (p_city is null or p.city ilike '%' || p_city || '%')
     and (p_blood_type is null or p.blood_type = p_blood_type)
     and (p_sickle_cell is null or p.sickle_cell = p_sickle_cell)
@@ -233,8 +240,8 @@ as $$
   limit greatest(p_limit, 1);
 $$;
 
-revoke execute on function get_candidate_profiles(integer, uuid, text, text, text, integer, integer) from public;
-grant execute on function get_candidate_profiles(integer, uuid, text, text, text, integer, integer) to authenticated;
+revoke execute on function get_candidate_profiles(integer, uuid, text, text, text, text, integer, integer) from public;
+grant execute on function get_candidate_profiles(integer, uuid, text, text, text, text, integer, integer) to authenticated;
 ```
 
 **Bloc 3 — temps réel sur la présence et les matchs (idempotent)**
@@ -445,7 +452,7 @@ Deux vérifications indépendantes, lancées depuis **Mon Profil → Confiance**
 
 - **Côté utilisateur** (`app/verification.tsx`) : statut `À vérifier → En relecture → Vérifiée / Refusée (motif)`, photo prise à l'appareil ou choisie dans la galerie, envoi immédiat vers le bucket privé.
 - **Côté admin** (`app/admin/verifications.tsx`, réservé à `role ∈ {admin, manager}`) : file d'attente, documents affichés via **URL signée 5 min**, boutons **Valider** / **Refuser** (motif obligatoire, visible par l'utilisateur).
-- **Badges** : icône de vérification d'identité à côté du prénom, pastille « Génotype AS vérifié » sur la carte du deck, la fiche profil, la liste des messages et l'en-tête du chat. Les colonnes `identity_verified` / `genotype_verified` étant dénormalisées dans `profiles`, cela ne coûte **aucune requête supplémentaire**.
+- **Badges** : pastille ronde ambre (coche blanche) posée sur les photos — avatar de **Mon Profil** (bas-droit), carte du deck (haut-droit), avatars de **Messages** et du **Chat** — et icône seule à côté du prénom dans la fiche profil. Un profil qui n'a qu'une des deux validations garde l'icône d'identité (cyan) + la pastille « Génotype … vérifié ». Les colonnes `identity_verified` / `genotype_verified` étant dénormalisées dans `profiles`, cela ne coûte **aucune requête supplémentaire**.
 - **Sécurité** : bucket privé ; l'utilisateur n'a ni UPDATE ni DELETE sur sa demande (donc aucune auto-validation) ; `review_verification` est `security definer` et vérifie elle-même `is_admin()` ; les deux colonnes de badges ne sont modifiables que par cette RPC.
 - **Vie privée** : seules les décisions sont conservées (`reviewer_id`, `verified_value`, `reviewed_at`). Pour purger les documents au-delà de 90 jours :
   ```sql
@@ -458,7 +465,7 @@ Deux vérifications indépendantes, lancées depuis **Mon Profil → Confiance**
 - **Déclencheur** : à chaque `approved` / `rejected`, `notify_verification_status()` (bloc 5) envoie une push via l'API Expo Push — pas d'Edge Function à déployer. Sans `push_token` enregistré, rien n'est envoyé (silencieux).
 - **Tap sur la notification** : `data.type = 'verification'` → ouverture directe de l'écran Vérifications, via un canal Android dédié « Vérifications » (l'utilisateur peut le couper sans perdre les autres notifications).
 - **Indicateur « Nouveau »** : `verifications.user_seen_at` marque une décision déjà vue. La carte **Confiance** de Mon Profil affiche « Nouveau » tant que l'utilisateur n'a pas ouvert l'écran (la RPC `mark_verifications_seen` ne touche que cette colonne, jamais le statut). L'état vit **en base** : il suit l'utilisateur d'un appareil à l'autre, contrairement à un drapeau local.
-- **Badge « Profil certifié »** : affiché dès que **l'identité ET le génotype** sont validés. Il remplace alors les badges individuels (carte du deck, fiche profil, liste des messages, en-tête du chat) pour ne pas surcharger.
+- **Pastille « Profil certifié »** : dès que **l'identité ET le génotype** sont validés, une pastille ronde ambre remplace les badges individuels sur les photos (plus de texte « Profil certifié » nulle part : la coche seule fait le travail).
 
 > ⚠️ **Prérequis Android pour que la push soit réellement délivrée :** le projet n'a **pas** de `google-services.json` → FCM n'est pas configuré, donc le token est enregistré mais l'envoi échoue côté Google. Il faut :
 > 1. créer un projet **Firebase** + une app Android `com.skylimit.seriousapp` ;
@@ -467,6 +474,28 @@ Deux vérifications indépendantes, lancées depuis **Mon Profil → Confiance**
 > 4. **un nouveau build** (`eas build --profile preview`) — non poussable en OTA.
 >
 > En attendant, la décision reste visible dans le profil (statut + « Nouveau »).
+
+## 🎯 Matching & filtres (écran « Découvrir »)
+
+### Matching strict par genre
+
+- Un profil ne voit **que le genre opposé** (`homme` ↔ `femme`), appliqué **côté serveur** : paramètre `p_gender` de la RPC `get_candidate_profiles`, et clause `.eq('gender', …)` sur le repli sans RPC (`lib/candidates.ts`).
+- Filet de sécurité **côté client** (`matchesTargetGender`) : si la RPC en base n'a pas encore la version avec `p_gender`, son erreur fait basculer sur le repli — qui filtre déjà le genre — au lieu de laisser passer n'importe qui.
+- Si le visiteur n'a pas de genre (ancien compte), aucun filtre n'est appliqué plutôt que de vider le deck. La création de profil impose désormais le genre (étape 1).
+
+### Filtres de l'écran
+
+| Filtre | UI | effet sur la requête |
+|---|---|---|
+| Âge (min / max en tranches 18-60 / 25-70) | modale Filtres | RPC `p_age_min` / `p_age_max` + recontrôle client |
+| Ville | sélecteur dépliable avec recherche (liste de `lib/cities.ts`) | RPC `p_city` (`ilike`) |
+| Groupe sanguin | puces | RPC `p_blood_type` |
+| Drépanocytose (AA/AS/SS/Inconnu) | puces | RPC `p_sickle_cell` |
+| Genre | *(aucune UI : imposé)* | RPC `p_gender` |
+
+- **Brouillon** : la modale édite `draftFilters`, seul « Appliquer » recharge le deck (avant, chaque pucelle relançait une requête pendant la saisie). « Réinitialiser les filtres » revient aux valeurs par défaut (18-70 ans, sans ville ni groupe).
+- **Compteur** : pastille rouge sur le bouton Filtres = nombre de critères écartés des valeurs par défaut.
+- **Pas de filtre de distance** : aucun champ de géolocalisation (latitude/longitude) n'existe dans `profiles`, seule la ville est stockée → la distance n'est pas auditable ni applicable en l'état.
 
 ## 📦 Build « preview » & mises à jour OTA
 

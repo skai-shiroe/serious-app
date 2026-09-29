@@ -11,12 +11,19 @@ import { supabase } from '@/lib/supabase';
  * table `swipes` se faisait elle aussi sans limite.
  *
  * Trois regles desormais :
- *  1. priorite a la RPC `get_candidate_profiles` : exclusion des swipes ET bornes
- *     d'age appliquees cote serveur ;
+ *  1. priorite a la RPC `get_candidate_profiles` : exclusion des swipes, bornes
+ *     d'age ET genre du visiteur filtres cote serveur ;
  *  2. pagination par CURSEUR (`user_id` croissant) : chaque page reste petite,
  *     et comme le curseur avance, le filtrage ne saute jamais de profil ;
- *  3. repli sans RPC : profils lus par pages bornees, avec exclusion et age
- *     filtres dans la MEME boucle (on ne lit pas des pages pour rien).
+ *  3. repli sans RPC : profils lus par pages bornees, avec exclusion, age ET
+ *     genre filtres dans la MEME boucle (on ne lit pas des pages pour rien).
+ *
+ * Matching strict par genre : un profil ne voit QUE le genre oppose. La regle
+ * est appliquee cote serveur (parametre `p_gender` de la RPC, clause `.eq` du
+ * repli) ET recontrolee cote client (`matchesTargetGender`) : si la RPC en
+ * base n'a pas encore ete mise a jour avec `p_gender`, son erreur declenche le
+ * repli — qui, lui, filtre deja le genre — au lieu de laisser passer n'importe
+ * qui.
  */
 
 /** Filtres du deck (les bornes d'age sont appliquees par la RPC). */
@@ -57,6 +64,34 @@ let rpcMissing = false;
 function normalizeFilter(value: string): string | null {
   const trimmed = (value || '').trim();
   return trimmed.length > 0 ? trimmed : null;
+}
+
+/**
+ * Genre attendu par l'utilisateur : on ne montre QUE le genre oppose
+ * (`homme` <-> `femme`).
+ *
+ * Valeur absente ou inconnue -> `null` = aucun filtre : un profil sans genre
+ * ne doit jamais disparaitre par erreur (il est ecarte a la creation, mais les
+ * anciens comptes peuvent en manquer).
+ */
+export function targetGenderFor(viewerGender: string | null | undefined): string | null {
+  const normalized = (viewerGender || '').trim().toLowerCase();
+  if (normalized === 'homme') return 'femme';
+  if (normalized === 'femme') return 'homme';
+  return null;
+}
+
+/**
+ * Filet de securite cote client : le profil est-il du genre attendu ?
+ * Vrai si le genre du visiteur est inconnu (pas de filtre applique).
+ */
+export function matchesTargetGender(
+  profileGender: string | null | undefined,
+  viewerGender: string | null | undefined
+): boolean {
+  const target = targetGenderFor(viewerGender);
+  if (!target) return true;
+  return (profileGender || '').trim().toLowerCase() === target;
 }
 
 /** Age en annees revolues, ou `null` si la date est absente/illisible. */
@@ -121,7 +156,8 @@ async function fetchSwipedIds(userId: string): Promise<Set<string>> {
 async function fetchViaRpc(
   limit: number,
   after: string | null,
-  filters: CandidateFilters
+  filters: CandidateFilters,
+  targetGender: string | null
 ): Promise<any[]> {
   const { data, error } = await supabase.rpc('get_candidate_profiles', {
     p_limit: Math.min(Math.max(limit, 1), RPC_PAGE_MAX),
@@ -131,6 +167,7 @@ async function fetchViaRpc(
     p_sickle_cell: normalizeFilter(filters.sickleCell),
     p_age_min: filters.ageMin,
     p_age_max: filters.ageMax,
+    p_gender: targetGender,
   });
 
   if (error) throw error;
@@ -145,7 +182,8 @@ async function fetchViaFallback(
   userId: string,
   limit: number,
   after: string | null,
-  filters: CandidateFilters
+  filters: CandidateFilters,
+  targetGender: string | null
 ): Promise<CandidatePage> {
   const swiped = await fetchSwipedIds(userId);
   const city = normalizeFilter(filters.city);
@@ -163,6 +201,9 @@ async function fetchViaFallback(
       .limit(FALLBACK_PROFILE_PAGE);
 
     if (cursor) query = query.gt('user_id', cursor);
+    // Genre strict : meme regle que la RPC, cote serveur (PostgREST).
+    // `ilike` sans joker = egalite insensible a la casse (cf. `lower()` en SQL).
+    if (targetGender) query = query.ilike('gender', targetGender);
     if (city) query = query.ilike('city', `%${city}%`);
     if (bloodType) query = query.eq('blood_type', bloodType);
     if (sickleCell) query = query.eq('sickle_cell', sickleCell);
@@ -202,12 +243,15 @@ export async function fetchCandidateProfiles(options: {
   limit: number;
   after: string | null;
   filters: CandidateFilters;
+  /** Genre du visiteur (`profiles.gender`) : impose le genre oppose. */
+  viewerGender?: string | null;
 }): Promise<CandidatePage> {
-  const { userId, limit, after, filters } = options;
+  const { userId, limit, after, filters, viewerGender = null } = options;
+  const targetGender = targetGenderFor(viewerGender);
 
   if (!rpcMissing) {
     try {
-      const profiles = await fetchViaRpc(limit, after, filters);
+      const profiles = await fetchViaRpc(limit, after, filters, targetGender);
       const cursor =
         profiles.length > 0 ? profiles[profiles.length - 1].user_id : after;
       return { profiles, cursor, usedRpc: true };
@@ -224,5 +268,5 @@ export async function fetchCandidateProfiles(options: {
     }
   }
 
-  return fetchViaFallback(userId, limit, after, filters);
+  return fetchViaFallback(userId, limit, after, filters, targetGender);
 }

@@ -1,5 +1,6 @@
 import { supabase } from '@/lib/supabase';
 import { forgetSession, getUser } from '@/lib/session';
+import { CITIES, normalizeText } from '@/lib/cities';
 import { IMAGE_CACHE_POLICY } from '@/lib/images';
 import { decode } from 'base64-arraybuffer';
 import { Image } from 'expo-image';
@@ -29,34 +30,6 @@ type PhotoSlot = {
 const MAX_PHOTOS = 6;
 /** Qualite JPEG demandee au picker : 0.6 suffit largement pour un mobile. */
 const PHOTO_QUALITY = 0.6;
-
-/**
- * Villes proposees dans le selecteur (constante simple a editer : ajouter ou
- * retirer une ville ici suffit). Triee automatiquement a l'execution.
- */
-const CITIES = Array.from(
-  new Set([
-  'Lomé', 'Sokodé', 'Kara', 'Atakpamé',
-  'Dapaong', 'Tsévié', 'Aného', 'Kpalimé',
-  'Notsé', 'Bassar', 'Amlamé', 'Badou',
-  'Bafilo', 'Baguida', 'Bohou', 'Cinkassé',
-  'Danyi', 'Kévé', 'Kandé', 'Kpagouda',
-  'Mango', 'Niamtougou', 'Pagouda', 'Tchamba',
-  'Tchaoudjo', 'Vogan', 'Tabligbo', 'Guérin-Kouka',
-  'Kanté', 'Kozah', 'Mô', 'Ogou',
-  'Assoli', 'Binah', 'Doufelgou', 'Oti',
-  'Oti-Sud', 'Tandjouaré', 'Tone', 'Vo',
-  'Yoto', 'Zio',
-  ])
-).sort((a, b) => a.localeCompare(b, 'fr'));
-
-/** Minuscules sans accents : « fes » doit trouver « Fès ». */
-function normalizeText(value: string): string {
-  return value
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .toLowerCase();
-}
 
 /** Resultat d'un envoi de photo : l'URL publique, ou null si echec. */
 type PhotoUploadResult = { index: number; url: string } | null;
@@ -553,6 +526,34 @@ export default function ProfileCreation({ onComplete, initialData }: ProfileCrea
   };
 
   const handleNext = () => {
+    // Étape 1 : ces champs conditionnent le matching — le genre impose le deck
+    // (matching strict, voir lib/candidates.ts) et la date de naissance sert au
+    // filtre d'âge. Ils sont donc obligatoires avant d'avancer.
+    if (step === 1) {
+      const missing: string[] = [];
+      if (!formData.firstName.trim()) missing.push('le prénom');
+      if (!formData.lastName.trim()) missing.push('le nom');
+      if (!formData.gender) missing.push('le genre');
+      if (!bd.day || !bd.month || bd.year.length < 4) missing.push('la date de naissance');
+
+      if (missing.length > 0) {
+        Alert.alert(
+          'Informations manquantes',
+          `Merci de renseigner ${missing.join(', ')} pour continuer.`
+        );
+        return;
+      }
+
+      const age = calculateAge(bd.day, bd.month, bd.year);
+      if (age !== null && age < 18) {
+        Alert.alert(
+          'Âge minimum',
+          "L'application est réservée aux personnes majeures (18 ans et plus)."
+        );
+        return;
+      }
+    }
+
     if (step < totalSteps) {
       setStep(step + 1);
     } else {

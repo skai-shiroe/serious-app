@@ -30,7 +30,6 @@ import {
 } from 'lucide-react-native';
 import BottomSheet, { BottomSheetScrollView, BottomSheetView } from '@gorhom/bottom-sheet';
 import {
-  CertifiedBadge,
   CertifiedIcon,
   GenotypeVerifiedBadge,
   IdentityVerifiedIcon,
@@ -200,12 +199,8 @@ function ProfileBottomSheet() {
             <View style={{ backgroundColor: 'rgba(59,130,246,0.15)', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 12 }}>
               <Text style={{ color: '#3b82f6', fontWeight: 'bold' }}>Drépanocytose : {selectedProfile.sickle_cell}</Text>
             </View>
-            {isFullyVerified(selectedProfile) ? (
-              <CertifiedBadge />
-            ) : (
-              selectedProfile.genotype_verified && (
-                <GenotypeVerifiedBadge genotype={selectedProfile.sickle_cell} />
-              )
+            {!isFullyVerified(selectedProfile) && selectedProfile.genotype_verified && (
+              <GenotypeVerifiedBadge genotype={selectedProfile.sickle_cell} />
             )}
           </View>
 

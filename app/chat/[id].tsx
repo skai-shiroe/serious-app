@@ -22,7 +22,11 @@ import { getUser } from '@/lib/session';
 import { IMAGE_CACHE_POLICY, photoSource, prefetchImages } from '@/lib/images';
 import { isRecentlySeen } from '@/hooks/use-presence';
 import { EmptyState } from '@/components/empty-state';
-import { CertifiedIcon, IdentityVerifiedIcon, isFullyVerified } from '@/components/verified-badge';
+import {
+  CertifiedPhotoBadge,
+  IdentityVerifiedIcon,
+  isFullyVerified,
+} from '@/components/verified-badge';
 
 // Helper pour le temps relatif simplifié
 const formatTime = (dateString: string) => {
@@ -295,19 +299,22 @@ export default function ChatScreen() {
           </TouchableOpacity>
           
           <View style={styles.headerInfo}>
-            <Image
-              source={photoSource(partner?.photos)}
-              style={styles.headerAvatar}
-              cachePolicy={IMAGE_CACHE_POLICY}
-              transition={120}
-            />
+            <View>
+              <Image
+                source={photoSource(partner?.photos)}
+                style={styles.headerAvatar}
+                cachePolicy={IMAGE_CACHE_POLICY}
+                transition={120}
+              />
+              {isFullyVerified(partner) && (
+                <CertifiedPhotoBadge size={20} style={{ bottom: -1, right: -1 }} />
+              )}
+            </View>
             <View>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
                 <Text style={[styles.headerTitle, { color: themeColors.text }]}>{partner?.first_name || 'Chat'}</Text>
-                {isFullyVerified(partner) ? (
-                  <CertifiedIcon size={16} />
-                ) : (
-                  partner?.identity_verified && <IdentityVerifiedIcon size={16} />
+                {!isFullyVerified(partner) && partner?.identity_verified && (
+                  <IdentityVerifiedIcon size={16} />
                 )}
               </View>
               <View style={styles.statusRow}>
