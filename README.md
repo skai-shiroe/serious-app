@@ -452,7 +452,7 @@ Deux vérifications indépendantes, lancées depuis **Mon Profil → Confiance**
 
 - **Côté utilisateur** (`app/verification.tsx`) : statut `À vérifier → En relecture → Vérifiée / Refusée (motif)`, photo prise à l'appareil ou choisie dans la galerie, envoi immédiat vers le bucket privé.
 - **Côté admin** (`app/admin/verifications.tsx`, réservé à `role ∈ {admin, manager}`) : file d'attente, documents affichés via **URL signée 5 min**, boutons **Valider** / **Refuser** (motif obligatoire, visible par l'utilisateur).
-- **Badges** : pastille ronde ambre (coche blanche) posée sur les photos — avatar de **Mon Profil** (bas-droit), carte du deck (haut-droit), avatars de **Messages** et du **Chat** — et icône seule à côté du prénom dans la fiche profil. Un profil qui n'a qu'une des deux validations garde l'icône d'identité (cyan) + la pastille « Génotype … vérifié ». Les colonnes `identity_verified` / `genotype_verified` étant dénormalisées dans `profiles`, cela ne coûte **aucune requête supplémentaire**.
+- **Badges** : pastille ronde ambre (coche blanche) posée sur les photos — avatar de **Mon Profil** (bas-droit), carte du deck (sous la barre des points, haut-droit), avatars de **Messages** (haut-droit) et du **Chat** — et icône seule à côté du prénom dans la fiche profil. Un profil qui n'a qu'une des deux validations garde l'icône d'identité (cyan) + la pastille « Génotype … vérifié ». Les colonnes `identity_verified` / `genotype_verified` étant dénormalisées dans `profiles`, cela ne coûte **aucune requête supplémentaire**.
 - **Sécurité** : bucket privé ; l'utilisateur n'a ni UPDATE ni DELETE sur sa demande (donc aucune auto-validation) ; `review_verification` est `security definer` et vérifie elle-même `is_admin()` ; les deux colonnes de badges ne sont modifiables que par cette RPC.
 - **Vie privée** : seules les décisions sont conservées (`reviewer_id`, `verified_value`, `reviewed_at`). Pour purger les documents au-delà de 90 jours :
   ```sql
@@ -487,14 +487,16 @@ Deux vérifications indépendantes, lancées depuis **Mon Profil → Confiance**
 
 | Filtre | UI | effet sur la requête |
 |---|---|---|
-| Âge (min / max en tranches 18-60 / 25-70) | modale Filtres | RPC `p_age_min` / `p_age_max` + recontrôle client |
-| Ville | sélecteur dépliable avec recherche (liste de `lib/cities.ts`) | RPC `p_city` (`ilike`) |
+| Âge (min / max en tranches 18-70 / 25-80) | modale Filtres | RPC `p_age_min` / `p_age_max` + recontrôle client |
+| Ville | modale `CityPickerModal` + recherche (villes de `lib/cities.ts`, préfectures retirées) | RPC `p_city` (`ilike`) |
 | Groupe sanguin | puces | RPC `p_blood_type` |
 | Drépanocytose (AA/AS/SS/Inconnu) | puces | RPC `p_sickle_cell` |
 | Genre | *(aucune UI : imposé)* | RPC `p_gender` |
 
 - **Brouillon** : la modale édite `draftFilters`, seul « Appliquer » recharge le deck (avant, chaque pucelle relançait une requête pendant la saisie). « Réinitialiser les filtres » revient aux valeurs par défaut (18-70 ans, sans ville ni groupe).
 - **Compteur** : pastille rouge sur le bouton Filtres = nombre de critères écartés des valeurs par défaut.
+- **Sélecteur de ville partagé** (`components/city-picker-modal.tsx`) : feuille basse + recherche insensible aux accents, utilisée par le formulaire de profil **et** par la modale Filtres (option « Toutes les villes »).
+- **Pastilles** : la pastille du deck est descendue sous la barre des points de pagination ; celle de Messages est passée en haut-droit de l'avatar (le point « en ligne » occupe le bas-droit).
 - **Pas de filtre de distance** : aucun champ de géolocalisation (latitude/longitude) n'existe dans `profiles`, seule la ville est stockée → la distance n'est pas auditable ni applicable en l'état.
 
 ## 📦 Build « preview » & mises à jour OTA

@@ -1,14 +1,14 @@
 import { supabase } from '@/lib/supabase';
 import { forgetSession, getUser } from '@/lib/session';
-import { CITIES, normalizeText } from '@/lib/cities';
+import CityPickerModal from '@/components/city-picker-modal';
 import { IMAGE_CACHE_POLICY } from '@/lib/images';
 import { decode } from 'base64-arraybuffer';
 import { Image } from 'expo-image';
 import * as ImagePicker from 'expo-image-picker';
 import { LinearGradient } from 'expo-linear-gradient';
-import { Activity, Camera, ChevronLeft, ChevronRight, Check, CircleAlert, Heart, Images, MapPin, Search, User, X } from 'lucide-react-native';
+import { Activity, Camera, ChevronLeft, ChevronRight, CircleAlert, Heart, Images, MapPin, User } from 'lucide-react-native';
 import React, { useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, Alert, FlatList, Keyboard, KeyboardAvoidingView, Modal, Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, useColorScheme, View, } from 'react-native';
+import { ActivityIndicator, Alert, Keyboard, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, useColorScheme, View, } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 interface ProfileCreationProps {
@@ -181,14 +181,7 @@ export default function ProfileCreation({ onComplete, initialData }: ProfileCrea
     bio: initialData?.bio || '',
   });
 
-  // Selecteur de ville (popup) : liste + recherche.
   const [cityModalVisible, setCityModalVisible] = useState(false);
-  const [cityQuery, setCityQuery] = useState('');
-
-  const closeCityModal = () => {
-    setCityModalVisible(false);
-    setCityQuery('');
-  };
 
   // Pour la saisie structurée de la date de naissance
   const [bd, setBd] = useState({
@@ -956,10 +949,6 @@ export default function ProfileCreation({ onComplete, initialData }: ProfileCrea
     }
   };
 
-  // Liste filtree du selecteur de ville (recherche insensible aux accents).
-  const visibleCities = cityQuery.trim()
-    ? CITIES.filter((city) => normalizeText(city).includes(normalizeText(cityQuery.trim())))
-    : CITIES;
 
   // ── Rendu principal ───────────────────────────────────────────────────
   return (
@@ -1044,79 +1033,27 @@ export default function ProfileCreation({ onComplete, initialData }: ProfileCrea
         </ScrollView>
       </KeyboardAvoidingView>
 
-      {/* Selecteur de ville : popup avec recherche */}
-      <Modal
+      {/* Selecteur de ville : popup partagee avec recherche */}
+      <CityPickerModal
         visible={cityModalVisible}
-        transparent
-        animationType="slide"
-        onRequestClose={closeCityModal}
-      >
-        <View style={styles.cityOverlay}>
-          <View style={[styles.citySheet, { backgroundColor: themeColors.bgCard }]}>
-            <View style={styles.citySheetHeader}>
-              <Text style={[styles.citySheetTitle, { color: themeColors.text }]}>Votre ville</Text>
-              <TouchableOpacity onPress={closeCityModal} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-                <X color={themeColors.icon} size={22} />
-              </TouchableOpacity>
-            </View>
-
-            <View style={[styles.citySearch, { backgroundColor: themeColors.inputBg, borderColor: themeColors.border }]}>
-              <Search color={themeColors.icon} size={18} />
-              <TextInput
-                style={[styles.citySearchInput, { color: themeColors.text }]}
-                placeholder="Rechercher une ville..."
-                placeholderTextColor={themeColors.icon}
-                value={cityQuery}
-                onChangeText={setCityQuery}
-                autoCorrect={false}
-              />
-              {cityQuery.length > 0 && (
-                <TouchableOpacity onPress={() => setCityQuery('')}>
-                  <X color={themeColors.icon} size={16} />
-                </TouchableOpacity>
-              )}
-            </View>
-
-            <FlatList
-              data={visibleCities}
-              keyExtractor={(city) => city}
-              style={styles.cityList}
-              contentContainerStyle={styles.cityListContent}
-              keyboardShouldPersistTaps="handled"
-              showsVerticalScrollIndicator={false}
-              renderItem={({ item }) => {
-                const isSelected = formData.city === item;
-                return (
-                  <TouchableOpacity
-                    style={[styles.cityRow, { borderBottomColor: themeColors.border }]}
-                    onPress={() => {
-                      setFormData((prev) => ({ ...prev, city: item }));
-                      closeCityModal();
-                    }}
-                    activeOpacity={0.7}
-                  >
-                    <Text
-                      style={{
-                        color: isSelected ? '#f43f5e' : themeColors.text,
-                        fontSize: 16,
-                        fontWeight: isSelected ? '700' : '400',
-                      }}
-                    >
-                      {item}
-                    </Text>
-                    {isSelected && <Check color="#f43f5e" size={18} />}
-                  </TouchableOpacity>
-                );
-              }}
-              ListEmptyComponent={
-                <Text style={[styles.cityEmpty, { color: themeColors.textMuted }]}>
-                  Aucune ville trouvée.
-                </Text>
-              }
-            />
-          </View>
-        </View>
-      </Modal>
+        selectedCity={formData.city}
+        title="Votre ville"
+        placeholder="Rechercher une ville..."
+        emptyMessage="Aucune ville trouvée."
+        theme={{
+          text: themeColors.text,
+          textMuted: themeColors.textMuted,
+          bgCard: themeColors.bgCard,
+          border: themeColors.border,
+          inputBg: themeColors.inputBg,
+          icon: themeColors.icon,
+        }}
+        onSelect={(city) => {
+          setFormData((prev) => ({ ...prev, city }));
+          setCityModalVisible(false);
+        }}
+        onClose={() => setCityModalVisible(false)}
+      />
     </SafeAreaView>
   );
 }
@@ -1202,45 +1139,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     borderBottomWidth: StyleSheet.hairlineWidth,
   },
-
-  /* Selecteur de ville (popup) */
-  cityOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
-  citySheet: {
-    borderTopLeftRadius: 32,
-    borderTopRightRadius: 32,
-    paddingHorizontal: 24,
-    paddingTop: 24,
-    paddingBottom: 32,
-    maxHeight: '75%',
-  },
-  citySheetHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 16,
-  },
-  citySheetTitle: { fontSize: 20, fontWeight: 'bold' },
-  citySearch: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    height: 48,
-    borderWidth: 1,
-    borderRadius: 12,
-    paddingHorizontal: 16,
-    marginBottom: 8,
-  },
-  citySearchInput: { flex: 1, fontSize: 16, height: '100%' },
-  cityList: { flexGrow: 0 },
-  cityListContent: { paddingBottom: 8 },
-  cityRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingVertical: 14,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-  },
-  cityEmpty: { textAlign: 'center', paddingVertical: 24, fontSize: 15 },
 
   /* Info box */
   infoBox: {

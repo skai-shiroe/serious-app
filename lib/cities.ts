@@ -4,13 +4,11 @@
  * Source UNIQUE : une ville ajoutee ici apparait partout. La constante est triee
  * a l'execution, donc l'ordre du fichier n'importe pas.
  *
- * Pour ajouter une ville : une ligne. Les doublons exacts sont ecartes par le Set
- * (et deux graphies d'une meme ville se ressemblent trop pour etre distinguees
- * a l'ecran : garder une seule fois).
- */
-/**
- * Villes proposees dans le selecteur (constante simple a editer : ajouter ou
- * retirer une ville ici suffit). Triee automatiquement a l'execution.
+ * Regle : des VILLES uniquement (pas de prefectures / regions). Les doublons
+ * exacts sont ecartes par le Set ; deux graphies d'une meme ville se
+ * ressemblent trop pour etre distinguees a l'ecran : garder une seule fois.
+ * (Un profil qui a deja une ancienne valeur hors liste la conserve : le
+ * formulaire affiche la valeur stockee telle quelle.)
  */
 export const CITIES = Array.from(
   new Set([
@@ -20,11 +18,8 @@ export const CITIES = Array.from(
   'Bafilo', 'Baguida', 'Bohou', 'Cinkassé',
   'Danyi', 'Kévé', 'Kandé', 'Kpagouda',
   'Mango', 'Niamtougou', 'Pagouda', 'Tchamba',
-  'Tchaoudjo', 'Vogan', 'Tabligbo', 'Guérin-Kouka',
-  'Kanté', 'Kozah', 'Mô', 'Ogou',
-  'Assoli', 'Binah', 'Doufelgou', 'Oti',
-  'Oti-Sud', 'Tandjouaré', 'Tone', 'Vo',
-  'Yoto', 'Zio',
+  'Vogan', 'Tabligbo', 'Guérin-Kouka',
+  'Kanté', 'Mô', 'Tandjouaré',
   ])
 ).sort((a, b) => a.localeCompare(b, 'fr'));
 

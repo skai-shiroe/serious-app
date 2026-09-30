@@ -5,7 +5,7 @@ import {
   isAgeInRange,
   matchesTargetGender,
 } from '@/lib/candidates';
-import { CITIES, normalizeText } from '@/lib/cities';
+import CityPickerModal from '@/components/city-picker-modal';
 import { EmptyState } from '@/components/empty-state';
 import {
   CertifiedPhotoBadge,
@@ -16,9 +16,9 @@ import {
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as Haptics from 'expo-haptics';
-import { Filter, Heart, MapPin, X, Info, ChevronDown, ChevronLeft, ChevronRight, WifiOff } from 'lucide-react-native';
+import { Filter, Heart, MapPin, X, Info, ChevronLeft, ChevronRight, WifiOff } from 'lucide-react-native';
 import React, { useEffect, useState, useCallback, useRef } from 'react';
-import { ActivityIndicator, Dimensions, Modal, StyleSheet, Text, TextInput, TouchableOpacity, useColorScheme, View, ScrollView } from 'react-native';
+import { ActivityIndicator, Dimensions, Modal, StyleSheet, Text, TouchableOpacity, useColorScheme, View, ScrollView } from 'react-native';
 import { Gesture, GestureDetector, GestureHandlerRootView } from 'react-native-gesture-handler';
 import Animated, { useAnimatedStyle, useSharedValue, withSpring, runOnJS, interpolate, Extrapolation, withTiming, FadeIn, FadeOut, ZoomIn } from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -45,8 +45,10 @@ const DEFAULT_FILTERS = {
 };
 
 /** Tranches proposees pour l'age (pas de slider : puces comme les autres filtres). */
-const AGE_MIN_CHOICES = [18, 21, 25, 30, 35, 40, 45, 50, 55, 60];
-const AGE_MAX_CHOICES = [25, 30, 35, 40, 45, 50, 55, 60, 65, 70];
+const AGE_MIN_CHOICES = [18, 21, 25, 30, 35, 40, 45, 50, 55, 60, 65, 70];
+// 80 = pas de plafond pratique : le recouvrement auto (setDraftAge) garde
+// toujours des bornes selectionnables dans les deux listes.
+const AGE_MAX_CHOICES = [25, 30, 35, 40, 45, 50, 55, 60, 65, 70, 80];
 
 export default function MatchScreen() {
   const [loading, setLoading] = useState(true);
@@ -61,8 +63,7 @@ export default function MatchScreen() {
   // Brouillon edite dans la modale : rien ne part en requete avant « Appliquer »
   // (avant, chaque pucelle rechargait le deck pendant la saisie).
   const [draftFilters, setDraftFilters] = useState({ ...DEFAULT_FILTERS });
-  const [cityPickerOpen, setCityPickerOpen] = useState(false);
-  const [citySearch, setCitySearch] = useState('');
+  const [cityModalVisible, setCityModalVisible] = useState(false);
 
   const { openProfileSheet } = useProfileSheet();
   const colorScheme = useColorScheme();
@@ -107,7 +108,10 @@ export default function MatchScreen() {
         viewerGenderRef.current = data?.gender ?? null;
       }
     } catch {
-      viewerGenderRef.current = null;
+      // Echec NON memorise : on retente a la prochaine lecture. Si on mettait
+      // `null` dans la ref ici, le filtre de genre resterait desactive pour
+      // toute la session apres un simple hoquet reseau.
+      return null;
     }
     // `?? null` : la ref est declaree `| undefined` (jamais indeterminee ici,
     // mais TypeScript ne le prouve pas).
@@ -129,8 +133,6 @@ export default function MatchScreen() {
   /** Ouvre la modale en repartant des filtres deja appliques. */
   const openFilters = () => {
     setDraftFilters({ ...filters });
-    setCitySearch('');
-    setCityPickerOpen(false);
     setFilterVisible(true);
   };
 
@@ -151,8 +153,6 @@ export default function MatchScreen() {
 
   const selectCity = (city: string) => {
     setDraftFilters((prev) => ({ ...prev, city }));
-    setCityPickerOpen(false);
-    setCitySearch('');
   };
 
   /** Nombre de filtres qui s'ecartent des valeurs par defaut. */
@@ -163,13 +163,6 @@ export default function MatchScreen() {
     (filters.ageMin !== DEFAULT_FILTERS.ageMin || filters.ageMax !== DEFAULT_FILTERS.ageMax
       ? 1
       : 0);
-
-  // Villes proposees dans le selecteur, filtrees par la recherche (sans egard
-  // aux accents : « fes » trouve « Fès »).
-  const cityQuery = normalizeText(citySearch.trim());
-  const visibleCities = cityQuery
-    ? CITIES.filter((city) => normalizeText(city).includes(cityQuery))
-    : CITIES;
 
   const fetchProfiles = useCallback(async () => {
     try {
@@ -494,8 +487,10 @@ export default function MatchScreen() {
                   priority="high"
                 />
 
+                {/* Badge de certification : pose SOUS la barre des points de
+                    pagination (top 15 + 4 px de haut, zIndex 20 par-dessus). */}
                 {isFullyVerified(currentProfile) && (
-                  <CertifiedPhotoBadge size={30} style={{ top: 16, right: 16 }} />
+                  <CertifiedPhotoBadge size={30} style={{ top: 28, right: 16 }} />
                 )}
                 
                 {/* Pagination Dots */}
@@ -613,85 +608,14 @@ export default function MatchScreen() {
                 <View style={styles.filterSection}>
                   <Text style={[styles.filterLabel, { color: themeColors.textMuted }]}>Ville</Text>
                   <TouchableOpacity
-                    style={[
-                      styles.filterOption,
-                      {
-                        backgroundColor: themeColors.inputBg,
-                        flexDirection: 'row',
-                        justifyContent: 'space-between',
-                        alignItems: 'center',
-                      },
-                    ]}
-                    onPress={() => setCityPickerOpen((open) => !open)}
+                    style={[styles.filterOption, { backgroundColor: themeColors.inputBg }]}
+                    onPress={() => setCityModalVisible(true)}
                     activeOpacity={0.8}
                   >
                     <Text style={{ color: themeColors.text }}>
                       {draftFilters.city || 'Toutes les villes'}
                     </Text>
-                    <ChevronDown
-                      color={themeColors.textMuted}
-                      size={18}
-                      style={{ transform: [{ rotate: cityPickerOpen ? '180deg' : '0deg' }] }}
-                    />
                   </TouchableOpacity>
-
-                  {cityPickerOpen && (
-                    <View style={{ marginTop: 10 }}>
-                      <TextInput
-                        style={[
-                          styles.citySearch,
-                          {
-                            backgroundColor: themeColors.inputBg,
-                            borderColor: themeColors.border,
-                            color: themeColors.text,
-                          },
-                        ]}
-                        placeholder="Rechercher une ville"
-                        placeholderTextColor={themeColors.textMuted}
-                        value={citySearch}
-                        onChangeText={setCitySearch}
-                        autoCorrect={false}
-                        autoCapitalize="words"
-                      />
-                      <ScrollView style={styles.cityList} keyboardShouldPersistTaps="handled">
-                        <TouchableOpacity
-                          onPress={() => selectCity('')}
-                          style={[
-                            styles.cityOption,
-                            { backgroundColor: themeColors.inputBg },
-                            !draftFilters.city && { backgroundColor: themeColors.accent },
-                          ]}
-                        >
-                          <Text style={{ color: !draftFilters.city ? '#fff' : themeColors.text }}>
-                            Toutes les villes
-                          </Text>
-                        </TouchableOpacity>
-                        {visibleCities.map((city) => {
-                          const selected = draftFilters.city === city;
-                          return (
-                            <TouchableOpacity
-                              key={city}
-                              onPress={() => selectCity(city)}
-                              style={[
-                                styles.cityOption,
-                                { backgroundColor: themeColors.inputBg },
-                                selected && { backgroundColor: themeColors.accent },
-                              ]}
-                            >
-                              <Text style={{ color: selected ? '#fff' : themeColors.text }}>
-                                {city}
-                              </Text>
-                            </TouchableOpacity>
-                          );
-                        })}
-                        {visibleCities.length === 0 && (
-                          <Text style={{ color: themeColors.textMuted, paddingVertical: 10 }}>
-                            Aucune ville trouvée
-                          </Text>
-                        )}
-                      </ScrollView>
-                    </View>
-                  )}
                 </View>
 
                 <View style={styles.filterSection}>
@@ -801,11 +725,7 @@ export default function MatchScreen() {
 
                 <TouchableOpacity
                   style={[styles.resetBtn, { borderColor: themeColors.border }]}
-                  onPress={() => {
-                    setDraftFilters({ ...DEFAULT_FILTERS });
-                    setCitySearch('');
-                    setCityPickerOpen(false);
-                  }}
+                  onPress={() => setDraftFilters({ ...DEFAULT_FILTERS })}
                 >
                   <Text style={[styles.resetBtnText, { color: themeColors.textMuted }]}>
                     Réinitialiser les filtres
@@ -815,6 +735,26 @@ export default function MatchScreen() {
             </View>
           </View>
         </Modal>
+
+        <CityPickerModal
+          visible={cityModalVisible}
+          selectedCity={draftFilters.city}
+          title="Ville"
+          showAllCitiesOption
+          allCitiesLabel="Toutes les villes"
+          placeholder="Rechercher une ville"
+          emptyMessage="Aucune ville trouvée"
+          theme={{
+            text: themeColors.text,
+            textMuted: themeColors.textMuted,
+            bgCard: themeColors.bgCard,
+            border: themeColors.border,
+            inputBg: themeColors.inputBg,
+            accent: themeColors.accent,
+          }}
+          onSelect={selectCity}
+          onClose={() => setCityModalVisible(false)}
+        />
 
         {showMatch && (
           <Animated.View entering={FadeIn} exiting={FadeOut} style={[StyleSheet.absoluteFill, styles.matchOverlay]}>
@@ -943,16 +883,6 @@ const styles = StyleSheet.create({
   filterGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
   filterChip: { paddingHorizontal: 16, paddingVertical: 10, borderRadius: 20, borderWidth: 1, minWidth: 60, alignItems: 'center' },
   ageSubLabel: { fontSize: 13, fontWeight: '600', marginBottom: 10 },
-  citySearch: {
-    borderWidth: 1,
-    borderRadius: 12,
-    paddingHorizontal: 14,
-    paddingVertical: 11,
-    fontSize: 15,
-    marginBottom: 8,
-  },
-  cityList: { maxHeight: 230 },
-  cityOption: { paddingVertical: 12, paddingHorizontal: 14, borderRadius: 10, marginBottom: 6 },
   resetBtn: {
     borderWidth: 1,
     borderRadius: 14,
