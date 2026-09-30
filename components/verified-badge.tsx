@@ -60,33 +60,6 @@ export function GenotypeVerifiedBadge({
 }
 
 /**
- * Pastille « Profil certifie » : affichee quand l'identite ET le genotype sont
- * verifies. Elle remplace les badges individuels pour ne pas surcharger.
- */
-export function CertifiedBadge({
-  variant = 'inline',
-}: {
-  variant?: 'inline' | 'onPhoto';
-}) {
-  const isDark = useColorScheme() === 'dark';
-  const onPhoto = variant === 'onPhoto';
-
-  const tint = onPhoto ? '#ffffff' : isDark ? '#fbbf24' : '#b45309';
-  const background = onPhoto
-    ? 'rgba(255,255,255,0.24)'
-    : isDark
-      ? 'rgba(251,191,36,0.18)'
-      : 'rgba(245,158,11,0.16)';
-
-  return (
-    <View style={[styles.badge, { backgroundColor: background }]}>
-      <ShieldCheck color={tint} size={13} />
-      <Text style={[styles.text, { color: tint }]}>Profil certifié</Text>
-    </View>
-  );
-}
-
-/**
  * Pastille ronde de certification, a poser sur une photo ou un avatar.
  * Le conteneur parent doit etre en position relative ; c'est l'appelant qui
  * choisit le coin (ex. `style={{ bottom: 0, right: 0 }}`).

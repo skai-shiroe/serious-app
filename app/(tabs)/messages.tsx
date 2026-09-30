@@ -252,8 +252,10 @@ export default function MessagesScreen() {
           recyclingKey={item.otherUser.id}
           transition={120}
         />
+        {/* Pastille en haut-droit : le coin bas-droit est pris par le point
+            « en ligne » (styles.onlineDot), rendu juste apres. */}
         {isFullyVerified(item.otherUser) && (
-          <CertifiedPhotoBadge size={22} style={{ bottom: 0, right: 0 }} />
+          <CertifiedPhotoBadge size={22} style={{ top: 0, right: 0 }} />
         )}
         {item.isOnline && <View style={styles.onlineDot} />}
       </View>
