@@ -463,17 +463,19 @@ Deux vérifications indépendantes, lancées depuis **Mon Profil → Confiance**
 ### Notifications et certification
 
 - **Déclencheur** : à chaque `approved` / `rejected`, `notify_verification_status()` (bloc 5) envoie une push via l'API Expo Push — pas d'Edge Function à déployer. Sans `push_token` enregistré, rien n'est envoyé (silencieux).
-- **Tap sur la notification** : `data.type = 'verification'` → ouverture directe de l'écran Vérifications, via un canal Android dédié « Vérifications » (l'utilisateur peut le couper sans perdre les autres notifications).
+- **Tap sur la notification** : `data.type = 'verification'` → ouverture directe de l'écran Vérifications, via un canal Android dédié « Vérifications » (l'utilisateur peut le couper sans perdre les autres notifications). Le tap est honoré **aussi quand l'app était fermée** : la dernière réponse est relue au lancement (sinon le listener, monté après le tap, la manquait) ; la navigation attend que l'app soit prête, et un identifiant de notification empêche tout doublon.
 - **Indicateur « Nouveau »** : `verifications.user_seen_at` marque une décision déjà vue. La carte **Confiance** de Mon Profil affiche « Nouveau » tant que l'utilisateur n'a pas ouvert l'écran (la RPC `mark_verifications_seen` ne touche que cette colonne, jamais le statut). L'état vit **en base** : il suit l'utilisateur d'un appareil à l'autre, contrairement à un drapeau local.
 - **Pastille « Profil certifié »** : dès que **l'identité ET le génotype** sont validés, une pastille ronde ambre remplace les badges individuels sur les photos (plus de texte « Profil certifié » nulle part : la coche seule fait le travail).
 
-> ⚠️ **Prérequis Android pour que la push soit réellement délivrée :** le projet n'a **pas** de `google-services.json` → FCM n'est pas configuré, donc le token est enregistré mais l'envoi échoue côté Google. Il faut :
-> 1. créer un projet **Firebase** + une app Android `com.skylimit.seriousapp` ;
-> 2. `google-services.json` à la racine + `android.googleServicesFile` dans `app.json` (ou upload via `eas credentials`) ;
-> 3. la clé **FCM v1** (service account) dans `eas credentials` → Android ;
-> 4. **un nouveau build** (`eas build --profile preview`) — non poussable en OTA.
+> ✅ **Push Android opérationnelle (FCM configuré).** Projet Firebase `serious-app1`, app Android `com.skylimit.seriousapp`. Les deux identifiants vivent **côté EAS**, jamais dans le dépôt (public) :
 >
-> En attendant, la décision reste visible dans le profil (statut + « Nouveau »).
+> 1. **`google-services.json`** — Firebase → *Project settings → Your apps → Android* → **Download google-services.json**, puis `npx eas-cli credentials -p android` → **Google Services JSON** → *Upload* ;
+> 2. **clé de compte de service FCM v1** — Firebase → *Project settings → Service accounts → **Generate new private key***, puis `npx eas-cli credentials -p android` → **Push Notifications (FCM Service Account)** → *Upload*.
+>
+> ⚠️ Ces identifiants sont embarqués **au build** : après tout changement, il faut **un nouveau build** (`npx eas-cli build -p android --profile preview`) — non poussable en OTA. Le `google-services.json` et les clés de compte de service sont listés dans `.gitignore`.
+>
+> Vérification : `select push_token from profiles where user_id = auth.uid();` doit renvoyer un `ExponentPushToken[...]`, et un envoi de test se fait avec
+> `curl -X POST https://exp.host/--/api/v2/push/send -H 'Content-Type: application/json' -d '{"to":"<token>","title":"test","body":"coucou"}'`.
 
 ## 🎯 Matching & filtres (écran « Découvrir »)
 

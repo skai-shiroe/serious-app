@@ -7,7 +7,7 @@ import Constants from 'expo-constants';
 import * as SplashScreen from 'expo-splash-screen';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import 'react-native-reanimated';
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { 
   ActivityIndicator, 
   View, 
@@ -279,9 +279,24 @@ export default function RootLayout() {
   // ouvrir un chat (avant, seul l'ecran de chat mettait `presence` a jour).
   usePresenceHeartbeat(isAuthenticated);
 
-  useEffect(() => {
-    const responseListener = Notifications.addNotificationResponseReceivedListener((response: any) => {
-      const data = response.notification.request.content.data;
+  // Tap sur une notification : un seul chemin de navigation pour les DEUX cas.
+  // 1. app ouverte (ou en arriere-plan) -> listener ;
+  // 2. app TUEe puis relancee par le tap -> getLastNotificationResponseAsync(),
+  //    car le listener est monte APRES que le systeme a consomme le tap (le
+  //    deep link ne se faisait jamais dans ce cas).
+  // L'identifiant de notification evite de router deux fois la meme reponse.
+  const handledNotificationsRef = useRef<Set<string>>(new Set());
+  const pendingNotificationRef = useRef<Notifications.NotificationResponse | null>(null);
+
+  const routeFromNotification = useCallback(
+    (response: Notifications.NotificationResponse | null) => {
+      if (!response) return;
+
+      const identifier = response.notification.request.identifier;
+      if (handledNotificationsRef.current.has(identifier)) return;
+      handledNotificationsRef.current.add(identifier);
+
+      const data = response.notification.request.content.data as any;
       if (data?.type === 'match') {
         router.push('/(tabs)/messages');
       } else if (data?.type === 'message' && data?.match_id) {
@@ -293,12 +308,38 @@ export default function RootLayout() {
         // Une décision (validation ou refus) vient d'être rendue
         router.push('/verification');
       }
-    });
+    },
+    [router]
+  );
 
-    return () => {
-      responseListener.remove();
-    };
-  }, []);
+  useEffect(() => {
+    const subscription = Notifications.addNotificationResponseReceivedListener((response) =>
+      routeFromNotification(response)
+    );
+
+    Notifications.getLastNotificationResponseAsync()
+      .then((response) => {
+        // Lancement a froid : l'app n'est pas encore prete (session en cours de
+        // verification) -> on memorise la reponse, elle sera routee des que
+        // `isReady` passe a true (sinon la navigation vise un ecran non monte).
+        if (isReady) routeFromNotification(response ?? null);
+        else pendingNotificationRef.current = response ?? null;
+      })
+      .catch(() => undefined);
+
+    return () => subscription.remove();
+  }, [routeFromNotification, isReady]);
+
+  // Reponse memorisee pendant le demarrage : routee une fois l'app prete.
+  useEffect(() => {
+    if (!isReady) return;
+
+    const pending = pendingNotificationRef.current;
+    if (!pending) return;
+
+    pendingNotificationRef.current = null;
+    routeFromNotification(pending);
+  }, [isReady, routeFromNotification]);
 
   async function registerForPushNotificationsAsync() {
     let token;

@@ -38,6 +38,13 @@ yarn-error.*
 .env
 .env*.local
 
+# Firebase / FCM : identifiants de livraison des push, fournis a EAS via
+# `eas credentials -p android` (Google Services JSON + compte de service FCM v1),
+# jamais via le depot.
+google-services.json
+*-firebase-adminsdk-*.json
+*service-account*.json
+
 # typescript
 *.tsbuildinfo
 
