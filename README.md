@@ -469,10 +469,17 @@ Deux vérifications indépendantes, lancées depuis **Mon Profil → Confiance**
 
 > ✅ **Push Android opérationnelle (FCM configuré).** Projet Firebase `serious-app1`, app Android `com.skylimit.seriousapp`. Les deux identifiants vivent **côté EAS**, jamais dans le dépôt (public) :
 >
-> 1. **`google-services.json`** — Firebase → *Project settings → Your apps → Android* → **Download google-services.json**, puis `npx eas-cli credentials -p android` → **Google Services JSON** → *Upload* ;
-> 2. **clé de compte de service FCM v1** — Firebase → *Project settings → Service accounts → **Generate new private key***, puis `npx eas-cli credentials -p android` → **Push Notifications (FCM Service Account)** → *Upload*.
+> 1. **`google-services.json`** — Firebase → *Project settings → Your apps → Android* → **Download google-services.json**, posé à la racine (ignoré par `.gitignore`), puis déclaré comme **variable d'environnement de type fichier** EAS :
 >
-> ⚠️ Ces identifiants sont embarqués **au build** : après tout changement, il faut **un nouveau build** (`npx eas-cli build -p android --profile preview`) — non poussable en OTA. Le `google-services.json` et les clés de compte de service sont listés dans `.gitignore`.
+>    ```bash
+>    npx eas-cli env:set --name GOOGLE_SERVICES_JSON --value ./google-services.json \
+>      --type file --environment preview --visibility sensitive --non-interactive
+>    ```
+>
+>    `eas credentials` ne sait pas gérer ce fichier (keystore et clé FCM v1 seulement). Sur le runner, la variable contient le **chemin** d'une copie placée **hors** du dossier projet ; `app.config.js` l'injecte dans `android.googleServicesFile` (la config `app.json` étant statique, elle ne peut pas référencer une variable d'env). Visibilité **sensitive** et non *secret* : la config dynamique est résolue aussi **localement** par EAS CLI, et seules les visibilités *plain text/sensitive* y sont lisibles.
+> 2. **clé de compte de service FCM v1** — Firebase → *Project settings → Service accounts → **Generate new private key***, puis `npx eas-cli credentials -p android` → **Google Service Account** → *Manage your Google Service Account Key for Push Notifications (FCM V1)* → *Upload*. L'entrée « Push Notifications (Legacy) » est inutile : l'API legacy FCM est fermée par Google.
+>
+> ⚠️ Ces identifiants sont embarqués **au build** : après tout changement, il faut **un nouveau build** (`npx eas-cli build -p android --profile preview`) — non poussable en OTA. Le `google-services.json` et les clés de compte de service restent hors dépôt. La variable est attachée à l'environnement **preview** ; pour un build `production`, l'attacher aussi à `production` (`--environment production`).
 >
 > Vérification : `select push_token from profiles where user_id = auth.uid();` doit renvoyer un `ExponentPushToken[...]`, et un envoi de test se fait avec
 > `curl -X POST https://exp.host/--/api/v2/push/send -H 'Content-Type: application/json' -d '{"to":"<token>","title":"test","body":"coucou"}'`.
