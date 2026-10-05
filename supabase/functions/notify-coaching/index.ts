@@ -1,3 +1,7 @@
+// DEPRECIE (bloc SQL 7) : remplace par le trigger `on_coaching_post_created`
+// + fonction `public.send_push`. Aucun Database Webhook ne pointe plus
+// vers cette fonction : elle est conservee comme filet de retour.
+// Voir README « Toutes les notifications » et sql/push-7-triggers.sql.
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.0'
 
 Deno.serve(async (req: any) => {

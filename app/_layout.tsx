@@ -265,6 +265,37 @@ export default function RootLayout() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [profileStatus, setProfileStatus] = useState<ProfileStatus>('unknown');
 
+  // Canaux Android crees des le demarrage, authentifie ou non : Android
+  // ignore (ou range dans le canal par defaut) une notification dont le
+  // channelId n'existe pas encore, et un push peut arriver AVANT la
+  // premiere connexion. Un canal par famille -> l'utilisateur peut couper
+  // "Coaching" sans couper ses messages (Parametres > Applications).
+  useEffect(() => {
+    if (Platform.OS !== 'android') return;
+    const channels: {
+      id: string;
+      name: string;
+      importance: Notifications.AndroidImportance;
+    }[] = [
+      { id: 'messages', name: 'Messages', importance: Notifications.AndroidImportance.HIGH },
+      { id: 'matches', name: 'Matchs', importance: Notifications.AndroidImportance.HIGH },
+      { id: 'coaching', name: 'Coaching', importance: Notifications.AndroidImportance.DEFAULT },
+      { id: 'verifications', name: 'Vérifications', importance: Notifications.AndroidImportance.DEFAULT },
+      { id: 'system', name: 'Général', importance: Notifications.AndroidImportance.DEFAULT },
+    ];
+    (async () => {
+      for (const channel of channels) {
+        await Notifications.setNotificationChannelAsync(channel.id, {
+          name: channel.name,
+          importance: channel.importance,
+          sound: 'default',
+          vibrationPattern: [0, 250, 250, 250],
+          lightColor: '#f43f5e',
+        });
+      }
+    })().catch(() => undefined);
+  }, []);
+
   useEffect(() => {
     if (isAuthenticated && profileStatus === 'ready') {
       registerForPushNotificationsAsync().then(token => {
@@ -304,6 +335,12 @@ export default function RootLayout() {
       } else if (data?.type === 'coaching' && data?.id) {
         // Redirige vers la page du conseil de coaching
         router.push(`/coaching/${data.id}`);
+      } else if (data?.type === 'swipe_like') {
+        // Like anonyme recu : on ramene vers le deck "Decouvrir"
+        router.push('/(tabs)/match');
+      } else if (data?.type === 'admin_verification') {
+        // Nouvelle demande a traiter (recu uniquement par un admin)
+        router.push('/admin/verifications');
       } else if (data?.type === 'verification') {
         // Une décision (validation ou refus) vient d'être rendue
         router.push('/verification');
@@ -356,15 +393,8 @@ export default function RootLayout() {
         return;
       }
 
-      // Canal Android dedie : l'utilisateur peut le couper ou le personnaliser
-      // depuis les reglages du telephone sans affecter les autres notifications.
-      if (Platform.OS === 'android') {
-        await Notifications.setNotificationChannelAsync('verifications', {
-          name: 'Vérifications',
-          importance: Notifications.AndroidImportance.DEFAULT,
-          sound: 'default',
-        });
-      }
+      // Les canaux Android sont crees au demarrage (voir l'effet "canaux"
+      // au-dessus) : ici on se contente d'obtenir le token.
       try {
         // Toujours lire le projectId depuis app.json (EAS) :
         // l'ancienne valeur codee en dur pointait vers un projet etranger.

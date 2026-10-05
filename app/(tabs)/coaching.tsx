@@ -174,14 +174,27 @@ export default function CoachingScreen() {
         }
       }
 
-      const { error } = await supabase
-        .from('coaching_posts')
-        .insert([{
-          title: newPost.title,
-          content: newPost.content,
-          category: newPost.category,
-          image_url: finalImageUrl
-        }]);
+      // user_id = auteur du post : requis par les notifications
+      // "commentaire/like sur ce post" (bloc SQL 6). Si la colonne n'existe
+      // pas encore (bloc 6 non colle), on retente sans elle plutot que de
+      // casser la creation du post ; le DEFAULT auth.uid() de la colonne
+      // prend le relais dans les deux cas.
+      const author = await getUser();
+      const row: Record<string, unknown> = {
+        title: newPost.title,
+        content: newPost.content,
+        category: newPost.category,
+        image_url: finalImageUrl,
+      };
+
+      let { error } = author
+        ? await supabase.from('coaching_posts').insert([{ ...row, user_id: author.id }])
+        : await supabase.from('coaching_posts').insert([row]);
+
+      if (error?.code === '42703' && author) {
+        console.warn('[Coaching] colonne user_id absente (bloc SQL 6 non colle) : insertion sans auteur');
+        ({ error } = await supabase.from('coaching_posts').insert([row]));
+      }
 
       if (error) {
         console.error('Erreur insertion Supabase:', error);

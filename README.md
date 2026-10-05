@@ -441,6 +441,25 @@ for each row execute function public.notify_verification_status();
 > Sans le bloc 4, la table `verifications` manque : l'écran **Vérifications** et la file admin
 > remontent une erreur explicite (avec bouton Réessayer) au lieu de planter.
 
+**Blocs 6 à 8 — toutes les notifications (fichiers `sql/`)**
+
+Trop longs pour être inlinés ici, les blocs 6 à 8 vivent dans `sql/` et se collent **dans cet ordre**
+(l'éditeur SQL exécute chaque fichier en une seule transaction) :
+
+| Étape | Fichier | Rôle |
+|---|---|---|
+| 1 | `sql/push-0-diagnostic.sql` | contrôle de `pg_net`/`pg_cron`, des colonnes (`matches.created_at`, `messages.read`, `swipes.direction`…) et des tokens |
+| 2 | `eas update --branch preview` | **pousser les canaux Android** (`messages`, `matches`, `coaching`, `system`) : un `channelId` inconnu de l'APK installé = notification perdue |
+| 3 | `sql/push-6-fondations.sql` | `send_push` (envois découpés par 100 + `push_log`), `tokens_for`, `push_allowed` (anti-spam), colonne `coaching_posts.user_id` |
+| 4 | *Dashboard → Database → Webhooks* | **supprimer les 3 webhooks `notify-*`** — sinon chaque événement partirait deux fois |
+| 5 | `sql/push-7-triggers.sql` | les **8 triggers** (les 4 des Edge Functions migrés + 4 nouveaux) |
+| 6 | `sql/push-8-cron.sql` | les **4 relances** `pg_cron` + purge du journal (nécessite `pg_cron` activé) |
+
+> Les Edge Functions `supabase/functions/notify-*` restent dans le dépôt mais deviennent **inactives**
+> (aucun webhook ne les appelle) : c'est le filet de retour. Sans le bloc 6, le bloc 7 échoue
+> (fonctions `send_push`/`push_allowed` manquantes) ; sans le bloc 7, seule la décision de
+> vérification du bloc 5 continue de partir.
+
 ## 🛡️ Vérification d'identité & génotype
 
 Deux vérifications indépendantes, lancées depuis **Mon Profil → Confiance** :
@@ -466,6 +485,48 @@ Deux vérifications indépendantes, lancées depuis **Mon Profil → Confiance**
 - **Tap sur la notification** : `data.type = 'verification'` → ouverture directe de l'écran Vérifications, via un canal Android dédié « Vérifications » (l'utilisateur peut le couper sans perdre les autres notifications). Le tap est honoré **aussi quand l'app était fermée** : la dernière réponse est relue au lancement (sinon le listener, monté après le tap, la manquait) ; la navigation attend que l'app soit prête, et un identifiant de notification empêche tout doublon.
 - **Indicateur « Nouveau »** : `verifications.user_seen_at` marque une décision déjà vue. La carte **Confiance** de Mon Profil affiche « Nouveau » tant que l'utilisateur n'a pas ouvert l'écran (la RPC `mark_verifications_seen` ne touche que cette colonne, jamais le statut). L'état vit **en base** : il suit l'utilisateur d'un appareil à l'autre, contrairement à un drapeau local.
 - **Pastille « Profil certifié »** : dès que **l'identité ET le génotype** sont validés, une pastille ronde ambre remplace les badges individuels sur les photos (plus de texte « Profil certifié » nulle part : la coche seule fait le travail).
+
+### Toutes les notifications (blocs 6-8)
+
+Tout part de `public.send_push` : tokens vides filtrés, envois découpés par 100 (limite Expo),
+`push_log` pour tracer (pg_net est asynchrone et muet), `push_throttle` pour l'anti-spam.
+
+| # | Notification | Déclencheur | Cible | Canal / priorité | Au tap |
+|---|---|---|---|---|---|
+| 1 | 🎉 Nouveau match | `on_match_created` | les 2 users | `matches` / **high** | `match` → Messages |
+| 2 | 💬 Nouveau message | `on_message_created` | destinataire (jamais l'émetteur) | `messages` / **high** | `message` → `/chat/:id` |
+| 3 | ✨ Nouveau conseil de coaching | `on_coaching_post_created` | broadcast | `coaching` / default | `coaching` → `/coaching/:id` |
+| 4 | ✅/❌ Décision de vérification | `on_verification_reviewed` (bloc 5, migré) | demandeur | `verifications` / default | `verification` → Vérification |
+| 5 | 💬 Commentaire sur mon post | `on_comment_created` | auteur du post — 1 h/post | `coaching` / default | `coaching` |
+| 6 | 👍 Like de mon post | `on_post_like_created` | auteur du post — 30 min/post | `coaching` / default | `coaching` |
+| 7 | 💖 « Quelqu'un vous a liké » | `on_swipe_created` | profil liké — 1 h, **anonyme** | `matches` / **high** | `swipe_like` → Découvrir |
+| 8 | 🛡️ Nouvelle demande à traiter | `on_verification_submitted` | admins/managers | `verifications` / **high** | `admin_verification` → file admin |
+
+Relances `pg_cron` (heures en **UTC** ; chaque fonction est aussi appelable à la main pour un test) :
+
+| Job | Horaire | Effet | Anti-spam |
+|---|---|---|---|
+| `job_match_no_message` | 10 h/jour | « Dites bonjour » sur un match ≥ 24 h sans message | 24 h/match |
+| `job_unread_digest` | 18 h/jour | « N messages non lus » | 20 h/utilisateur |
+| `job_profile_incomplete` | 11 h/jour | profil incomplet depuis 48 h | 72 h/utilisateur |
+| `job_city_digest` | lundi 18 h | « N nouveaux profils à {ville} » | 7 j/ville |
+| purge `push_log` | 04 h/jour | nettoyage au-delà de 7 jours | — |
+
+- **Canaux Android** : créés **au démarrage de l'app** (plus seulement après connexion) dans `app/_layout.tsx` — `messages`, `matches` en priorité haute, puis `coaching`, `verifications`, `system`. Couper « Coaching » dans les réglages du téléphone ne coupe pas les messages. Un `channelId` envoyé à un APK qui ne connaît pas le canal = notification perdue : d'où l'étape `eas update` dans l'ordre d'application.
+- **Deep links** : `routeFromNotification` route `match`, `message`, `coaching`, `verification`, plus les nouveaux `swipe_like` et `admin_verification` ; un type sans route (ex. `city_digest`) ouvre simplement l'app.
+- **Privacy** : le contenu d'un message n'apparaît jamais dans la notification (verrouille l'écran), et un like de swipe reste anonyme jusqu'au match.
+- **Tests** :
+  ```sql
+  -- envoi direct (remplacer par ton token)
+  select public.send_push(array['ExponentPushToken[...]'], 'Test', 'corps',
+                          '{"type":"match"}'::jsonb, 'matches', 'high');
+  -- journal des envois
+  select * from public.push_log order by sent_at desc limit 20;
+  -- relances, sans attendre le cron
+  select public.job_match_no_message();
+  ```
+  puis un événement réel par famille : message, commentaire, like de post, swipe like,
+  soumission d'une vérification (push admin), décision de vérification.
 
 > ✅ **Push Android opérationnelle (FCM configuré).** Projet Firebase `serious-app1`, app Android `com.skylimit.seriousapp`. Les deux identifiants vivent **côté EAS**, jamais dans le dépôt (public) :
 >
