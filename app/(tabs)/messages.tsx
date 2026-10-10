@@ -17,6 +17,7 @@ import { getUser } from '@/lib/session';
 import { IMAGE_CACHE_POLICY, photoSource, prefetchImages } from '@/lib/images';
 import { isRecentlySeen } from '@/hooks/use-presence';
 import { EmptyState } from '@/components/empty-state';
+import PhotoViewer from '@/components/photo-viewer';
 import {
   CertifiedPhotoBadge,
   IdentityVerifiedIcon,
@@ -51,6 +52,7 @@ interface Conversation {
     content: string;
     created_at: string;
     sender_id: string;
+    type?: string;
   };
   unreadCount: number;
   isOnline: boolean;
@@ -66,6 +68,8 @@ export default function MessagesScreen() {
   const [conversations, setConversations] = useState<Conversation[]>([]);
   // Distingue « aucun match » (liste vide) de « chargement echoue »
   const [loadError, setLoadError] = useState<string | null>(null);
+  // Photos a afficher en grand (tap sur un avatar de la liste)
+  const [viewerPhotos, setViewerPhotos] = useState<string[]>([]);
 
   const themeColors = {
     text: isDark ? '#ffffff' : '#111827',
@@ -241,10 +245,31 @@ export default function MessagesScreen() {
   const renderItem = ({ item }: { item: Conversation }) => (
     <TouchableOpacity 
       style={[styles.chatItem, { borderBottomColor: themeColors.border }]}
-      onPress={() => router.push(`/chat/${item.id}` as any)}
+      onPress={() =>
+        router.push({
+          pathname: '/chat/[id]',
+          params: {
+            id: item.id,
+            // Le chat affiche l'en-tete immediatement avec ces donnees pendant
+            // que son chargement (match + historique + profil) se fait derriere.
+            partnerUserId: item.otherUser.id,
+            partnerName: item.otherUser.first_name,
+            partnerPhotos: JSON.stringify(item.otherUser.photos || []),
+            partnerVerified: isFullyVerified(item.otherUser)
+              ? 'full'
+              : item.otherUser.identity_verified
+                ? 'id'
+                : '',
+          },
+        } as any)
+      }
       activeOpacity={0.7}
     >
-      <View>
+      <TouchableOpacity
+        activeOpacity={0.85}
+        disabled={!item.otherUser.photos?.length}
+        onPress={() => setViewerPhotos(item.otherUser.photos || [])}
+      >
         <Image
           source={photoSource(item.otherUser.photos)}
           style={styles.avatar}
@@ -258,7 +283,7 @@ export default function MessagesScreen() {
           <CertifiedPhotoBadge size={22} style={{ top: 0, right: 0 }} />
         )}
         {item.isOnline && <View style={styles.onlineDot} />}
-      </View>
+      </TouchableOpacity>
       
       <View style={styles.chatInfo}>
         <View style={styles.chatHeader}>
@@ -286,7 +311,12 @@ export default function MessagesScreen() {
             ]} 
             numberOfLines={1}
           >
-            {item.lastMessage ? item.lastMessage.content : 'Nouvelle affinité ! Dites bonjour 👋'}
+            {item.lastMessage
+              ? item.lastMessage.type === 'sticker' ||
+                item.lastMessage.content.startsWith('sticker:')
+                ? ' 🎏 Sticker'
+                : item.lastMessage.content
+              : 'Nouvelle affinité ! Dites bonjour 👋'}
           </Text>
           {item.unreadCount > 0 && (
             <View style={styles.badge}>
@@ -335,6 +365,14 @@ export default function MessagesScreen() {
           }
         />
       )}
+
+      {/* Visionneuse plein ecran : tap sur un avatar de la liste */}
+      <PhotoViewer
+        visible={viewerPhotos.length > 0}
+        photos={viewerPhotos}
+        index={0}
+        onClose={() => setViewerPhotos([])}
+      />
     </SafeAreaView>
   );
 }

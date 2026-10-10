@@ -2,10 +2,13 @@ import React from 'react';
 import { Tabs } from 'expo-router';
 import { Heart, MessageCircle, Zap, User } from 'lucide-react-native';
 import { useColorScheme, Platform } from 'react-native';
+import { useUnreadMessagesCount } from '@/hooks/use-unread-count';
 
 export default function TabLayout() {
   const colorScheme = useColorScheme();
   const isDark = colorScheme === 'dark';
+  // Badge « non lus » style WhatsApp sur l'onglet Messages (realtime, 99+).
+  const unreadCount = useUnreadMessagesCount();
 
   return (
     <Tabs
@@ -34,6 +37,7 @@ export default function TabLayout() {
         options={{
           title: 'Messages',
           tabBarIcon: ({ color }) => <MessageCircle size={24} color={color} />,
+          tabBarBadge: unreadCount > 0 ? (unreadCount > 99 ? '99+' : unreadCount) : undefined,
         }}
       />
       <Tabs.Screen
