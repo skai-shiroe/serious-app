@@ -1,5 +1,5 @@
 import { SafeAreaView } from 'react-native-safe-area-context';
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { 
   View, 
   Text, 
@@ -212,12 +212,22 @@ export default function ChatScreen() {
     };
   }, [partner?.user_id]);
 
+  // WhatsApp : quand le clavier s'ouvre, ramener le dernier message au-dessus
+  // de la barre de saisie (le KAV pousse deja l'input, la liste doit suivre).
+  useEffect(() => {
+    const sub = Keyboard.addListener('keyboardDidShow', () => {
+      flatListRef.current?.scrollToEnd({ animated: true });
+    });
+    return () => sub.remove();
+  }, []);
+
   const handleSend = async () => {
     if (!inputText.trim() || !currentUser || !matchId) return;
 
     const text = inputText.trim();
     setInputText('');
-    Keyboard.dismiss();
+    // Pas de Keyboard.dismiss() : comme WhatsApp, le clavier reste ouvert
+    // pour ecrire immediatement la suite.
 
     try {
       await supabase.from('messages').insert({
@@ -286,10 +296,12 @@ export default function ChatScreen() {
 
   return (
     <SafeAreaView style={[styles.safeArea, { backgroundColor: themeColors.bg }]}>
+      {/* Android edge-to-edge (SDK 57) : le systeme ignore adjustResize, le KAV
+          mesure lui-meme le clavier et pousse la barre de saisie (type WhatsApp). */}
       <KeyboardAvoidingView 
         style={styles.container} 
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 0}
+        behavior="padding"
+        keyboardVerticalOffset={0}
       >
         
         {/* Header */}
@@ -337,6 +349,8 @@ export default function ChatScreen() {
           renderItem={renderBubble}
           contentContainerStyle={styles.messagesList}
           showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+          keyboardDismissMode="on-drag"
           onContentSizeChange={() => flatListRef.current?.scrollToEnd({ animated: true })}
           onLayout={() => flatListRef.current?.scrollToEnd({ animated: true })}
         />
