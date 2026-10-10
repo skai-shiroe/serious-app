@@ -1,8 +1,5 @@
 import { Stack, useRouter, DarkTheme, DefaultTheme, ThemeProvider } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
-import * as Device from 'expo-device';
-import * as Notifications from 'expo-notifications';
-import Constants from 'expo-constants';
 import * as SplashScreen from 'expo-splash-screen';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import 'react-native-reanimated';
@@ -19,7 +16,6 @@ import {
 } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { Image } from 'expo-image';
-import { LinearGradient } from 'expo-linear-gradient';
 import { 
   Heart, 
   X as XIcon, 
@@ -45,16 +41,13 @@ import ProfileCreation from '@/components/profile-creation';
 import { ProfileSheetProvider, useProfileSheet } from '@/contexts/ProfileSheetContext';
 import { IMAGE_CACHE_POLICY, imageSource } from '@/lib/images';
 import { usePresenceHeartbeat } from '@/hooks/use-presence';
-
-Notifications.setNotificationHandler({
-  handleNotification: async () => ({
-    shouldShowAlert: true,
-    shouldPlaySound: true,
-    shouldSetBadge: true,
-    shouldShowBanner: true,
-    shouldShowList: true,
-  }),
-});
+import {
+  setupNotificationHandler,
+  ensureAndroidChannels,
+  registerPushToken,
+  subscribeNotificationRouting,
+} from '@/lib/push';
+import type { NotificationResponse } from '@/lib/push';
 
 // Le splash natif reste affiche jusqu a ce que l etat auth + profil soit connu :
 // evite tout clignotement entre l ecran de login, "Completer le profil" et l accueil.
@@ -264,44 +257,39 @@ export default function RootLayout() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [profileStatus, setProfileStatus] = useState<ProfileStatus>('unknown');
 
-  // Canaux Android crees des le demarrage, authentifie ou non : Android
-  // ignore (ou range dans le canal par defaut) une notification dont le
-  // channelId n'existe pas encore, et un push peut arriver AVANT la
-  // premiere connexion. Un canal par famille -> l'utilisateur peut couper
-  // "Coaching" sans couper ses messages (Parametres > Applications).
+  // Les 5 canaux sont crees au demarrage quel que soit l'etat d'authentification :
+  // un push peut arriver avant la connexion. No-op sous Expo Go (voir lib/push.ts).
+  // Le handler d'affichage est pose ici aussi (une seule fois, jamais au top-level
+  // du module : sous Expo Go le module natif est absent et l'app doit demarrer).
   useEffect(() => {
-    if (Platform.OS !== 'android') return;
-    const channels: {
-      id: string;
-      name: string;
-      importance: Notifications.AndroidImportance;
-    }[] = [
-      { id: 'messages', name: 'Messages', importance: Notifications.AndroidImportance.HIGH },
-      { id: 'matches', name: 'Matchs', importance: Notifications.AndroidImportance.HIGH },
-      { id: 'coaching', name: 'Coaching', importance: Notifications.AndroidImportance.DEFAULT },
-      { id: 'verifications', name: 'Vérifications', importance: Notifications.AndroidImportance.DEFAULT },
-      { id: 'system', name: 'Général', importance: Notifications.AndroidImportance.DEFAULT },
-    ];
-    (async () => {
-      for (const channel of channels) {
-        await Notifications.setNotificationChannelAsync(channel.id, {
-          name: channel.name,
-          importance: channel.importance,
-          sound: 'default',
-          vibrationPattern: [0, 250, 250, 250],
-          lightColor: '#f43f5e',
-        });
-      }
-    })().catch(() => undefined);
+    setupNotificationHandler();
+    ensureAndroidChannels().catch(() => {});
   }, []);
+
+  // Enregistre le token Expo dans profiles. Declare AVANT l'effet qui l'appelle
+  // (const non hoistee : le React Compiler le signalait sinon).
+  const savePushToken = async (expoPushToken: string) => {
+    try {
+      const user = await getUser();
+      if (user) {
+        await supabase
+          .from('profiles')
+          .update({ push_token: expoPushToken })
+          .eq('user_id', user.id);
+      }
+    } catch (e) {
+      console.log("Erreur sauvegarde token:", e);
+    }
+  };
+
+  const registerForPushNotificationsAsync = async () => {
+    // Sous Expo Go : no-op avec log (voir lib/push.ts).
+    await registerPushToken(savePushToken);
+  };
 
   useEffect(() => {
     if (isAuthenticated && profileStatus === 'ready') {
-      registerForPushNotificationsAsync().then(token => {
-        if (token) {
-          savePushToken(token);
-        }
-      });
+      registerForPushNotificationsAsync();
     }
   }, [isAuthenticated, profileStatus]);
 
@@ -315,11 +303,13 @@ export default function RootLayout() {
   //    car le listener est monte APRES que le systeme a consomme le tap (le
   //    deep link ne se faisait jamais dans ce cas).
   // L'identifiant de notification evite de router deux fois la meme reponse.
+
+  // Identifiants deja routes : le Set vit dans le composant et survit aux
+  // re-abonnements du listener (changement d'isReady) et au re-jeu du cold start.
   const handledNotificationsRef = useRef<Set<string>>(new Set());
-  const pendingNotificationRef = useRef<Notifications.NotificationResponse | null>(null);
 
   const routeFromNotification = useCallback(
-    (response: Notifications.NotificationResponse | null) => {
+    (response: NotificationResponse | null) => {
       if (!response) return;
 
       const identifier = response.notification.request.identifier;
@@ -348,86 +338,33 @@ export default function RootLayout() {
     [router]
   );
 
+  // Reponse recue AVANT que l'app soit prete : memorisee, routee des que
+  // isReady passe a true (sinon la navigation vise un ecran non monte —
+  // c'etait le bug historique du deep link a froid).
+  const pendingNotificationRef = useRef<NotificationResponse | null>(null);
+
+  // Taps sur notification + cold start (getLastNotificationResponseAsync).
+  // No-op sous Expo Go (voir lib/push.ts).
   useEffect(() => {
-    const subscription = Notifications.addNotificationResponseReceivedListener((response) =>
-      routeFromNotification(response)
+    return subscribeNotificationRouting(
+      (response) => {
+        if (isReady) routeFromNotification(response);
+        else pendingNotificationRef.current = response;
+      },
+      () => {}
     );
-
-    Notifications.getLastNotificationResponseAsync()
-      .then((response) => {
-        // Lancement a froid : l'app n'est pas encore prete (session en cours de
-        // verification) -> on memorise la reponse, elle sera routee des que
-        // `isReady` passe a true (sinon la navigation vise un ecran non monte).
-        if (isReady) routeFromNotification(response ?? null);
-        else pendingNotificationRef.current = response ?? null;
-      })
-      .catch(() => undefined);
-
-    return () => subscription.remove();
   }, [routeFromNotification, isReady]);
 
-  // Reponse memorisee pendant le demarrage : routee une fois l'app prete.
+  // Reponse memorisee pendant le demarrage : routee une fois l'app prete
+  // (le dedupe de routeFromNotification evite le double routage si le listener
+  // se re-abonne en meme temps et re-delivre la meme reponse).
   useEffect(() => {
     if (!isReady) return;
-
     const pending = pendingNotificationRef.current;
     if (!pending) return;
-
     pendingNotificationRef.current = null;
     routeFromNotification(pending);
   }, [isReady, routeFromNotification]);
-
-  async function registerForPushNotificationsAsync() {
-    let token;
-    
-    if (Device.isDevice) {
-      const { status: existingStatus } = await Notifications.getPermissionsAsync();
-      let finalStatus = existingStatus;
-      if (existingStatus !== 'granted') {
-        const { status } = await Notifications.requestPermissionsAsync();
-        finalStatus = status;
-      }
-      if (finalStatus !== 'granted') {
-        console.log('Permission refusée pour les notifications push !');
-        return;
-      }
-
-      // Les canaux Android sont crees au demarrage (voir l'effet "canaux"
-      // au-dessus) : ici on se contente d'obtenir le token.
-      try {
-        // Toujours lire le projectId depuis app.json (EAS) :
-        // l'ancienne valeur codee en dur pointait vers un projet etranger.
-        const projectId =
-          Constants.expoConfig?.extra?.eas?.projectId ??
-          (Constants as any).easConfig?.projectId;
-        if (!projectId) {
-          console.warn('[Push] projectId EAS introuvable : token non demande');
-          return;
-        }
-        token = (await Notifications.getExpoPushTokenAsync({ projectId })).data;
-      } catch (e) {
-        console.log("Erreur lors de la récupération du token push:", e);
-      }
-    } else {
-      console.log('Les notifications push nécessitent un appareil physique.');
-    }
-
-    return token;
-  }
-
-  async function savePushToken(token: string) {
-    try {
-      const user = await getUser();
-      if (user) {
-        await supabase
-          .from('profiles')
-          .update({ push_token: token })
-          .eq('user_id', user.id);
-      }
-    } catch (e) {
-      console.log("Erreur sauvegarde token:", e);
-    }
-  }
 
   useEffect(() => {
     const initTheme = async () => {
