@@ -14,7 +14,8 @@ import {
   Keyboard 
 } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { ArrowLeft, Send, Check, CheckCheck, WifiOff } from 'lucide-react-native';
+import { useProfileSheet } from '@/contexts/ProfileSheetContext';
+import { ArrowLeft, Send, Check, CheckCheck, WifiOff, Smile } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Image } from 'expo-image';
 import { supabase } from '@/lib/supabase';
@@ -22,6 +23,8 @@ import { getUser } from '@/lib/session';
 import { IMAGE_CACHE_POLICY, photoSource, prefetchImages } from '@/lib/images';
 import { isRecentlySeen } from '@/hooks/use-presence';
 import { EmptyState } from '@/components/empty-state';
+import EmojiStickerPanel, { type ComposerTab } from '@/components/emoji-sticker-panel';
+import { stickerSource } from '@/lib/stickers';
 import {
   CertifiedPhotoBadge,
   IdentityVerifiedIcon,
@@ -41,16 +44,47 @@ interface Message {
   content: string;
   read: boolean;
   created_at: string;
+  /** 'text' (defaut) ou 'sticker' (content = 'sticker:<nom>'). */
+  type?: string;
 }
 
 export default function ChatScreen() {
-  const { id: matchId } = useLocalSearchParams(); // match_id
+  // La liste des discussions transmet le partenaire : l'en-tete s'affiche des
+  // l'ouverture (instantane) pendant que le chargement se fait derriere.
+  const params = useLocalSearchParams<{
+    id: string;
+    partnerUserId?: string;
+    partnerName?: string;
+    partnerPhotos?: string;
+    partnerVerified?: string;
+  }>();
+  const matchId = params.id;
   const router = useRouter();
   const colorScheme = useColorScheme();
   const isDark = colorScheme === 'dark';
+  const { openProfileSheet } = useProfileSheet();
 
   const [currentUser, setCurrentUser] = useState<any>(null);
-  const [partner, setPartner] = useState<any>(null);
+  // Utilise par le listener realtime : evite de remettre currentUser dans les
+  // deps de l'effet d'init (ce qui relancait TOUTE l'init une 2e fois).
+  const currentUserRef = useRef<any>(null);
+  const [partner, setPartner] = useState<any>(() => {
+    if (!params.partnerName) return null;
+    let photos: string[] = [];
+    try {
+      photos = JSON.parse(params.partnerPhotos || '[]');
+    } catch {
+      photos = [];
+    }
+    return {
+      user_id: params.partnerUserId,
+      first_name: params.partnerName,
+      photos,
+      identity_verified:
+        params.partnerVerified === 'id' || params.partnerVerified === 'full',
+      genotype_verified: params.partnerVerified === 'full',
+    };
+  });
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputText, setInputText] = useState('');
   const [loading, setLoading] = useState(true);
@@ -59,6 +93,8 @@ export default function ChatScreen() {
   const [loadError, setLoadError] = useState<string | null>(null);
   // Incremente pour relancer l'initialisation apres un echec
   const [reloadKey, setReloadKey] = useState(0);
+  // Panneau emoji/stickers ouvert sous la barre de saisie (null = clavier)
+  const [composerTab, setComposerTab] = useState<ComposerTab | null>(null);
   
   const flatListRef = useRef<FlatList>(null);
 
@@ -85,25 +121,41 @@ export default function ChatScreen() {
         }
 
         setCurrentUser(user);
+        currentUserRef.current = user;
 
-        // 1. Récupérer les détails du match pour trouver le partenaire
-        //    (maybeSingle : un match supprimé ne doit pas passer pour un chat vide)
-        const { data: match, error: matchError } = await supabase
-          .from('matches')
-          .select('*')
-          .eq('id', matchId)
-          .maybeSingle();
+        // 1 + 3 en PARALLELE : le match sert a trouver le partenaire,
+        // l'historique ne depend que du matchId. Avant : 4 requetes en
+        // serie + une 2e passe complete (currentUser dans les deps) => 2x
+        // plus de travail a chaque ouverture.
+        const [matchResult, historyResult] = await Promise.all([
+          supabase.from('matches').select('*').eq('id', matchId).maybeSingle(),
+          supabase
+            .from('messages')
+            .select('*')
+            .eq('match_id', matchId)
+            .order('created_at', { ascending: false })
+            .limit(200),
+        ]);
 
+        const { data: match, error: matchError } = matchResult;
         if (matchError) throw matchError;
 
+        // (maybeSingle : un match supprimé ne doit pas passer pour un chat vide)
         if (!match) {
           setLoadError("Cette conversation n'existe plus.");
           return;
         }
 
-        const partnerId = match.user_id_1 === user.id ? match.user_id_2 : match.user_id_1;
+        // 3. Historique des que dispo : la liste se remplit pendant que le
+        //    profil du partenaire finit d'etre charge.
+        const { data: history, error: historyError } = historyResult;
+        if (historyError) throw historyError;
+
+        // Reçu du plus récent au plus ancien : on remet dans l'ordre du chat.
+        setMessages((history || []).slice().reverse());
 
         // 2. Récupérer le profil du partenaire
+        const partnerId = match.user_id_1 === user.id ? match.user_id_2 : match.user_id_1;
         const { data: profile, error: profileError } = await supabase
           .from('profiles')
           .select('user_id, first_name, photos, identity_verified, genotype_verified')
@@ -117,27 +169,17 @@ export default function ChatScreen() {
         // Avatar du partenaire en cache des l'arrivee : pas de flash gris
         if (profile?.photos?.length) prefetchImages(profile.photos);
 
-        // 3. Charger l'historique, borné aux 200 derniers messages : une longue
-        //    conversation ne doit pas charger un payload illimité.
-        const { data: history, error: historyError } = await supabase
-          .from('messages')
-          .select('*')
-          .eq('match_id', matchId)
-          .order('created_at', { ascending: false })
-          .limit(200);
-
-        if (historyError) throw historyError;
-
-        // Reçu du plus récent au plus ancien : on remet dans l'ordre du chat.
-        setMessages((history || []).slice().reverse());
-
-        // 4. Marquer comme lu
-        await supabase
+        // 4. Marquer comme lu EN ARRIERE-PLAN : ca ne bloque plus
+        //    l'affichage de la conversation.
+        supabase
           .from('messages')
           .update({ read: true })
           .eq('match_id', matchId)
           .neq('sender_id', user.id)
-          .eq('read', false);
+          .eq('read', false)
+          .then(({ error: readError }) => {
+            if (readError) console.warn('[Chat] marquage en lu:', readError.message);
+          });
       } catch (err) {
         console.error('Error initializing chat:', err);
         setLoadError(
@@ -163,7 +205,7 @@ export default function ChatScreen() {
         setMessages(prev => [...prev, newMessage]);
         
         // Marquer comme lu si on est dans le chat
-        if (newMessage.sender_id !== currentUser?.id) {
+        if (newMessage.sender_id !== currentUserRef.current?.id) {
           supabase
             .from('messages')
             .update({ read: true })
@@ -176,7 +218,10 @@ export default function ChatScreen() {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [matchId, currentUser?.id, reloadKey]);
+    // Deps SANS currentUser : setCurrentUser(user) declenchait une seconde
+    // passe complete de l'init (double requetes + double abonnement realtime).
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [matchId, reloadKey]);
 
   // Presence du partenaire en TEMPS REEL : un seul abonnement, plus aucune
   // lecture toutes les 30 s. Le heartbeat d'ecriture est desormais global
@@ -216,10 +261,55 @@ export default function ChatScreen() {
   // de la barre de saisie (le KAV pousse deja l'input, la liste doit suivre).
   useEffect(() => {
     const sub = Keyboard.addListener('keyboardDidShow', () => {
+      // Le clavier reprend la main : le panneau cede sa place.
+      setComposerTab(null);
       flatListRef.current?.scrollToEnd({ animated: true });
     });
     return () => sub.remove();
   }, []);
+
+  // WhatsApp : tap sur l'en-tete -> fiche complete du partenaire (la meme
+  // bottom sheet que sur le deck Match). Chargee a la demande.
+  const openPartnerProfile = async () => {
+    if (!partner?.user_id) return;
+    try {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('user_id', partner.user_id)
+        .maybeSingle();
+      if (error) throw error;
+      if (data) openProfileSheet(data);
+    } catch (err) {
+      console.warn('[Chat] chargement fiche profil:', err);
+    }
+  };
+
+  // Un sticker part immediatement (comme WhatsApp) : type='sticker' +
+  // content='sticker:<nom>'. Repli sans la colonne 'type' si la migration
+  // sql/chat-stickers.sql n'est pas encore passee (PGRST204 = colonne inconnue).
+  const sendSticker = async (name: string) => {
+    if (!currentUser || !matchId) return;
+    const payload = {
+      match_id: matchId,
+      sender_id: currentUser.id,
+      content: `sticker:${name}`,
+    };
+    const { error } = await supabase.from('messages').insert({ ...payload, type: 'sticker' });
+    if (error && error.code === 'PGRST204') {
+      const { error: fallbackError } = await supabase.from('messages').insert(payload);
+      if (fallbackError) console.error('Error sending sticker:', fallbackError);
+    } else if (error) {
+      console.error('Error sending sticker:', error);
+    }
+  };
+
+  const toggleComposer = () => {
+    Keyboard.dismiss();
+    setComposerTab((current) => (current ? null : 'emoji'));
+    // Ramener le dernier message visible une fois le panneau ouvert/ferme.
+    setTimeout(() => flatListRef.current?.scrollToEnd({ animated: true }), 120);
+  };
 
   const handleSend = async () => {
     if (!inputText.trim() || !currentUser || !matchId) return;
@@ -243,6 +333,42 @@ export default function ChatScreen() {
 
   const renderBubble = ({ item }: { item: Message }) => {
     const isMe = item.sender_id === currentUser?.id;
+
+    // Sticker : image pleine sans bulle de texte (comme WhatsApp).
+    const isSticker =
+      item.type === 'sticker' ||
+      (typeof item.content === 'string' && item.content.startsWith('sticker:'));
+    if (isSticker) {
+      const name =
+        typeof item.content === 'string' && item.content.startsWith('sticker:')
+          ? item.content.slice('sticker:'.length)
+          : item.content;
+      const source = stickerSource(name);
+      return (
+        <View style={[styles.messageWrapper, isMe ? styles.messageWrapperMe : styles.messageWrapperThem]}>
+          {source ? (
+            <Image
+              source={source}
+              style={styles.stickerImage}
+              contentFit="contain"
+              cachePolicy={IMAGE_CACHE_POLICY}
+            />
+          ) : (
+            <Text style={{ fontSize: 64 }}>🎏</Text>
+          )}
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+            <Text style={[styles.timeText, { color: themeColors.textMuted }]}>{formatTime(item.created_at)}</Text>
+            {isMe &&
+              (item.read ? (
+                <CheckCheck size={14} color="#3b82f6" />
+              ) : (
+                <Check size={14} color={themeColors.textMuted} />
+              ))}
+          </View>
+        </View>
+      );
+    }
+
     return (
       <View style={[styles.messageWrapper, isMe ? styles.messageWrapperMe : styles.messageWrapperThem]}>
         <View style={[
@@ -263,7 +389,10 @@ export default function ChatScreen() {
     );
   };
 
-  if (loading) {
+  // Spinner plein ecran uniquement si on n'a meme pas l'en-tete (deep link
+  // direct sans params) : sinon l'en-tete s'affiche d'emblee et le centre
+  // montre l'avancement du chargement des messages.
+  if (loading && !partner) {
     return (
       <View style={[styles.centerContainer, { backgroundColor: themeColors.bg }]}>
         <ActivityIndicator size="large" color="#f43f5e" />
@@ -310,7 +439,7 @@ export default function ChatScreen() {
             <ArrowLeft color={themeColors.text} size={24} />
           </TouchableOpacity>
           
-          <View style={styles.headerInfo}>
+          <TouchableOpacity style={styles.headerInfo} activeOpacity={0.7} onPress={openPartnerProfile}>
             <View>
               <Image
                 source={photoSource(partner?.photos)}
@@ -336,12 +465,17 @@ export default function ChatScreen() {
                 </Text>
               </View>
             </View>
-          </View>
-          
+          </TouchableOpacity>
+
           <View style={{ width: 40 }} />
         </View>
 
         {/* Messages */}
+        {loading ? (
+          <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+            <ActivityIndicator size="large" color="#f43f5e" />
+          </View>
+        ) : (
         <FlatList
           ref={flatListRef}
           data={messages}
@@ -354,15 +488,24 @@ export default function ChatScreen() {
           onContentSizeChange={() => flatListRef.current?.scrollToEnd({ animated: true })}
           onLayout={() => flatListRef.current?.scrollToEnd({ animated: true })}
         />
+        )}
 
         {/* Input */}
         <View style={[styles.inputContainer, { backgroundColor: themeColors.headerBg, borderTopColor: themeColors.border, paddingBottom: Platform.OS === 'ios' ? 24 : 16 }]}>
+          <TouchableOpacity
+            onPress={toggleComposer}
+            style={styles.composerIconBtn}
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          >
+            <Smile size={24} color={composerTab ? '#f43f5e' : themeColors.textMuted} />
+          </TouchableOpacity>
           <TextInput
             style={[styles.input, { backgroundColor: themeColors.inputBg, color: themeColors.text, borderColor: themeColors.border }]}
             placeholder="Écrire un message..."
             placeholderTextColor={themeColors.textMuted}
             value={inputText}
             onChangeText={setInputText}
+            onFocus={() => setComposerTab(null)}
             multiline
           />
           <TouchableOpacity onPress={handleSend} style={styles.sendBtn} disabled={!inputText.trim()}>
@@ -374,6 +517,17 @@ export default function ChatScreen() {
             </LinearGradient>
           </TouchableOpacity>
         </View>
+
+        {/* Panneau emoji/stickers : remplace le clavier (flow WhatsApp) */}
+        {composerTab && (
+          <EmojiStickerPanel
+            tab={composerTab}
+            onTabChange={setComposerTab}
+            onPickEmoji={(emoji) => setInputText((prev) => prev + emoji)}
+            onPickSticker={sendSticker}
+            isDark={isDark}
+          />
+        )}
       </KeyboardAvoidingView>
     </SafeAreaView>
   );
@@ -410,6 +564,8 @@ const styles = StyleSheet.create({
   timeText: { fontSize: 11, marginTop: 4, marginHorizontal: 4 },
   inputContainer: { flexDirection: 'row', alignItems: 'flex-end', padding: 12, borderTopWidth: 1 },
   input: { flex: 1, minHeight: 44, maxHeight: 120, borderWidth: 1, borderRadius: 22, paddingHorizontal: 16, paddingTop: 10, paddingBottom: 10, fontSize: 16, marginRight: 10 },
+  composerIconBtn: { width: 36, height: 44, justifyContent: 'center', alignItems: 'center', marginRight: 4 },
+  stickerImage: { width: 130, height: 130 },
   sendBtn: { width: 44, height: 44, marginBottom: 0 },
   sendGradient: { width: '100%', height: '100%', borderRadius: 22, justifyContent: 'center', alignItems: 'center' },
 });
