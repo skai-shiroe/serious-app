@@ -9,6 +9,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { LogOut, Edit3, MapPin, BookOpen, Briefcase, Droplet, Activity, Calendar, Moon, Sun, Camera, Bookmark, WifiOff, ShieldCheck, ChevronRight } from 'lucide-react-native';
 import { EmptyState } from '@/components/empty-state';
 import { CertifiedIcon, CertifiedPhotoBadge, isFullyVerified } from '@/components/verified-badge';
+import PhotoViewer from '@/components/photo-viewer';
 import { useRouter, useFocusEffect } from 'expo-router';
 
 export default function ProfileScreen() {
@@ -18,6 +19,8 @@ export default function ProfileScreen() {
   const [loading, setLoading] = useState(true);
   const [profile, setProfile] = useState<any>(null);
   const [savedPosts, setSavedPosts] = useState<any[]>([]);
+  /** Index de la photo ouverte dans la visionneuse plein ecran, null = fermee. */
+  const [viewerIndex, setViewerIndex] = useState<number | null>(null);
   // Distingue « section vide » de « chargement echoue »
   const [profileError, setProfileError] = useState<string | null>(null);
   const [savedError, setSavedError] = useState<string | null>(null);
@@ -245,6 +248,11 @@ export default function ProfileScreen() {
     }
   };
   const mainPhoto = profile?.photos?.[0];
+  // Photos exploitables (les trous du tableau sont ecartes) : c'est cette
+  // meme liste que reçoit la visionneuse, d'ou l'indexOf pour l'index.
+  const photos: string[] = (profile?.photos ?? []).filter(
+    (p: any) => typeof p === 'string' && p.length > 0
+  );
 
   return (
     <SafeAreaView style={[styles.safeArea, { backgroundColor: themeColors.bg }]}>
@@ -260,12 +268,20 @@ export default function ProfileScreen() {
               colors={['#f43f5e', '#ec4899']}
               style={[styles.avatarGradient, { marginBottom: 0 }]}
             >
-              <Image
-                source={imageSource(mainPhoto)}
-                style={styles.avatarLarge}
-                cachePolicy={IMAGE_CACHE_POLICY}
-                transition={120}
-              />
+              <TouchableOpacity
+                activeOpacity={0.9}
+                disabled={photos.length === 0}
+                onPress={() => setViewerIndex(0)}
+                style={{ width: '100%', height: '100%' }}
+                accessibilityLabel="Voir la photo en grand"
+              >
+                <Image
+                  source={imageSource(mainPhoto)}
+                  style={styles.avatarLarge}
+                  cachePolicy={IMAGE_CACHE_POLICY}
+                  transition={120}
+                />
+              </TouchableOpacity>
             </LinearGradient>
             {isFullyVerified(profile) && (
               <CertifiedPhotoBadge size={34} style={{ bottom: 0, right: 0 }} />
@@ -296,21 +312,53 @@ export default function ProfileScreen() {
           </View>
         </View>
 
-        {/* Préférences */}
+        {/* Confiance : identité + génotype */}
         <View style={[styles.card, { backgroundColor: themeColors.bgCard, borderColor: themeColors.border }]}>
-          <Text style={[styles.sectionTitle, { color: themeColors.text }]}>Préférences</Text>
-          <View style={styles.infoRow}>
-            {isDark ? <Moon size={20} color={themeColors.icon} /> : <Sun size={20} color={themeColors.icon} />}
-            <Text style={[styles.infoText, { color: themeColors.text, flex: 1 }]}>
-              Mode Sombre
-            </Text>
-            <Switch
-              value={isDark}
-              onValueChange={toggleTheme}
-              trackColor={{ false: '#d1d5db', true: '#f43f5e' }}
-              thumbColor={'#ffffff'}
-            />
+          <View style={styles.sectionHeader}>
+            <ShieldCheck size={20} color={themeColors.accent} />
+            <Text style={[styles.sectionTitle, { color: themeColors.text, marginBottom: 0 }]}>Confiance</Text>
+            {isFullyVerified(profile) && (
+              <View style={{ marginLeft: 8 }}>
+                <CertifiedIcon size={20} />
+              </View>
+            )}
           </View>
+
+          <TouchableOpacity
+            style={styles.trustRow}
+            onPress={() => router.push('/verification')}
+            activeOpacity={0.8}
+          >
+            {(['identity', 'genotype'] as const).map((type) => {
+              const label = trustLabel(type);
+              return (
+                <View key={type} style={{ flex: 1 }}>
+                  <Text style={[styles.infoText, { color: themeColors.text }]}>
+                    {type === 'identity' ? 'Identité' : 'Génotype'}
+                  </Text>
+                  <View style={styles.trustStatusRow}>
+                    <Text style={[styles.trustStatus, { color: label.color }]}>{label.text}</Text>
+                    {verifState[type]?.unseen && <Text style={styles.newPill}>Nouveau</Text>}
+                  </View>
+                </View>
+              );
+            })}
+            <ChevronRight size={20} color={themeColors.icon} />
+          </TouchableOpacity>
+
+          {isAdmin && (
+            <TouchableOpacity
+              style={[styles.adminRow, { borderTopColor: themeColors.border }]}
+              onPress={() => router.push('/admin/verifications')}
+              activeOpacity={0.8}
+            >
+              <ShieldCheck size={18} color={themeColors.accent} />
+              <Text style={[styles.infoText, { color: themeColors.text, flex: 1 }]}>
+                Demandes à valider
+              </Text>
+              <ChevronRight size={18} color={themeColors.icon} />
+            </TouchableOpacity>
+          )}
         </View>
 
         {/* Informations */}
@@ -373,7 +421,15 @@ export default function ProfileScreen() {
               return (
                 <View key={i} style={[styles.slotWrapper, { width: slotSize, height: slotSize }]}>
                   {uri ? (
-                    <View style={[styles.photoSlotFull, styles.shadow]}>
+                    <TouchableOpacity
+                      style={[styles.photoSlotFull, styles.shadow]}
+                      activeOpacity={0.85}
+                      onPress={() => {
+                        const idx = photos.indexOf(uri);
+                        if (idx >= 0) setViewerIndex(idx);
+                      }}
+                      accessibilityLabel={`Voir la photo ${i + 1} en grand`}
+                    >
                       <Image
                         source={imageSource(uri)}
                         style={styles.fullImage}
@@ -382,7 +438,7 @@ export default function ProfileScreen() {
                         cachePolicy={IMAGE_CACHE_POLICY}
                         recyclingKey={`profile-photo-${i}`}
                       />
-                    </View>
+                    </TouchableOpacity>
                   ) : (
                     <View style={[styles.photoSlotFull, styles.emptySlot, { backgroundColor: themeColors.inputBg }]}>
                       <Camera color={themeColors.icon} size={28} />
@@ -434,53 +490,21 @@ export default function ProfileScreen() {
           )}
         </View>
 
-        {/* Confiance : identité + génotype */}
+        {/* Préférences */}
         <View style={[styles.card, { backgroundColor: themeColors.bgCard, borderColor: themeColors.border }]}>
-          <View style={styles.sectionHeader}>
-            <ShieldCheck size={20} color={themeColors.accent} />
-            <Text style={[styles.sectionTitle, { color: themeColors.text, marginBottom: 0 }]}>Confiance</Text>
-            {isFullyVerified(profile) && (
-              <View style={{ marginLeft: 8 }}>
-                <CertifiedIcon size={20} />
-              </View>
-            )}
+          <Text style={[styles.sectionTitle, { color: themeColors.text }]}>Préférences</Text>
+          <View style={styles.infoRow}>
+            {isDark ? <Moon size={20} color={themeColors.icon} /> : <Sun size={20} color={themeColors.icon} />}
+            <Text style={[styles.infoText, { color: themeColors.text, flex: 1 }]}>
+              Mode Sombre
+            </Text>
+            <Switch
+              value={isDark}
+              onValueChange={toggleTheme}
+              trackColor={{ false: '#d1d5db', true: '#f43f5e' }}
+              thumbColor={'#ffffff'}
+            />
           </View>
-
-          <TouchableOpacity
-            style={styles.trustRow}
-            onPress={() => router.push('/verification')}
-            activeOpacity={0.8}
-          >
-            {(['identity', 'genotype'] as const).map((type) => {
-              const label = trustLabel(type);
-              return (
-                <View key={type} style={{ flex: 1 }}>
-                  <Text style={[styles.infoText, { color: themeColors.text }]}>
-                    {type === 'identity' ? 'Identité' : 'Génotype'}
-                  </Text>
-                  <View style={styles.trustStatusRow}>
-                    <Text style={[styles.trustStatus, { color: label.color }]}>{label.text}</Text>
-                    {verifState[type]?.unseen && <Text style={styles.newPill}>Nouveau</Text>}
-                  </View>
-                </View>
-              );
-            })}
-            <ChevronRight size={20} color={themeColors.icon} />
-          </TouchableOpacity>
-
-          {isAdmin && (
-            <TouchableOpacity
-              style={[styles.adminRow, { borderTopColor: themeColors.border }]}
-              onPress={() => router.push('/admin/verifications')}
-              activeOpacity={0.8}
-            >
-              <ShieldCheck size={18} color={themeColors.accent} />
-              <Text style={[styles.infoText, { color: themeColors.text, flex: 1 }]}>
-                Demandes à valider
-              </Text>
-              <ChevronRight size={18} color={themeColors.icon} />
-            </TouchableOpacity>
-          )}
         </View>
 
         <TouchableOpacity style={styles.actionBtn} activeOpacity={0.8} onPress={() => router.push('/edit-profile')}>
@@ -505,6 +529,14 @@ export default function ProfileScreen() {
         </TouchableOpacity>
 
       </ScrollView>
+
+      {/* Visionneuse plein ecran des photos du profil */}
+      <PhotoViewer
+        visible={viewerIndex !== null}
+        photos={photos}
+        index={viewerIndex ?? 0}
+        onClose={() => setViewerIndex(null)}
+      />
     </SafeAreaView>
   );
 }
