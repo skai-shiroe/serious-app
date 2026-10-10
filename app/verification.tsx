@@ -535,7 +535,11 @@ const styles = StyleSheet.create({
   },
   slotImage: { width: '100%', height: '100%', borderRadius: 12 },
   slotOverlay: {
-    ...StyleSheet.absoluteFillObject,
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    top: 0,
+    bottom: 0,
     justifyContent: 'center',
     alignItems: 'center',
     backgroundColor: 'rgba(0,0,0,0.45)',

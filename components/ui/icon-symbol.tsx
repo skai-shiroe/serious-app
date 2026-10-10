@@ -5,7 +5,10 @@ import { SymbolWeight, SymbolViewProps } from 'expo-symbols';
 import { ComponentProps } from 'react';
 import { OpaqueColorValue, type StyleProp, type TextStyle } from 'react-native';
 
-type IconMapping = Record<SymbolViewProps['name'], ComponentProps<typeof MaterialIcons>['name']>;
+// expo-symbols accepte depuis le SDK 57 un nom de symbole OU un objet
+// { ios, android, web } ; seuls les noms litteraux servent de cles ici.
+type SFName = Exclude<SymbolViewProps['name'], object>;
+type IconMapping = Record<SFName, ComponentProps<typeof MaterialIcons>['name']>;
 type IconSymbolName = keyof typeof MAPPING;
 
 /**

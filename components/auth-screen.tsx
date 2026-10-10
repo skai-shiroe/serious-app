@@ -220,7 +220,7 @@ export default function AuthScreen({ onComplete }: AuthScreenProps) {
       >
         <LinearGradient
           colors={isDark ? ['#111827', '#1f2937'] : ['#fff1f2', '#ffffff', '#eff6ff']}
-          style={StyleSheet.absoluteFillObject}
+          style={StyleSheet.absoluteFill}
         />
         <ScrollView 
           contentContainerStyle={styles.scrollContent} 

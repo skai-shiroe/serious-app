@@ -959,7 +959,7 @@ export default function ProfileCreation({ onComplete, initialData }: ProfileCrea
       >
         <LinearGradient
           colors={isDark ? ['#111827', '#1f2937'] : ['#fff1f2', '#ffffff', '#eff6ff']}
-          style={StyleSheet.absoluteFillObject}
+          style={StyleSheet.absoluteFill}
         />
         <ScrollView
           contentContainerStyle={styles.scrollContent}
@@ -1203,7 +1203,11 @@ const styles = StyleSheet.create({
     borderRadius: 10,
   },
   slotOverlay: {
-    ...StyleSheet.absoluteFillObject,
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    top: 0,
+    bottom: 0,
     justifyContent: 'center',
     alignItems: 'center',
     backgroundColor: 'rgba(0,0,0,0.45)',

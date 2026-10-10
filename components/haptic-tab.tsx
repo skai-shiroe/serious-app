@@ -1,10 +1,16 @@
-import { BottomTabBarButtonProps } from '@react-navigation/bottom-tabs';
-import { PlatformPressable } from '@react-navigation/elements';
 import * as Haptics from 'expo-haptics';
+import type { ComponentProps } from 'react';
+import { Pressable } from 'react-native';
 
-export function HapticTab(props: BottomTabBarButtonProps) {
+/**
+ * Bouton d'onglet avec retour haptique (iOS).
+ * Depuis SDK 56, expo-router embarque react-navigation : importer
+ * `PlatformPressable` depuis `@react-navigation/elements` fait echouer le
+ * bundling. On utilise `Pressable` natif, de comportement equivalent ici.
+ */
+export function HapticTab(props: ComponentProps<typeof Pressable>) {
   return (
-    <PlatformPressable
+    <Pressable
       {...props}
       onPressIn={(ev) => {
         if (process.env.EXPO_OS === 'ios') {
