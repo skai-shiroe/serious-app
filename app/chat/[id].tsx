@@ -15,16 +15,15 @@ import {
 } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useProfileSheet } from '@/contexts/ProfileSheetContext';
-import { ArrowLeft, Send, Check, CheckCheck, WifiOff, Smile } from 'lucide-react-native';
+import { ArrowLeft, Send, Check, CheckCheck, WifiOff } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Image } from 'expo-image';
 import { supabase } from '@/lib/supabase';
 import { getUser } from '@/lib/session';
 import { IMAGE_CACHE_POLICY, photoSource, prefetchImages } from '@/lib/images';
 import { isRecentlySeen } from '@/hooks/use-presence';
+import { notifyUnreadChanged } from '@/hooks/use-unread-count';
 import { EmptyState } from '@/components/empty-state';
-import EmojiStickerPanel, { type ComposerTab } from '@/components/emoji-sticker-panel';
-import { stickerSource } from '@/lib/stickers';
 import {
   CertifiedPhotoBadge,
   IdentityVerifiedIcon,
@@ -93,9 +92,7 @@ export default function ChatScreen() {
   const [loadError, setLoadError] = useState<string | null>(null);
   // Incremente pour relancer l'initialisation apres un echec
   const [reloadKey, setReloadKey] = useState(0);
-  // Panneau emoji/stickers ouvert sous la barre de saisie (null = clavier)
-  const [composerTab, setComposerTab] = useState<ComposerTab | null>(null);
-  
+
   const flatListRef = useRef<FlatList>(null);
 
   const themeColors = {
@@ -179,6 +176,10 @@ export default function ChatScreen() {
           .eq('read', false)
           .then(({ error: readError }) => {
             if (readError) console.warn('[Chat] marquage en lu:', readError.message);
+            // Le badge non-lus de l'onglet Messages se met a jour tout de
+            // suite (l'UPDATE realtime de la table messages n'est pas
+            // toujours dans la publication Supabase).
+            notifyUnreadChanged();
           });
       } catch (err) {
         console.error('Error initializing chat:', err);
@@ -210,7 +211,7 @@ export default function ChatScreen() {
             .from('messages')
             .update({ read: true })
             .eq('id', newMessage.id)
-            .then();
+            .then(() => notifyUnreadChanged());
         }
       })
       .subscribe();
@@ -261,8 +262,6 @@ export default function ChatScreen() {
   // de la barre de saisie (le KAV pousse deja l'input, la liste doit suivre).
   useEffect(() => {
     const sub = Keyboard.addListener('keyboardDidShow', () => {
-      // Le clavier reprend la main : le panneau cede sa place.
-      setComposerTab(null);
       flatListRef.current?.scrollToEnd({ animated: true });
     });
     return () => sub.remove();
@@ -283,32 +282,6 @@ export default function ChatScreen() {
     } catch (err) {
       console.warn('[Chat] chargement fiche profil:', err);
     }
-  };
-
-  // Un sticker part immediatement (comme WhatsApp) : type='sticker' +
-  // content='sticker:<nom>'. Repli sans la colonne 'type' si la migration
-  // sql/chat-stickers.sql n'est pas encore passee (PGRST204 = colonne inconnue).
-  const sendSticker = async (name: string) => {
-    if (!currentUser || !matchId) return;
-    const payload = {
-      match_id: matchId,
-      sender_id: currentUser.id,
-      content: `sticker:${name}`,
-    };
-    const { error } = await supabase.from('messages').insert({ ...payload, type: 'sticker' });
-    if (error && error.code === 'PGRST204') {
-      const { error: fallbackError } = await supabase.from('messages').insert(payload);
-      if (fallbackError) console.error('Error sending sticker:', fallbackError);
-    } else if (error) {
-      console.error('Error sending sticker:', error);
-    }
-  };
-
-  const toggleComposer = () => {
-    Keyboard.dismiss();
-    setComposerTab((current) => (current ? null : 'emoji'));
-    // Ramener le dernier message visible une fois le panneau ouvert/ferme.
-    setTimeout(() => flatListRef.current?.scrollToEnd({ animated: true }), 120);
   };
 
   const handleSend = async () => {
@@ -334,37 +307,15 @@ export default function ChatScreen() {
   const renderBubble = ({ item }: { item: Message }) => {
     const isMe = item.sender_id === currentUser?.id;
 
-    // Sticker : image pleine sans bulle de texte (comme WhatsApp).
+    // Anciens stickers de test (fonctionnalité reportée) : au lieu d'afficher
+    // la note brute ('sticker:joy'), on affiche un 🎏 dans la bulle.
     const isSticker =
       item.type === 'sticker' ||
       (typeof item.content === 'string' && item.content.startsWith('sticker:'));
     if (isSticker) {
-      const name =
-        typeof item.content === 'string' && item.content.startsWith('sticker:')
-          ? item.content.slice('sticker:'.length)
-          : item.content;
-      const source = stickerSource(name);
       return (
         <View style={[styles.messageWrapper, isMe ? styles.messageWrapperMe : styles.messageWrapperThem]}>
-          {source ? (
-            <Image
-              source={source}
-              style={styles.stickerImage}
-              contentFit="contain"
-              cachePolicy={IMAGE_CACHE_POLICY}
-            />
-          ) : (
-            <Text style={{ fontSize: 64 }}>🎏</Text>
-          )}
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-            <Text style={[styles.timeText, { color: themeColors.textMuted }]}>{formatTime(item.created_at)}</Text>
-            {isMe &&
-              (item.read ? (
-                <CheckCheck size={14} color="#3b82f6" />
-              ) : (
-                <Check size={14} color={themeColors.textMuted} />
-              ))}
-          </View>
+          <Text style={{ fontSize: 64 }}>🎏</Text>
         </View>
       );
     }
@@ -488,24 +439,16 @@ export default function ChatScreen() {
           onContentSizeChange={() => flatListRef.current?.scrollToEnd({ animated: true })}
           onLayout={() => flatListRef.current?.scrollToEnd({ animated: true })}
         />
-        )}
+      )}
 
         {/* Input */}
         <View style={[styles.inputContainer, { backgroundColor: themeColors.headerBg, borderTopColor: themeColors.border, paddingBottom: Platform.OS === 'ios' ? 24 : 16 }]}>
-          <TouchableOpacity
-            onPress={toggleComposer}
-            style={styles.composerIconBtn}
-            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-          >
-            <Smile size={24} color={composerTab ? '#f43f5e' : themeColors.textMuted} />
-          </TouchableOpacity>
           <TextInput
             style={[styles.input, { backgroundColor: themeColors.inputBg, color: themeColors.text, borderColor: themeColors.border }]}
             placeholder="Écrire un message..."
             placeholderTextColor={themeColors.textMuted}
             value={inputText}
             onChangeText={setInputText}
-            onFocus={() => setComposerTab(null)}
             multiline
           />
           <TouchableOpacity onPress={handleSend} style={styles.sendBtn} disabled={!inputText.trim()}>
@@ -518,16 +461,6 @@ export default function ChatScreen() {
           </TouchableOpacity>
         </View>
 
-        {/* Panneau emoji/stickers : remplace le clavier (flow WhatsApp) */}
-        {composerTab && (
-          <EmojiStickerPanel
-            tab={composerTab}
-            onTabChange={setComposerTab}
-            onPickEmoji={(emoji) => setInputText((prev) => prev + emoji)}
-            onPickSticker={sendSticker}
-            isDark={isDark}
-          />
-        )}
       </KeyboardAvoidingView>
     </SafeAreaView>
   );
@@ -564,8 +497,6 @@ const styles = StyleSheet.create({
   timeText: { fontSize: 11, marginTop: 4, marginHorizontal: 4 },
   inputContainer: { flexDirection: 'row', alignItems: 'flex-end', padding: 12, borderTopWidth: 1 },
   input: { flex: 1, minHeight: 44, maxHeight: 120, borderWidth: 1, borderRadius: 22, paddingHorizontal: 16, paddingTop: 10, paddingBottom: 10, fontSize: 16, marginRight: 10 },
-  composerIconBtn: { width: 36, height: 44, justifyContent: 'center', alignItems: 'center', marginRight: 4 },
-  stickerImage: { width: 130, height: 130 },
   sendBtn: { width: 44, height: 44, marginBottom: 0 },
   sendGradient: { width: '100%', height: '100%', borderRadius: 22, justifyContent: 'center', alignItems: 'center' },
 });
