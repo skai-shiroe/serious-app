@@ -14,6 +14,7 @@ import { useRouter, useFocusEffect } from 'expo-router';
 import { Image } from 'expo-image';
 import { supabase } from '@/lib/supabase';
 import { getUser } from '@/lib/session';
+import { fetchBlockedIds } from '@/lib/moderation';
 import { IMAGE_CACHE_POLICY, photoSource, prefetchImages } from '@/lib/images';
 import { isRecentlySeen } from '@/hooks/use-presence';
 import { EmptyState } from '@/components/empty-state';
@@ -105,7 +106,7 @@ export default function MessagesScreen() {
 
       // 2. Profils + présences + compteurs de non-lus : 3 requêtes groupées
       //    (auparavant : 4 requêtes séquentielles par conversation)
-      const [profilesRes, presenceRes, unreadRes] = await Promise.all([
+      const [profilesRes, presenceRes, unreadRes, blocked] = await Promise.all([
         supabase
           .from('profiles')
           .select('user_id, first_name, photos, identity_verified, genotype_verified')
@@ -120,6 +121,8 @@ export default function MessagesScreen() {
           .in('match_id', matchIds)
           .eq('read', false)
           .neq('sender_id', user.id),
+        // Blocages bilateraux en parallele : aucune latence ajoutee.
+        fetchBlockedIds(user.id),
       ]);
 
       const profilesById = new Map<string, any>(
@@ -191,10 +194,12 @@ export default function MessagesScreen() {
         return timeB - timeA;
       });
 
-      setConversations(convs);
+      // Masque les conversations avec un profil bloque (blocage bilateral).
+      const visibleConvs = convs.filter((c) => !blocked.has(c.otherUser.id));
+      setConversations(visibleConvs);
 
       // Avatars precharges en memoire : la liste s'affiche sans flash gris
-      prefetchImages(convs.map((c) => c.otherUser.photos?.[0]));
+      prefetchImages(visibleConvs.map((c) => c.otherUser.photos?.[0]));
     } catch (error) {
       console.error('Error fetching conversations:', error);
       setLoadError(

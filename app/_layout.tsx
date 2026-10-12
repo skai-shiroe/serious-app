@@ -11,13 +11,14 @@ import Animated, {
 } from 'react-native-reanimated';
 import { Gesture, GestureDetector, GestureHandlerRootView } from 'react-native-gesture-handler';
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { 
-  ActivityIndicator, 
-  View, 
-  Appearance, 
-  Platform, 
-  Dimensions, 
-  Text, 
+import {
+  ActivityIndicator,
+  Alert,
+  View,
+  Appearance,
+  Platform,
+  Dimensions,
+  Text,
   TouchableOpacity, 
   Pressable,
   ScrollView,
@@ -25,12 +26,14 @@ import {
   StyleSheet,
 } from 'react-native';
 import { Image } from 'expo-image';
-import { 
-  Heart, 
-  X as XIcon, 
-  MapPin, 
-  Briefcase, 
-  GraduationCap 
+import {
+  Heart,
+  X as XIcon,
+  MapPin,
+  Briefcase,
+  GraduationCap,
+  Flag,
+  Ban,
 } from 'lucide-react-native';
 import {
   CertifiedIcon,
@@ -42,7 +45,15 @@ import {
 
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { supabase } from '@/lib/supabase';
-import { getUser, validateSession } from '@/lib/session';
+import { currentUserId, getUser, validateSession } from '@/lib/session';
+import {
+  REPORT_REASONS,
+  blockUser,
+  isUserBlocked,
+  reportUser,
+  unblockUser,
+  type ReportReason,
+} from '@/lib/moderation';
 import { OnboardingScreen } from '@/components/onboarding-screen';
 import AuthScreen from '@/components/auth-screen';
 import ProfileCreation from '@/components/profile-creation';
@@ -89,6 +100,134 @@ const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 export const unstable_settings = {
   anchor: '(tabs)',
 };
+
+/**
+ * Boutons Signaler / Bloquer — exigence des stores pour toute app de
+ * rencontre a contenu genere par les utilisateurs.
+ * - Signaler : ouvre le choix du motif puis alimente la file admin.
+ * - Bloquer : blocage bilatral (deck + conversations) ; la fiche se ferme.
+ */
+function ProfileModerationActions({
+  targetUserId,
+  targetName,
+  onBlocked,
+}: {
+  targetUserId: string;
+  targetName: string;
+  onBlocked?: () => void;
+}) {
+  const colorScheme = useColorScheme();
+  const isDark = colorScheme === 'dark';
+  // null = etat inconnu (chargement) : on n'affiche jamais Bloquer par erreur.
+  const [isBlocked, setIsBlocked] = useState<boolean | null>(null);
+  const [choosingReason, setChoosingReason] = useState(false);
+  const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    let alive = true;
+    (async () => {
+      const me = await getUser();
+      if (!alive || !me || me.id === targetUserId) return;
+      const blocked = await isUserBlocked(me.id, targetUserId);
+      if (alive) setIsBlocked(blocked);
+    })();
+    return () => {
+      alive = false;
+    };
+  }, [targetUserId]);
+
+  const handleReport = async (reason: ReportReason) => {
+    setChoosingReason(false);
+    try {
+      const me = await getUser();
+      if (!me) return;
+      await reportUser(me.id, targetUserId, reason);
+      Alert.alert('Signalement envoyé', `Merci, l'équipe examinera ${targetName}.`);
+    } catch {
+      Alert.alert('Erreur', "Impossible d'envoyer le signalement");
+    }
+  };
+
+  const handleToggleBlock = async () => {
+    if (busy || isBlocked === null) return;
+    setBusy(true);
+    try {
+      const me = await getUser();
+      if (!me) return;
+      if (isBlocked) {
+        await unblockUser(me.id, targetUserId);
+        setIsBlocked(false);
+      } else {
+        await blockUser(me.id, targetUserId);
+        setIsBlocked(true);
+        // Le profil disparait du deck et des conversations des que la fiche se ferme.
+        onBlocked?.();
+      }
+    } catch {
+      Alert.alert('Erreur', 'Impossible de modifier le blocage');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const muted = isDark ? '#9ca3af' : '#6b7280';
+  const border = isDark ? '#1f2937' : '#f3f4f6';
+
+  if (choosingReason) {
+    return (
+      <View style={{ marginTop: 24, gap: 8 }}>
+        <Text style={{ fontSize: 16, fontWeight: 'bold', color: isDark ? '#fff' : '#111827', marginBottom: 4 }}>
+          Pourquoi signaler {targetName} ?
+        </Text>
+        {REPORT_REASONS.map((reason) => (
+          <TouchableOpacity
+            key={reason.value}
+            activeOpacity={0.7}
+            onPress={() => handleReport(reason.value)}
+            style={{ borderWidth: 1, borderColor: border, borderRadius: 12, paddingVertical: 12, paddingHorizontal: 16 }}
+          >
+            <Text style={{ color: isDark ? '#e5e7eb' : '#374151', fontSize: 15 }}>{reason.label}</Text>
+          </TouchableOpacity>
+        ))}
+        <TouchableOpacity activeOpacity={0.7} onPress={() => setChoosingReason(false)} style={{ paddingVertical: 10 }}>
+          <Text style={{ color: muted, fontSize: 14, textAlign: 'center' }}>Annuler</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  }
+
+  return (
+    <View style={{ marginTop: 24, flexDirection: 'row', gap: 12 }}>
+      <TouchableOpacity
+        activeOpacity={0.7}
+        onPress={() => setChoosingReason(true)}
+        style={{ flex: 1, borderWidth: 1, borderColor: border, borderRadius: 12, paddingVertical: 12, alignItems: 'center' }}
+      >
+        <Flag size={18} color={muted} />
+        <Text style={{ color: muted, fontSize: 13, fontWeight: '600', marginTop: 4 }}>Signaler</Text>
+      </TouchableOpacity>
+      <TouchableOpacity
+        activeOpacity={0.7}
+        disabled={busy || isBlocked === null}
+        onPress={handleToggleBlock}
+        style={{
+          flex: 1,
+          borderWidth: 1,
+          borderColor: isBlocked ? '#ef4444' : border,
+          borderRadius: 12,
+          paddingVertical: 12,
+          alignItems: 'center',
+          opacity: busy || isBlocked === null ? 0.5 : 1,
+        }}
+      >
+        <Ban size={18} color={isBlocked ? '#22c55e' : '#ef4444'} />
+        <Text style={{ color: isBlocked ? '#22c55e' : '#ef4444', fontSize: 13, fontWeight: '600', marginTop: 4 }}>
+          {isBlocked === null ? '…' : isBlocked ? 'Débloquer' : 'Bloquer'}
+        </Text>
+      </TouchableOpacity>
+    </View>
+  );
+}
 
 function ProfileBottomSheet() {
   const { selectedProfile, closeProfileSheet } = useProfileSheet();
@@ -296,6 +435,15 @@ function ProfileBottomSheet() {
                 ))}
               </View>
             </View>
+          )}
+
+          {/* Signaler / Bloquer : exigence des stores (contenu utilisateur). */}
+          {rendered.user_id && rendered.user_id !== currentUserId() && (
+            <ProfileModerationActions
+              targetUserId={rendered.user_id}
+              targetName={rendered.first_name}
+              onBlocked={requestClose}
+            />
           )}
         </View>
       </ScrollView>

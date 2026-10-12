@@ -4,9 +4,10 @@ import { View, Text, StyleSheet, ScrollView, ActivityIndicator, useColorScheme, 
 import { Image } from 'expo-image';
 import { IMAGE_CACHE_POLICY, imageSource } from '@/lib/images';
 import { supabase } from '@/lib/supabase';
-import { getUser } from '@/lib/session';
+import { forgetSession, getUser } from '@/lib/session';
+import { unblockUser } from '@/lib/moderation';
 import { LinearGradient } from 'expo-linear-gradient';
-import { LogOut, Edit3, MapPin, BookOpen, Briefcase, Droplet, Activity, Calendar, Moon, Sun, Camera, Bookmark, WifiOff, ShieldCheck, ChevronRight } from 'lucide-react-native';
+import { LogOut, Edit3, MapPin, BookOpen, Briefcase, Droplet, Activity, Calendar, Moon, Sun, Camera, Bookmark, WifiOff, ShieldCheck, ChevronRight, Ban, Trash2, Flag } from 'lucide-react-native';
 import { EmptyState } from '@/components/empty-state';
 import { CertifiedIcon, CertifiedPhotoBadge, isFullyVerified } from '@/components/verified-badge';
 import PhotoViewer from '@/components/photo-viewer';
@@ -24,6 +25,10 @@ export default function ProfileScreen() {
   // Distingue « section vide » de « chargement echoue »
   const [profileError, setProfileError] = useState<string | null>(null);
   const [savedError, setSavedError] = useState<string | null>(null);
+  // Comptes bloques par l'utilisateur (section « Comptes bloques »)
+  const [blockedList, setBlockedList] = useState<
+    { user_id: string; first_name: string; photos: string[] }[]
+  >([]);
   // Derniere demande de verification par type : statut + decision non vue
   const [verifState, setVerifState] = useState<
     Record<string, { status: string; unseen: boolean }>
@@ -60,6 +65,7 @@ export default function ProfileScreen() {
       fetchProfile();
       fetchSavedPosts();
       fetchVerifications();
+      fetchBlockedList();
     }, [])
   );
 
@@ -161,6 +167,85 @@ export default function ProfileScreen() {
     } catch (error) {
       Alert.alert('Erreur', 'Impossible de se déconnecter');
     }
+  };
+
+  /** Comptes bloques par l'utilisateur, avec le prénom pour l'affichage. */
+  const fetchBlockedList = async () => {
+    try {
+      const user = await getUser();
+      if (!user) return;
+      const { data, error } = await supabase
+        .from('user_blocks')
+        .select('blocked_user_id')
+        .eq('user_id', user.id);
+      if (error) throw error;
+      const ids = (data || []).map((r: any) => r.blocked_user_id as string);
+      if (ids.length === 0) {
+        setBlockedList([]);
+        return;
+      }
+      const { data: profiles } = await supabase
+        .from('profiles')
+        .select('user_id, first_name, photos')
+        .in('user_id', ids);
+      const byId = new Map((profiles || []).map((p: any) => [p.user_id, p]));
+      setBlockedList(
+        ids.map((id) => {
+          const p: any = byId.get(id);
+          return {
+            user_id: id,
+            first_name: p?.first_name || 'Utilisateur',
+            photos: p?.photos || [],
+          };
+        })
+      );
+    } catch (error) {
+      // Section silencieuse : un echec ici ne doit pas casser l'ecran Profil.
+      console.log('Error fetching blocked list', error);
+    }
+  };
+
+  const handleUnblock = async (blockedUserId: string) => {
+    try {
+      const user = await getUser();
+      if (!user) return;
+      await unblockUser(user.id, blockedUserId);
+      setBlockedList((prev) => prev.filter((b) => b.user_id !== blockedUserId));
+    } catch {
+      Alert.alert('Erreur', 'Impossible de débloquer cet utilisateur');
+    }
+  };
+
+  /**
+   * Suppression de compte — exigence des stores (Google Play + App Store) :
+   * action realisable DANS l'app, avec confirmation explicite.
+   * L'Edge Function `delete-account` supprime les donnees puis auth.users ;
+   * la session locale est videe uniquement si la suppression a reussi.
+   */
+  const handleDeleteAccount = () => {
+    Alert.alert(
+      'Supprimer mon compte',
+      'Cette action est définitive : profil, photos, matchs et messages seront supprimés.',
+      [
+        { text: 'Annuler', style: 'cancel' },
+        {
+          text: 'Supprimer',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              const { error } = await supabase.functions.invoke('delete-account');
+              if (error) throw error;
+            } catch (err: any) {
+              Alert.alert('Erreur', err?.message || 'Impossible de supprimer le compte.');
+              return;
+            }
+            // Session viddee en local (scope local : pas d'appel serveur, qui
+            // echouerait sur un compte desormais inexistant).
+            await forgetSession();
+          },
+        },
+      ]
+    );
   };
 
   const toggleTheme = async () => {
@@ -359,6 +444,20 @@ export default function ProfileScreen() {
               <ChevronRight size={18} color={themeColors.icon} />
             </TouchableOpacity>
           )}
+
+          {isAdmin && (
+            <TouchableOpacity
+              style={[styles.adminRow, { borderTopColor: themeColors.border }]}
+              onPress={() => router.push('/admin/reports')}
+              activeOpacity={0.8}
+            >
+              <Flag size={18} color={themeColors.accent} />
+              <Text style={[styles.infoText, { color: themeColors.text, flex: 1 }]}>
+                Signalements
+              </Text>
+              <ChevronRight size={18} color={themeColors.icon} />
+            </TouchableOpacity>
+          )}
         </View>
 
         {/* Informations */}
@@ -490,6 +589,51 @@ export default function ProfileScreen() {
           )}
         </View>
 
+        {/* Comptes bloqués */}
+        <View style={[styles.card, { backgroundColor: themeColors.bgCard, borderColor: themeColors.border }]}>
+          <View style={styles.sectionHeader}>
+            <Ban size={20} color={themeColors.accent} />
+            <Text style={[styles.sectionTitle, { color: themeColors.text, marginBottom: 0 }]}>Comptes bloqués</Text>
+          </View>
+          {blockedList.length > 0 ? (
+            blockedList.map((b) => (
+              <View key={b.user_id} style={styles.infoRow}>
+                {b.photos?.[0] ? (
+                  <Image
+                    source={imageSource(b.photos[0])}
+                    style={{ width: 40, height: 40, borderRadius: 20 }}
+                    cachePolicy={IMAGE_CACHE_POLICY}
+                    recyclingKey={`blocked-${b.user_id}`}
+                  />
+                ) : (
+                  <View
+                    style={{
+                      width: 40,
+                      height: 40,
+                      borderRadius: 20,
+                      backgroundColor: themeColors.inputBg,
+                      justifyContent: 'center',
+                      alignItems: 'center',
+                    }}
+                  >
+                    <Text style={{ color: themeColors.textMuted, fontWeight: 'bold' }}>
+                      {b.first_name?.[0] || '?'}
+                    </Text>
+                  </View>
+                )}
+                <Text style={[styles.infoText, { color: themeColors.text, flex: 1 }]} numberOfLines={1}>
+                  {b.first_name}
+                </Text>
+                <TouchableOpacity onPress={() => handleUnblock(b.user_id)} activeOpacity={0.7}>
+                  <Text style={{ color: themeColors.accent, fontWeight: '600', fontSize: 14 }}>Débloquer</Text>
+                </TouchableOpacity>
+              </View>
+            ))
+          ) : (
+            <Text style={[styles.emptyText, { color: themeColors.textMuted }]}>Aucun compte bloqué.</Text>
+          )}
+        </View>
+
         {/* Préférences */}
         <View style={[styles.card, { backgroundColor: themeColors.bgCard, borderColor: themeColors.border }]}>
           <Text style={[styles.sectionTitle, { color: themeColors.text }]}>Préférences</Text>
@@ -526,6 +670,15 @@ export default function ProfileScreen() {
         >
           <LogOut color="#ef4444" size={20} />
           <Text style={[styles.outlineBtnText, { color: '#ef4444' }]}>Se déconnecter</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={[styles.outlineBtn, { borderColor: '#ef4444', marginTop: 12 }]}
+          activeOpacity={0.7}
+          onPress={handleDeleteAccount}
+        >
+          <Trash2 color="#ef4444" size={20} />
+          <Text style={[styles.outlineBtnText, { color: '#ef4444' }]}>Supprimer mon compte</Text>
         </TouchableOpacity>
 
       </ScrollView>

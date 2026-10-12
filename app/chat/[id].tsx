@@ -20,6 +20,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Image } from 'expo-image';
 import { supabase } from '@/lib/supabase';
 import { getUser } from '@/lib/session';
+import { fetchBlockedIds } from '@/lib/moderation';
 import { IMAGE_CACHE_POLICY, photoSource, prefetchImages } from '@/lib/images';
 import { isRecentlySeen } from '@/hooks/use-presence';
 import { notifyUnreadChanged } from '@/hooks/use-unread-count';
@@ -92,6 +93,8 @@ export default function ChatScreen() {
   const [loadError, setLoadError] = useState<string | null>(null);
   // Incremente pour relancer l'initialisation apres un echec
   const [reloadKey, setReloadKey] = useState(0);
+  // Blocage bilatral avec le partenaire : l'envoi est coupe dans les deux sens.
+  const [chatBlocked, setChatBlocked] = useState(false);
 
   const flatListRef = useRef<FlatList>(null);
 
@@ -124,7 +127,7 @@ export default function ChatScreen() {
         // l'historique ne depend que du matchId. Avant : 4 requetes en
         // serie + une 2e passe complete (currentUser dans les deps) => 2x
         // plus de travail a chaque ouverture.
-        const [matchResult, historyResult] = await Promise.all([
+        const [matchResult, historyResult, blockedIds] = await Promise.all([
           supabase.from('matches').select('*').eq('id', matchId).maybeSingle(),
           supabase
             .from('messages')
@@ -132,6 +135,8 @@ export default function ChatScreen() {
             .eq('match_id', matchId)
             .order('created_at', { ascending: false })
             .limit(200),
+          // Blocages bilateraux en parallele : aucune latence ajoutee.
+          fetchBlockedIds(user.id),
         ]);
 
         const { data: match, error: matchError } = matchResult;
@@ -153,6 +158,7 @@ export default function ChatScreen() {
 
         // 2. Récupérer le profil du partenaire
         const partnerId = match.user_id_1 === user.id ? match.user_id_2 : match.user_id_1;
+        setChatBlocked(blockedIds.has(partnerId));
         const { data: profile, error: profileError } = await supabase
           .from('profiles')
           .select('user_id, first_name, photos, identity_verified, genotype_verified')
@@ -293,7 +299,7 @@ export default function ChatScreen() {
   };
 
   const handleSend = async () => {
-    if (!inputText.trim() || !currentUser || !matchId) return;
+    if (!inputText.trim() || !currentUser || !matchId || chatBlocked) return;
 
     const text = inputText.trim();
     setInputText('');
@@ -460,7 +466,14 @@ export default function ChatScreen() {
         />
       )}
 
-        {/* Input */}
+        {/* Input — remplace par une banniere si blocage bilatral. */}
+        {chatBlocked ? (
+          <View style={[styles.inputContainer, { backgroundColor: themeColors.headerBg, borderTopColor: themeColors.border, paddingBottom: Platform.OS === 'ios' ? 24 : 16, alignItems: 'center' }]}>
+            <Text style={{ color: themeColors.textMuted, fontSize: 14, textAlign: 'center' }}>
+              Conversation bloquée : vous ne pouvez plus échanger de messages.
+            </Text>
+          </View>
+        ) : (
         <View style={[styles.inputContainer, { backgroundColor: themeColors.headerBg, borderTopColor: themeColors.border, paddingBottom: Platform.OS === 'ios' ? 24 : 16 }]}>
           <TextInput
             style={[styles.input, { backgroundColor: themeColors.inputBg, color: themeColors.text, borderColor: themeColors.border }]}
@@ -479,6 +492,7 @@ export default function ChatScreen() {
             </LinearGradient>
           </TouchableOpacity>
         </View>
+        )}
 
       </KeyboardAvoidingView>
     </SafeAreaView>

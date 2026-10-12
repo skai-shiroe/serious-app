@@ -1,4 +1,5 @@
 import { supabase } from '@/lib/supabase';
+import { fetchBlockedIds } from '@/lib/moderation';
 
 /**
  * Chargement des profils du deck (ecran Decouvrir).
@@ -176,14 +177,16 @@ async function fetchViaRpc(
 
 /**
  * Repli sans RPC : profils parcourus par pages bornees, avec exclusion des
- * swipes et bornes d'age filtrees ici (equivalent de ce que fait la RPC).
+ * swipes, des blocages (bilateral) et bornes d'age filtrees ici
+ * (equivalent de ce que fait la RPC).
  */
 async function fetchViaFallback(
   userId: string,
   limit: number,
   after: string | null,
   filters: CandidateFilters,
-  targetGender: string | null
+  targetGender: string | null,
+  blocked: Set<string>
 ): Promise<CandidatePage> {
   const swiped = await fetchSwipedIds(userId);
   const city = normalizeFilter(filters.city);
@@ -218,6 +221,8 @@ async function fetchViaFallback(
       cursor = profile.user_id;
       if (profile.user_id === userId) continue;
       if (swiped.has(profile.user_id)) continue;
+      // Moderation : un blocage bilateral exclut le profil dans les 2 sens.
+      if (blocked.has(profile.user_id)) continue;
       // Age filtre DANS la boucle : on continue a paginer jusqu'a obtenir
       // `limit` profils reellement dans la tranche demandee.
       if (!isAgeInRange(profile.birth_date, filters.ageMin, filters.ageMax)) continue;
@@ -248,13 +253,22 @@ export async function fetchCandidateProfiles(options: {
 }): Promise<CandidatePage> {
   const { userId, limit, after, filters, viewerGender = null } = options;
   const targetGender = targetGenderFor(viewerGender);
+  // Moderation : les bloques (2 sens) sont exclus partout. La RPC SQL le
+  // fait elle-meme (sql/moderation.sql) ; pour le repli et le filet de
+  // securite ci-dessous, le client les connait des le depart (un seul
+  // appel, en parallele des pages).
+  const blockedPromise = fetchBlockedIds(userId);
 
   if (!rpcMissing) {
     try {
       const profiles = await fetchViaRpc(limit, after, filters, targetGender);
+      const blocked = await blockedPromise;
+      const kept = (profiles as any[]).filter(
+        (p: any) => p && !blocked.has(p.user_id)
+      );
       const cursor =
-        profiles.length > 0 ? profiles[profiles.length - 1].user_id : after;
-      return { profiles, cursor, usedRpc: true };
+        kept.length > 0 ? kept[kept.length - 1].user_id : after;
+      return { profiles: kept, cursor, usedRpc: true };
     } catch (error: any) {
       const message = String(error?.message || '');
       if (error?.code === 'PGRST202' || message.includes('get_candidate_profiles')) {
@@ -268,5 +282,6 @@ export async function fetchCandidateProfiles(options: {
     }
   }
 
-  return fetchViaFallback(userId, limit, after, filters, targetGender);
+  const blocked = await blockedPromise;
+  return fetchViaFallback(userId, limit, after, filters, targetGender, blocked);
 }
