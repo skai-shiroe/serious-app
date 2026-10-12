@@ -83,7 +83,7 @@ export const unstable_settings = {
 };
 
 function ProfileBottomSheet() {
-  const { sheetRef, selectedProfile, closeProfileSheet } = useProfileSheet();
+  const { sheetRef, selectedProfile, closeProfileSheet, scheduleProfileSheetClose, openRequest, ackOpenRequest } = useProfileSheet();
   const colorScheme = useColorScheme();
   const isDark = colorScheme === 'dark';
 
@@ -99,22 +99,16 @@ function ProfileBottomSheet() {
     return age;
   };
 
-  if (!selectedProfile) {
-    return (
-      <BottomSheet
-        ref={sheetRef}
-        index={-1}
-        snapPoints={['90%']}
-        enablePanDownToClose
-        backgroundStyle={{ backgroundColor: isDark ? '#1f2937' : '#ffffff' }}
-        handleIndicatorStyle={{ backgroundColor: isDark ? '#4b5563' : '#d1d5db' }}
-      >
-        <BottomSheetView style={{ flex: 1 }}>
-          <View />
-        </BottomSheetView>
-      </BottomSheet>
-    );
-  }
+  // Ouverture APRES le rendu du contenu : l'appel imperatif direct depuis le
+  // contexte partait avant le montage (ou sur une ref null) et ne faisait
+  // silencieusement rien. Ici la feuille est toujours montee, le snap est
+  // rejoue a chaque demande explicite.
+  useEffect(() => {
+    if (!openRequest || !selectedProfile) return;
+    console.log('[Sheet] snapToIndex(0), ref =', sheetRef.current ? 'ok' : 'NULL');
+    sheetRef.current?.snapToIndex(0);
+    ackOpenRequest();
+  }, [openRequest, selectedProfile, sheetRef, ackOpenRequest]);
 
   return (
     <BottomSheet
@@ -122,6 +116,12 @@ function ProfileBottomSheet() {
       index={-1}
       snapPoints={['90%']}
       enablePanDownToClose
+      onChange={(index) => {
+        // Fermeture par geste vers le bas : les boutons X/Coeur passent par
+        // closeProfileSheet, mais un swipe n'etait jamais signale au contexte
+        // (selectedProfile fantome restait monte).
+        if (index === -1) scheduleProfileSheetClose();
+      }}
       backgroundStyle={{ 
         backgroundColor: isDark ? '#111827' : '#ffffff',
         borderTopLeftRadius: 24,
@@ -129,6 +129,8 @@ function ProfileBottomSheet() {
       }}
       handleIndicatorStyle={{ backgroundColor: isDark ? '#4b5563' : '#d1d5db' }}
     >
+      {selectedProfile ? (
+        <>
       <BottomSheetScrollView contentContainerStyle={{ paddingBottom: 100 }}>
         <ScrollView horizontal pagingEnabled showsHorizontalScrollIndicator={false} style={{ height: 450 }}>
           {selectedProfile.photos?.map((photo: string, index: number) => (
@@ -245,6 +247,12 @@ function ProfileBottomSheet() {
           <Heart size={32} color="#fff" fill="#fff" />
         </TouchableOpacity>
       </View>
+        </>
+      ) : (
+        <BottomSheetView style={{ flex: 1 }}>
+          <View />
+        </BottomSheetView>
+      )}
     </BottomSheet>
   );
 }

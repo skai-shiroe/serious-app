@@ -76,7 +76,9 @@ export async function ensureAndroidChannels(): Promise<void> {
     await Notifications.setNotificationChannelAsync(channel.id, {
       name: channel.name,
       importance: channel.importance,
-      sound: 'default',
+      // Pas de cle "sound" : le natif prend le son systeme par defaut.
+      // "sound: 'default'" etait interprete comme un FICHIER custom introuvable
+      // (erreur "Custom sound 'default' not found" a chaque demarrage).
       vibrationPattern: [0, 250, 250, 250],
       lightColor: '#f43f5e',
     });

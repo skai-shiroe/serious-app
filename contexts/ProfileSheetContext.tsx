@@ -6,8 +6,14 @@ import { prefetchImages } from '@/lib/images';
 type ProfileSheetContextType = {
   openProfileSheet: (profile: any) => void;
   closeProfileSheet: () => void;
+  /** Vide la fiche 320 ms plus tard (fin de l'animation de fermeture). */
+  scheduleProfileSheetClose: () => void;
   /** Enrichit la fiche deja ouverte (fetch asynchrone) sans la re-ouvrir. */
   updateProfileSheet: (profile: any) => void;
+  /** Vrai tant qu'une ouverture explicite n'a pas ete traitee par l'effet
+   *  de ProfileBottomSheet (le snap est fait APRES le rendu du contenu). */
+  openRequest: boolean;
+  ackOpenRequest: () => void;
   selectedProfile: any | null;
   sheetRef: React.RefObject<BottomSheet | null>;
 };
@@ -16,20 +22,47 @@ const ProfileSheetContext = createContext<ProfileSheetContextType | undefined>(u
 
 export function ProfileSheetProvider({ children }: { children: React.ReactNode }) {
   const [selectedProfile, setSelectedProfile] = useState<any | null>(null);
+  const [openRequest, setOpenRequest] = useState(false);
   const sheetRef = useRef<BottomSheet>(null);
+  // Timer de fermeture differee : annule si l'utilisateur rouvre la fiche
+  // avant la fin de l'animation (sinon le clear vidait la nouvelle fiche).
+  const clearTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const openProfileSheet = useCallback((profile: any) => {
-    // Precharge les photos AVANT l'ouverture : le carrousel s'affiche sans flash gris
-    if (profile?.photos?.length) prefetchImages(profile.photos);
-    setSelectedProfile(profile);
-    sheetRef.current?.expand();
+  const cancelPendingClear = useCallback(() => {
+    if (clearTimer.current) {
+      clearTimeout(clearTimer.current);
+      clearTimer.current = null;
+    }
+  }, []);
+
+  const openProfileSheet = useCallback(
+    (profile: any) => {
+      // Precharge les photos AVANT l'ouverture : le carrousel s'affiche sans flash gris
+      if (profile?.photos?.length) prefetchImages(profile.photos);
+      cancelPendingClear();
+      console.log('[Sheet] ouverture demandee :', profile?.first_name ?? '?');
+      setSelectedProfile(profile);
+      // L'expand n'est plus fait ici : un appel impératif immediat partait
+      // avant le rendu du contenu (ou sur une ref null, silencieusement).
+      setOpenRequest(true);
+    },
+    [cancelPendingClear]
+  );
+
+  const ackOpenRequest = useCallback(() => setOpenRequest(false), []);
+
+  const scheduleProfileSheetClose = useCallback(() => {
+    if (clearTimer.current) clearTimeout(clearTimer.current);
+    clearTimer.current = setTimeout(() => {
+      clearTimer.current = null;
+      setSelectedProfile(null);
+    }, 320);
   }, []);
 
   const closeProfileSheet = useCallback(() => {
     sheetRef.current?.close();
-    // On attend la fin de l'animation pour vider le profil
-    setTimeout(() => setSelectedProfile(null), 300);
-  }, []);
+    scheduleProfileSheetClose();
+  }, [scheduleProfileSheetClose]);
 
   const updateProfileSheet = useCallback((profile: any) => {
     // N'ecrit que si une fiche est ouverte : si l'utilisateur l'a fermee
@@ -42,7 +75,10 @@ export function ProfileSheetProvider({ children }: { children: React.ReactNode }
       value={{ 
         openProfileSheet, 
         closeProfileSheet, 
+        scheduleProfileSheetClose,
         updateProfileSheet,
+        openRequest,
+        ackOpenRequest,
         selectedProfile,
         sheetRef 
       }}
