@@ -268,7 +268,11 @@ export default function MessagesScreen() {
       <TouchableOpacity
         activeOpacity={0.85}
         disabled={!item.otherUser.photos?.length}
-        onPress={() => setViewerPhotos(item.otherUser.photos || [])}
+        onPress={() =>
+          setViewerPhotos(
+            item.otherUser.photos?.length ? [item.otherUser.photos[0]] : []
+          )
+        }
       >
         <Image
           source={photoSource(item.otherUser.photos)}

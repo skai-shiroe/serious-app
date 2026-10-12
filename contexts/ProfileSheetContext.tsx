@@ -6,6 +6,8 @@ import { prefetchImages } from '@/lib/images';
 type ProfileSheetContextType = {
   openProfileSheet: (profile: any) => void;
   closeProfileSheet: () => void;
+  /** Enrichit la fiche deja ouverte (fetch asynchrone) sans la re-ouvrir. */
+  updateProfileSheet: (profile: any) => void;
   selectedProfile: any | null;
   sheetRef: React.RefObject<BottomSheet | null>;
 };
@@ -29,11 +31,18 @@ export function ProfileSheetProvider({ children }: { children: React.ReactNode }
     setTimeout(() => setSelectedProfile(null), 300);
   }, []);
 
+  const updateProfileSheet = useCallback((profile: any) => {
+    // N'ecrit que si une fiche est ouverte : si l'utilisateur l'a fermee
+    // pendant le fetch, on ne la rouvre pas par accident.
+    setSelectedProfile((prev: any | null) => (prev ? profile : prev));
+  }, []);
+
   return (
     <ProfileSheetContext.Provider 
       value={{ 
         openProfileSheet, 
         closeProfileSheet, 
+        updateProfileSheet,
         selectedProfile,
         sheetRef 
       }}

@@ -61,7 +61,7 @@ export default function ChatScreen() {
   const router = useRouter();
   const colorScheme = useColorScheme();
   const isDark = colorScheme === 'dark';
-  const { openProfileSheet } = useProfileSheet();
+  const { openProfileSheet, updateProfileSheet } = useProfileSheet();
 
   const [currentUser, setCurrentUser] = useState<any>(null);
   // Utilise par le listener realtime : evite de remettre currentUser dans les
@@ -203,7 +203,11 @@ export default function ChatScreen() {
         filter: `match_id=eq.${matchId}` 
       }, (payload) => {
         const newMessage = payload.new as Message;
-        setMessages(prev => [...prev, newMessage]);
+        // Dedup par id : le message peut deja etre la (insertion optimiste
+        // de l'envoi local) — dans ce cas on ne l'ajoute pas une 2e fois.
+        setMessages(prev =>
+          prev.some(m => m.id === newMessage.id) ? prev : [...prev, newMessage]
+        );
         
         // Marquer comme lu si on est dans le chat
         if (newMessage.sender_id !== currentUserRef.current?.id) {
@@ -268,9 +272,13 @@ export default function ChatScreen() {
   }, []);
 
   // WhatsApp : tap sur l'en-tete -> fiche complete du partenaire (la meme
-  // bottom sheet que sur le deck Match). Chargee a la demande.
+  // bottom sheet que sur le deck Match). Elle s'ouvre IMMEDIATEMENT avec les
+  // donnees deja en memoire (prénom, photos, badges) puis s'enrichit avec la
+  // fiche complete des que la requete revient : un echec reseau ne bloque
+  // plus l'ouverture.
   const openPartnerProfile = async () => {
     if (!partner?.user_id) return;
+    openProfileSheet(partner);
     try {
       const { data, error } = await supabase
         .from('profiles')
@@ -278,7 +286,7 @@ export default function ChatScreen() {
         .eq('user_id', partner.user_id)
         .maybeSingle();
       if (error) throw error;
-      if (data) openProfileSheet(data);
+      if (data) updateProfileSheet(data);
     } catch (err) {
       console.warn('[Chat] chargement fiche profil:', err);
     }
@@ -293,12 +301,23 @@ export default function ChatScreen() {
     // pour ecrire immediatement la suite.
 
     try {
-      await supabase.from('messages').insert({
-        match_id: matchId,
-        sender_id: currentUser.id,
-        content: text,
-      });
-      // Le Realtime s'occupera de l'ajouter à la liste
+      const { data, error } = await supabase
+        .from('messages')
+        .insert({
+          match_id: matchId,
+          sender_id: currentUser.id,
+          content: text,
+        })
+        .select()
+        .single();
+      if (error) throw error;
+      // Insertion optimiste : le message s'affiche immediatement, sans
+      // attendre l'evenement realtime (dedup par id s'il arrive quand meme).
+      if (data) {
+        setMessages((prev) =>
+          prev.some((m) => m.id === data.id) ? prev : [...prev, data]
+        );
+      }
     } catch (err) {
       console.error('Error sending message:', err);
     }
