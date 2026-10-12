@@ -1,6 +1,6 @@
 import { SafeAreaView } from 'react-native-safe-area-context';
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, useColorScheme, TouchableOpacity, ActivityIndicator, RefreshControl, Platform, Modal, TextInput, Alert } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, useColorScheme, TouchableOpacity, ActivityIndicator, RefreshControl, Platform, Modal, TextInput, Alert, KeyboardAvoidingView } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Picker } from '@react-native-picker/picker';
 import { Image } from 'expo-image';
@@ -371,8 +371,11 @@ export default function CoachingScreen() {
         transparent={true}
         onRequestClose={() => setIsModalVisible(false)}
       >
-        <View style={styles.modalOverlay}>
-          <View style={[styles.modalContent, { backgroundColor: themeColors.card }]}>
+        {/* Meme comportement clavier que le chat : le KAV pousse le formulaire
+            au-dessus du clavier (SDK 57 : adjustResize ignore en edge-to-edge). */}
+        <KeyboardAvoidingView style={{ flex: 1 }} behavior="padding">
+          <View style={styles.modalOverlay}>
+            <View style={[styles.modalContent, { backgroundColor: themeColors.card }]}>
             <View style={styles.modalHeader}>
               <Text style={[styles.modalTitle, { color: themeColors.text }]}>Ajouter un conseil</Text>
               <TouchableOpacity onPress={() => setIsModalVisible(false)}>
@@ -470,7 +473,8 @@ export default function CoachingScreen() {
               </TouchableOpacity>
             </ScrollView>
           </View>
-        </View>
+          </View>
+        </KeyboardAvoidingView>
       </Modal>
     </SafeAreaView>
   );

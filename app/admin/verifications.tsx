@@ -5,7 +5,7 @@ import { IMAGE_CACHE_POLICY, imageSource } from '@/lib/images';
 import { Image } from 'expo-image';
 import { ArrowLeft, BadgeCheck, FileCheck2, ShieldCheck, WifiOff, X } from 'lucide-react-native';
 import React, { useCallback, useState } from 'react';
-import { ActivityIndicator, Alert, Modal, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, useColorScheme, View } from 'react-native';
+import { ActivityIndicator, Alert, Modal, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, useColorScheme, View, KeyboardAvoidingView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect, useRouter } from 'expo-router';
 
@@ -405,8 +405,11 @@ export default function AdminVerificationsScreen() {
         animationType="slide"
         onRequestClose={() => setRejecting(null)}
       >
-        <View style={styles.sheetOverlay}>
-          <View style={[styles.sheet, { backgroundColor: themeColors.card }]}>
+        {/* Meme comportement clavier que le chat : le clavier ne cache pas le
+            champ ni les boutons (SDK 57 : adjustResize ignore en edge-to-edge). */}
+        <KeyboardAvoidingView style={{ flex: 1 }} behavior="padding">
+          <View style={styles.sheetOverlay}>
+            <View style={[styles.sheet, { backgroundColor: themeColors.card }]}>
             <Text style={[styles.sheetTitle, { color: themeColors.text }]}>Motif du refus</Text>
             <Text style={[styles.sheetHint, { color: themeColors.textMuted }]}>
               Ce message sera visible par l’utilisateur : restez factuel (document illisible,
@@ -450,7 +453,8 @@ export default function AdminVerificationsScreen() {
               </TouchableOpacity>
             </View>
           </View>
-        </View>
+          </View>
+        </KeyboardAvoidingView>
       </Modal>
     </SafeAreaView>
   );

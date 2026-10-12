@@ -953,9 +953,13 @@ export default function ProfileCreation({ onComplete, initialData }: ProfileCrea
   // ── Rendu principal ───────────────────────────────────────────────────
   return (
     <SafeAreaView style={styles.safeArea}>
+      {/* Android edge-to-edge (SDK 57) : le systeme ignore adjustResize, le KAV
+          mesure lui-meme le clavier et pousse le contenu (type WhatsApp) —
+          comportement identique sur iOS. Avant : padding iOS seul, les champs
+          bas de l'etape etaient caches par le clavier sur Android. */}
       <KeyboardAvoidingView
         style={styles.container}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        behavior="padding"
       >
         <LinearGradient
           colors={isDark ? ['#111827', '#1f2937'] : ['#fff1f2', '#ffffff', '#eff6ff']}

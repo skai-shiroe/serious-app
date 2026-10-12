@@ -267,7 +267,11 @@ export default function CoachingDetailScreen() {
   const catTheme = getCategoryTheme(post.category);
 
   return (
-    <View style={[styles.container, { backgroundColor: themeColors.bg }]}>
+    <KeyboardAvoidingView
+      style={{ flex: 1 }}
+      behavior="padding"
+    >
+      <View style={[styles.container, { backgroundColor: themeColors.bg }]}>
       {/* Pas de header natif : la photo passe sous la barre de statut, dont les
           icones doivent rester lisibles sur l'overlay sombre du hero. */}
       <StatusBar style="light" />
@@ -430,7 +434,8 @@ export default function CoachingDetailScreen() {
           <View style={{ height: 50 }} />
         </Animated.View>
       </ScrollView>
-    </View>
+      </View>
+    </KeyboardAvoidingView>
   );
 }
 

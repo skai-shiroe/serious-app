@@ -3,6 +3,7 @@ import { Check, Search, X } from 'lucide-react-native';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   FlatList,
+  KeyboardAvoidingView,
   Modal,
   StyleSheet,
   Text,
@@ -83,6 +84,9 @@ export default function CityPickerModal({
 
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={handleClose}>
+      {/* SDK 57 (edge-to-edge) : adjustResize est ignore, le KAV pousse la
+          feuille au-dessus du clavier (meme comportement que le chat). */}
+      <KeyboardAvoidingView style={{ flex: 1 }} behavior="padding">
       <View style={styles.overlay}>
         <View style={[styles.sheet, { backgroundColor: theme.bgCard }]}>
           <View style={styles.header}>
@@ -152,6 +156,7 @@ export default function CityPickerModal({
           />
         </View>
       </View>
+      </KeyboardAvoidingView>
     </Modal>
   );
 }

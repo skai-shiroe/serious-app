@@ -214,9 +214,11 @@ export default function AuthScreen({ onComplete }: AuthScreenProps) {
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      <KeyboardAvoidingView 
-        style={styles.container} 
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      {/* Meme comportement clavier que le chat (SDK 57 : adjustResize ignore
+          en edge-to-edge, le KAV pousse le contenu sur les deux plateformes). */}
+      <KeyboardAvoidingView
+        style={styles.container}
+        behavior="padding"
       >
         <LinearGradient
           colors={isDark ? ['#111827', '#1f2937'] : ['#fff1f2', '#ffffff', '#eff6ff']}

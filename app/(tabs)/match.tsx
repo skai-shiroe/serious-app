@@ -6,6 +6,7 @@ import {
   matchesTargetGender,
 } from '@/lib/candidates';
 import CityPickerModal from '@/components/city-picker-modal';
+import RangeSlider from '@/components/range-slider';
 import { EmptyState } from '@/components/empty-state';
 import {
   CertifiedPhotoBadge,
@@ -44,11 +45,9 @@ const DEFAULT_FILTERS = {
   sickleCell: '',
 };
 
-/** Tranches proposees pour l'age (pas de slider : puces comme les autres filtres). */
-const AGE_MIN_CHOICES = [18, 21, 25, 30, 35, 40, 45, 50, 55, 60, 65, 70];
-// 80 = pas de plafond pratique : le recouvrement auto (setDraftAge) garde
-// toujours des bornes selectionnables dans les deux listes.
-const AGE_MAX_CHOICES = [25, 30, 35, 40, 45, 50, 55, 60, 65, 70, 80];
+/** Bornes d'age du filtre (slider d'intervalle, cf. RangeSlider). */
+const AGE_FILTER_MIN = 18;
+const AGE_FILTER_MAX = 80;
 
 export default function MatchScreen() {
   const [loading, setLoading] = useState(true);
@@ -137,18 +136,11 @@ export default function MatchScreen() {
   };
 
   /**
-   * Borne d'age : la minimum ne peut pas depasser la maximum. Si le choix
-   * traverse l'autre borne, on translate la fenetre (largeur conservee) plutot
-   * que de laisser un etat incoherent.
+   * Borne d'age : le slider d'intervalle garantit deja low <= high (ecart
+   * minimum = un an), on ne fait que reporter le draft.
    */
-  const setDraftAge = (key: 'ageMin' | 'ageMax', value: number) => {
-    setDraftFilters((prev) => {
-      const ageMin = key === 'ageMin' ? value : prev.ageMin;
-      const ageMax = key === 'ageMax' ? value : prev.ageMax;
-      return ageMin > ageMax
-        ? { ...prev, ageMin: Math.min(ageMin, ageMax), ageMax: Math.max(ageMin, ageMax) }
-        : { ...prev, ageMin, ageMax };
-    });
+  const setDraftAgeRange = (ageMin: number, ageMax: number) => {
+    setDraftFilters((prev) => ({ ...prev, ageMin, ageMax }));
   };
 
   const selectCity = (city: string) => {
@@ -595,6 +587,9 @@ export default function MatchScreen() {
         )}
 
         <Modal visible={filterVisible} animationType="slide" transparent={true}>
+          {/* Racine gestes obligatoire : le Modal est une feneree separee sur
+              Android, le RangeSlider n'y porterait pas sans elle. */}
+          <GestureHandlerRootView style={{ flex: 1 }}>
           <View style={styles.modalOverlay}>
             <View style={[styles.modalContent, { backgroundColor: themeColors.bgCard }]}>
               <View style={styles.modalHeader}>
@@ -619,58 +614,22 @@ export default function MatchScreen() {
                 </View>
 
                 <View style={styles.filterSection}>
-                  <Text style={[styles.filterLabel, { color: themeColors.textMuted }]}>Âge</Text>
-                  <Text style={[styles.ageSubLabel, { color: themeColors.textMuted }]}>
-                    Âge minimum
-                  </Text>
-                  <View style={styles.filterGrid}>
-                    {AGE_MIN_CHOICES.map((age) => (
-                      <TouchableOpacity
-                        key={`min-${age}`}
-                        onPress={() => setDraftAge('ageMin', age)}
-                        style={[
-                          styles.filterChip,
-                          { borderColor: themeColors.border },
-                          draftFilters.ageMin === age && {
-                            backgroundColor: themeColors.accent,
-                            borderColor: themeColors.accent,
-                          },
-                        ]}
-                      >
-                        <Text style={{ color: draftFilters.ageMin === age ? '#fff' : themeColors.text }}>
-                          {age} ans
-                        </Text>
-                      </TouchableOpacity>
-                    ))}
+                  <View style={styles.ageHeaderRow}>
+                    <Text style={[styles.filterLabel, { color: themeColors.textMuted }]}>Âge</Text>
+                    <Text style={[styles.ageRangeValue, { color: themeColors.text }]}>
+                      {draftFilters.ageMin} – {draftFilters.ageMax} ans
+                    </Text>
                   </View>
-                  <Text
-                    style={[
-                      styles.ageSubLabel,
-                      { color: themeColors.textMuted, marginTop: 16 },
-                    ]}
-                  >
-                    Âge maximum
-                  </Text>
-                  <View style={styles.filterGrid}>
-                    {AGE_MAX_CHOICES.map((age) => (
-                      <TouchableOpacity
-                        key={`max-${age}`}
-                        onPress={() => setDraftAge('ageMax', age)}
-                        style={[
-                          styles.filterChip,
-                          { borderColor: themeColors.border },
-                          draftFilters.ageMax === age && {
-                            backgroundColor: themeColors.accent,
-                            borderColor: themeColors.accent,
-                          },
-                        ]}
-                      >
-                        <Text style={{ color: draftFilters.ageMax === age ? '#fff' : themeColors.text }}>
-                          {age} ans
-                        </Text>
-                      </TouchableOpacity>
-                    ))}
-                  </View>
+                  <RangeSlider
+                    min={AGE_FILTER_MIN}
+                    max={AGE_FILTER_MAX}
+                    low={draftFilters.ageMin}
+                    high={draftFilters.ageMax}
+                    onChange={setDraftAgeRange}
+                    accentColor={themeColors.accent}
+                    trackColor={themeColors.border}
+                    thumbColor={themeColors.bgCard}
+                  />
                 </View>
 
                 <View style={styles.filterSection}>
@@ -734,6 +693,7 @@ export default function MatchScreen() {
               </ScrollView>
             </View>
           </View>
+          </GestureHandlerRootView>
         </Modal>
 
         <CityPickerModal
@@ -882,7 +842,8 @@ const styles = StyleSheet.create({
   filterOption: { padding: 16, borderRadius: 12 },
   filterGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
   filterChip: { paddingHorizontal: 16, paddingVertical: 10, borderRadius: 20, borderWidth: 1, minWidth: 60, alignItems: 'center' },
-  ageSubLabel: { fontSize: 13, fontWeight: '600', marginBottom: 10 },
+  ageHeaderRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 },
+  ageRangeValue: { fontSize: 15, fontWeight: '700' },
   resetBtn: {
     borderWidth: 1,
     borderRadius: 14,
