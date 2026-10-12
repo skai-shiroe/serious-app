@@ -2,7 +2,14 @@ import { Stack, useRouter, DarkTheme, DefaultTheme, ThemeProvider } from 'expo-r
 import { StatusBar } from 'expo-status-bar';
 import * as SplashScreen from 'expo-splash-screen';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import 'react-native-reanimated';
+import Animated, {
+  runOnJS,
+  useAnimatedStyle,
+  useSharedValue,
+  withSpring,
+  withTiming,
+} from 'react-native-reanimated';
+import { Gesture, GestureDetector, GestureHandlerRootView } from 'react-native-gesture-handler';
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { 
   ActivityIndicator, 
@@ -12,9 +19,11 @@ import {
   Dimensions, 
   Text, 
   TouchableOpacity, 
-  ScrollView 
+  Pressable,
+  ScrollView,
+  Modal,
+  StyleSheet,
 } from 'react-native';
-import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { Image } from 'expo-image';
 import { 
   Heart, 
@@ -23,7 +32,6 @@ import {
   Briefcase, 
   GraduationCap 
 } from 'lucide-react-native';
-import BottomSheet, { BottomSheetScrollView, BottomSheetView } from '@gorhom/bottom-sheet';
 import {
   CertifiedIcon,
   GenotypeVerifiedBadge,
@@ -76,14 +84,14 @@ async function writeProfileCache(userId: string, ready: boolean): Promise<void> 
   } catch {}
 }
 
-const { width: SCREEN_WIDTH } = Dimensions.get('window');
+const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 
 export const unstable_settings = {
   anchor: '(tabs)',
 };
 
 function ProfileBottomSheet() {
-  const { sheetRef, selectedProfile, closeProfileSheet, scheduleProfileSheetClose, openRequest, ackOpenRequest } = useProfileSheet();
+  const { selectedProfile, closeProfileSheet } = useProfileSheet();
   const colorScheme = useColorScheme();
   const isDark = colorScheme === 'dark';
 
@@ -99,41 +107,113 @@ function ProfileBottomSheet() {
     return age;
   };
 
-  // Ouverture APRES le rendu du contenu : l'appel imperatif direct depuis le
-  // contexte partait avant le montage (ou sur une ref null) et ne faisait
-  // silencieusement rien. Ici la feuille est toujours montee, le snap est
-  // rejoue a chaque demande explicite.
+  // Fiche reimplementee en interne (Modal + Reanimated) : @gorhom/bottom-sheet
+  // est INUTILISABLE avec Reanimated 4 (RN 0.86 / SDK 57) — ses reactions
+  // animées ne se declenchent jamais, la feuille reste hors ecran sans erreur
+  // (gorhom issues #2696 / #2721, correctif PR #2720 jamais fusionne).
+  // Ici : ouverture/fermeture animees par des shared values, sans aucune
+  // dependance aux reactions de la lib.
+  const translateY = useSharedValue(SCREEN_HEIGHT);
+  const backdropOpacity = useSharedValue(0);
+  // Dernier profil connu : il reste rendu pendant l'animation de sortie.
+  const [rendered, setRendered] = useState<any>(null);
+
   useEffect(() => {
-    if (!openRequest || !selectedProfile) return;
-    console.log('[Sheet] snapToIndex(0), ref =', sheetRef.current ? 'ok' : 'NULL');
-    sheetRef.current?.snapToIndex(0);
-    ackOpenRequest();
-  }, [openRequest, selectedProfile, sheetRef, ackOpenRequest]);
+    if (selectedProfile) {
+      setRendered(selectedProfile);
+      backdropOpacity.value = withTiming(1, { duration: 220 });
+      translateY.value = withSpring(0, { damping: 24, stiffness: 260, mass: 0.9 });
+    } else {
+      backdropOpacity.value = withTiming(0, { duration: 220 });
+      translateY.value = withTiming(SCREEN_HEIGHT, { duration: 250 }, (finished) => {
+        // On ne vide le contenu que si la fermeture est allee au bout :
+        // une re-ouverture pendant l'animation est donc possible.
+        if (finished) runOnJS(setRendered)(null);
+      });
+    }
+  }, [selectedProfile, translateY, backdropOpacity]);
+
+  const requestClose = useCallback(() => {
+    closeProfileSheet(selectedProfile);
+  }, [closeProfileSheet, selectedProfile]);
+
+  // Drag-to-close depuis la poignee (le scroll du contenu reste intact :
+  // le geste n'est rattache qu'a la zone de l'indicateur).
+  const dragGesture = Gesture.Pan()
+    .onUpdate((event) => {
+      translateY.value = Math.max(0, event.translationY);
+    })
+    .onEnd((event) => {
+      if (event.translationY > 140 || event.velocityY > 900) {
+        runOnJS(requestClose)();
+      } else {
+        translateY.value = withSpring(0, { damping: 24, stiffness: 260, mass: 0.9 });
+      }
+    });
+
+  const panelStyle = useAnimatedStyle(() => ({
+    transform: [{ translateY: translateY.value }],
+  }));
+  const backdropStyle = useAnimatedStyle(() => ({
+    opacity: backdropOpacity.value,
+  }));
+
+  if (!rendered) return null;
 
   return (
-    <BottomSheet
-      ref={sheetRef}
-      index={-1}
-      snapPoints={['90%']}
-      enablePanDownToClose
-      onChange={(index) => {
-        // Fermeture par geste vers le bas : les boutons X/Coeur passent par
-        // closeProfileSheet, mais un swipe n'etait jamais signale au contexte
-        // (selectedProfile fantome restait monte).
-        if (index === -1) scheduleProfileSheetClose();
-      }}
-      backgroundStyle={{ 
-        backgroundColor: isDark ? '#111827' : '#ffffff',
-        borderTopLeftRadius: 24,
-        borderTopRightRadius: 24,
-      }}
-      handleIndicatorStyle={{ backgroundColor: isDark ? '#4b5563' : '#d1d5db' }}
+    <Modal
+      visible
+      transparent
+      animationType="none"
+      onRequestClose={requestClose}
+      statusBarTranslucent
     >
-      {selectedProfile ? (
-        <>
-      <BottomSheetScrollView contentContainerStyle={{ paddingBottom: 100 }}>
+      {/* Racine gestes obligatoire dans un Modal RN (fenetre separee). */}
+      <GestureHandlerRootView style={{ flex: 1 }}>
+        <Animated.View style={[{ flex: 1, backgroundColor: 'rgba(0,0,0,0.5)' }, backdropStyle]}>
+          {/* Tap sur le fond : ferme (comme le pan-down de l'ancienne feuille). */}
+          <Pressable style={StyleSheet.absoluteFill} onPress={requestClose} />
+          <Animated.View
+            style={[
+              {
+                position: 'absolute',
+                left: 0,
+                right: 0,
+                bottom: 0,
+                height: Math.round(SCREEN_HEIGHT * 0.9),
+                backgroundColor: isDark ? '#111827' : '#ffffff',
+                borderTopLeftRadius: 24,
+                borderTopRightRadius: 24,
+                overflow: 'hidden',
+              },
+              panelStyle,
+            ]}
+          >
+            {/* Poignee : zone de drag-to-close. */}
+            <GestureDetector gesture={dragGesture}>
+              <View
+                style={{
+                  height: 28,
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  backgroundColor: isDark ? '#111827' : '#ffffff',
+                }}
+                accessibilityLabel="Fermer la fiche profil"
+              >
+                <View
+                  style={{
+                    width: 44,
+                    height: 5,
+                    borderRadius: 3,
+                    backgroundColor: isDark ? '#4b5563' : '#d1d5db',
+                  }}
+                />
+              </View>
+            </GestureDetector>
+
+      <ScrollView contentContainerStyle={{ paddingBottom: 100 }} style={{ flex: 1 }}>
         <ScrollView horizontal pagingEnabled showsHorizontalScrollIndicator={false} style={{ height: 450 }}>
-          {selectedProfile.photos?.map((photo: string, index: number) => (
+          {rendered.photos?.map((photo: string, index: number) => (
             <Image
               key={index}
               source={imageSource(photo)}
@@ -149,17 +229,17 @@ function ProfileBottomSheet() {
           <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
               <Text style={{ fontSize: 32, fontWeight: 'bold', color: isDark ? '#fff' : '#111827' }}>
-                {selectedProfile.first_name}
+                {rendered.first_name}
               </Text>
-              {isFullyVerified(selectedProfile) ? (
+              {isFullyVerified(rendered) ? (
                 <CertifiedIcon size={22} />
               ) : (
-                selectedProfile.identity_verified && (
+                rendered.identity_verified && (
                   <IdentityVerifiedIcon size={22} color={VERIFIED_COLOR} />
                 )
               )}
               <Text style={{ fontSize: 24, color: isDark ? '#fff' : '#111827', opacity: 0.8 }}>
-                {calculateAge(selectedProfile.birth_date)}
+                {calculateAge(rendered.birth_date)}
               </Text>
             </View>
           </View>
@@ -167,49 +247,49 @@ function ProfileBottomSheet() {
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginBottom: 20 }}>
             <MapPin size={16} color={isDark ? '#9ca3af' : '#6b7280'} />
             <Text style={{ fontSize: 16, color: isDark ? '#9ca3af' : '#6b7280' }}>
-              {selectedProfile.city}
+              {rendered.city}
             </Text>
           </View>
 
           <View style={{ gap: 12, marginBottom: 24 }}>
-            {selectedProfile.profession && (
+            {rendered.profession && (
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
                 <Briefcase size={20} color="#f43f5e" />
-                <Text style={{ fontSize: 16, color: isDark ? '#e5e7eb' : '#374151' }}>{selectedProfile.profession}</Text>
+                <Text style={{ fontSize: 16, color: isDark ? '#e5e7eb' : '#374151' }}>{rendered.profession}</Text>
               </View>
             )}
-            {selectedProfile.religion && (
+            {rendered.religion && (
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
                 <GraduationCap size={20} color="#f43f5e" />
-                <Text style={{ fontSize: 16, color: isDark ? '#e5e7eb' : '#374151' }}>{selectedProfile.religion}</Text>
+                <Text style={{ fontSize: 16, color: isDark ? '#e5e7eb' : '#374151' }}>{rendered.religion}</Text>
               </View>
             )}
           </View>
 
           <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginBottom: 24 }}>
             <View style={{ backgroundColor: 'rgba(244,63,94,0.15)', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 12 }}>
-              <Text style={{ color: '#f43f5e', fontWeight: 'bold' }}>{selectedProfile.blood_type}</Text>
+              <Text style={{ color: '#f43f5e', fontWeight: 'bold' }}>{rendered.blood_type}</Text>
             </View>
             <View style={{ backgroundColor: 'rgba(59,130,246,0.15)', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 12 }}>
-              <Text style={{ color: '#3b82f6', fontWeight: 'bold' }}>Drépanocytose : {selectedProfile.sickle_cell}</Text>
+              <Text style={{ color: '#3b82f6', fontWeight: 'bold' }}>Drépanocytose : {rendered.sickle_cell}</Text>
             </View>
-            {!isFullyVerified(selectedProfile) && selectedProfile.genotype_verified && (
-              <GenotypeVerifiedBadge genotype={selectedProfile.sickle_cell} />
+            {!isFullyVerified(rendered) && rendered.genotype_verified && (
+              <GenotypeVerifiedBadge genotype={rendered.sickle_cell} />
             )}
           </View>
 
-          {selectedProfile.bio && (
+          {rendered.bio && (
             <View style={{ marginBottom: 24 }}>
               <Text style={{ fontSize: 18, fontWeight: 'bold', color: isDark ? '#fff' : '#111827', marginBottom: 8 }}>Bio</Text>
-              <Text style={{ fontSize: 16, lineHeight: 24, color: isDark ? '#d1d5db' : '#4b5563' }}>{selectedProfile.bio}</Text>
+              <Text style={{ fontSize: 16, lineHeight: 24, color: isDark ? '#d1d5db' : '#4b5563' }}>{rendered.bio}</Text>
             </View>
           )}
 
-          {selectedProfile.interests && selectedProfile.interests.length > 0 && (
+          {rendered.interests && rendered.interests.length > 0 && (
             <View>
               <Text style={{ fontSize: 18, fontWeight: 'bold', color: isDark ? '#fff' : '#111827', marginBottom: 12 }}>Intérêts</Text>
               <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
-                {selectedProfile.interests.map((interest: string, idx: number) => (
+                {rendered.interests.map((interest: string, idx: number) => (
                   <View key={idx} style={{ backgroundColor: 'rgba(244,63,94,0.1)', paddingHorizontal: 12, paddingVertical: 8, borderRadius: 20 }}>
                     <Text style={{ color: '#f43f5e', fontWeight: '600' }}>{interest}</Text>
                   </View>
@@ -218,7 +298,7 @@ function ProfileBottomSheet() {
             </View>
           )}
         </View>
-      </BottomSheetScrollView>
+      </ScrollView>
       
       <View style={{ 
         position: 'absolute', 
@@ -235,25 +315,22 @@ function ProfileBottomSheet() {
         borderTopColor: isDark ? '#1f2937' : '#f3f4f6'
       }}>
         <TouchableOpacity 
-          onPress={closeProfileSheet}
+          onPress={requestClose}
           style={{ width: 64, height: 64, borderRadius: 32, backgroundColor: isDark ? '#1f2937' : '#f3f4f6', justifyContent: 'center', alignItems: 'center' }}
         >
           <XIcon size={32} color="#ef4444" />
         </TouchableOpacity>
         <TouchableOpacity 
-          onPress={closeProfileSheet}
+          onPress={requestClose}
           style={{ width: 64, height: 64, borderRadius: 32, backgroundColor: '#f43f5e', justifyContent: 'center', alignItems: 'center' }}
         >
           <Heart size={32} color="#fff" fill="#fff" />
         </TouchableOpacity>
       </View>
-        </>
-      ) : (
-        <BottomSheetView style={{ flex: 1 }}>
-          <View />
-        </BottomSheetView>
-      )}
-    </BottomSheet>
+          </Animated.View>
+        </Animated.View>
+      </GestureHandlerRootView>
+    </Modal>
   );
 }
 
