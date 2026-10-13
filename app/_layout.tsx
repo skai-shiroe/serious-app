@@ -1,4 +1,4 @@
-import { Stack, useRouter, DarkTheme, DefaultTheme, ThemeProvider } from 'expo-router';
+import { Stack, useRouter, useSegments, DarkTheme, DefaultTheme, ThemeProvider } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import * as SplashScreen from 'expo-splash-screen';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -490,6 +490,11 @@ export default function RootLayout() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [profileStatus, setProfileStatus] = useState<ProfileStatus>('unknown');
 
+  // Routes publiques (CGU / politique de confidentialite) : lisibles avant la
+  // creation de compte — exigence des stores. Elles contournent les gates
+  // onboarding/auth/profil ci-dessous et s'affichent dans le Stack.
+  const isLegalRoute = useSegments()[0] === 'legal';
+
   // Les 5 canaux sont crees au demarrage quel que soit l'etat d'authentification :
   // un push peut arriver avant la connexion. No-op sous Expo Go (voir lib/push.ts).
   // Le handler d'affichage est pose ici aussi (une seule fois, jamais au top-level
@@ -724,11 +729,11 @@ export default function RootLayout() {
     return loadingScreen;
   }
 
-  if (!hasSeenOnboarding) {
+  if (!hasSeenOnboarding && !isLegalRoute) {
     return <OnboardingScreen onComplete={() => setHasSeenOnboarding(true)} />;
   }
 
-  if (!isAuthenticated) {
+  if (!isAuthenticated && !isLegalRoute) {
     return (
       <AuthScreen
         onComplete={() => {
@@ -743,11 +748,11 @@ export default function RootLayout() {
 
   // Statut du profil encore inconnu (cache vide / requete en cours) : on affiche le
   // loader, JAMAIS l'ecran "Completer le profil" — c'est la correction du flash.
-  if (profileStatus === 'unknown') {
+  if (profileStatus === 'unknown' && !isLegalRoute) {
     return loadingScreen;
   }
 
-  if (profileStatus === 'missing') {
+  if (profileStatus === 'missing' && !isLegalRoute) {
     return (
       <ProfileCreation
         onComplete={async () => {

@@ -1,4 +1,4 @@
-# Serious App 💖
+# Geno 💖
 
 Une application de rencontre moderne et engagée, conçue avec un focus particulier sur la compatibilité santé (Groupe Sanguin et Statut Drépanocytaire).
 

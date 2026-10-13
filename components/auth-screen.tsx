@@ -1,8 +1,9 @@
 import { SafeAreaView } from 'react-native-safe-area-context';
 import React, { useState, useEffect } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, KeyboardAvoidingView, Platform, useColorScheme, ScrollView, Alert, ActivityIndicator } from 'react-native';
-import { Mail, Phone, Heart, Eye, EyeOff, Chrome } from 'lucide-react-native';
+import { Mail, Phone, Eye, EyeOff, Chrome } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
+import { Image } from 'expo-image';
 import * as WebBrowser from 'expo-web-browser';
 import * as AuthSession from 'expo-auth-session';
 import * as Linking from 'expo-linking';
@@ -234,14 +235,14 @@ export default function AuthScreen({ onComplete }: AuthScreenProps) {
           
           {/* Logo Section */}
           <View style={styles.headerContainer}>
-            <LinearGradient
-              colors={['#f43f5e', '#ec4899']}
+            <Image
+              source={require('@/assets/images/geno/web/icon-192.png')}
               style={styles.logoCircle}
-            >
-              <Heart color="#ffffff" size={32} fill="#ffffff" />
-            </LinearGradient>
+              contentFit="cover"
+              accessibilityLabel="Geno"
+            />
             <Text style={[styles.title, { color: themeColors.text }]}>
-              Love<Text style={styles.titleHighlight}>+</Text>
+              Geno
             </Text>
             <Text style={[styles.subtitle, { color: themeColors.textMuted }]}>
               {isLogin ? 'Bienvenue de retour !' : 'Créez votre compte'}
@@ -439,7 +440,9 @@ const styles = StyleSheet.create({
   logoCircle: {
     width: 64,
     height: 64,
-    borderRadius: 32,
+    /* Rayon >= celui du PNG (icône Geno ~20 %) : la surface clippee
+       couvre toujours les coins transparents du fichier. */
+    borderRadius: 20,
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 16,
@@ -452,9 +455,6 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 28,
     fontWeight: 'bold',
-  },
-  titleHighlight: {
-    color: '#f43f5e',
   },
   subtitle: {
     fontSize: 16,

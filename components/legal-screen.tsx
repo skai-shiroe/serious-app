@@ -41,8 +41,10 @@ export default function LegalScreen({ title, updatedAt, sections }: LegalScreenP
   return (
     <SafeAreaView style={[styles.safeArea, { backgroundColor: themeColors.bg }]} edges={['top', 'bottom']}>
       <View style={[styles.header, { borderBottomColor: themeColors.border }]}>
+        {/* canGoBack() : ouverture via deep link direct, la pile peut etre
+            vide — on retombe alors sur la route racine (gate d'auth). */}
         <TouchableOpacity
-          onPress={() => router.back()}
+          onPress={() => (router.canGoBack() ? router.back() : router.replace('/'))}
           style={styles.backBtn}
           hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
         >

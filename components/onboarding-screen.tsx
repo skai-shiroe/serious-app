@@ -3,6 +3,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Activity, ChevronRight, Heart, Shield } from 'lucide-react-native';
 import React, { useState } from 'react';
 import { Dimensions, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Image } from 'expo-image';
 import Animated, {
     LinearTransition,
     SlideInRight,
@@ -11,6 +12,10 @@ import Animated, {
 import { Button } from './ui/button';
 
 const { width } = Dimensions.get('window');
+
+// Wordmark Geno (foreground adaptif : blanc transparent) — la marque est
+// visible des la premiere slide de la premiere ouverture.
+const GENO_WORDMARK = require('@/assets/images/geno/android/res/mipmap-xxxhdpi/geno_foreground.png');
 
 interface OnboardingScreenProps {
     onComplete: () => void;
@@ -80,7 +85,12 @@ export function OnboardingScreen({ onComplete }: OnboardingScreenProps) {
                         start={{ x: 0, y: 0 }}
                         end={{ x: 1, y: 1 }}
                     >
-                        <Icon width={64} height={64} color="#ffffff" strokeWidth={1.5} />
+                        {/* Slide 1 = ecran de marque : wordmark Geno blanc. */}
+                        {currentSlide === 0 ? (
+                            <Image source={GENO_WORDMARK} style={styles.logoWordmark} contentFit="contain" />
+                        ) : (
+                            <Icon width={64} height={64} color="#ffffff" strokeWidth={1.5} />
+                        )}
                     </LinearGradient>
 
                     {/* Title */}
@@ -169,6 +179,10 @@ const styles = StyleSheet.create({
         shadowOpacity: 0.1,
         shadowRadius: 20,
         elevation: 8,
+    },
+    logoWordmark: {
+        width: 104,
+        height: 104,
     },
     title: {
         fontSize: 28,
