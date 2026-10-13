@@ -24,7 +24,7 @@
     },
     "web": {
       "output": "static",
-      "favicon": "./assets/images/geno/web/favicon.ico"
+      "favicon": "./assets/images/geno/web/icon-192.png"
     },
     "plugins": [
       "expo-dev-client",

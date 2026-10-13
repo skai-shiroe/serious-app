@@ -705,6 +705,22 @@ export default function ProfileScreen() {
           <Text style={[styles.outlineBtnText, { color: '#ef4444' }]}>Supprimer mon compte</Text>
         </TouchableOpacity>
 
+        {/* Liens légaux — exigence des stores : CGU et politique de
+            confidentialité accessibles depuis l'app. */}
+        <View style={styles.legalRow}>
+          <TouchableOpacity onPress={() => router.push('/legal/terms')} activeOpacity={0.7}>
+            <Text style={[styles.legalLink, { color: themeColors.textMuted }]}>
+              {"Conditions d'utilisation"}
+            </Text>
+          </TouchableOpacity>
+          <Text style={{ color: themeColors.textMuted }}>·</Text>
+          <TouchableOpacity onPress={() => router.push('/legal/privacy')} activeOpacity={0.7}>
+            <Text style={[styles.legalLink, { color: themeColors.textMuted }]}>
+              Confidentialité
+            </Text>
+          </TouchableOpacity>
+        </View>
+
       </ScrollView>
 
       {/* Visionneuse plein ecran des photos du profil */}
@@ -752,6 +768,8 @@ const styles = StyleSheet.create({
   btnText: { color: '#ffffff', fontSize: 16, fontWeight: 'bold', marginLeft: 8 },
   outlineBtn: { borderRadius: 28, paddingVertical: 16, borderWidth: 1, flexDirection: 'row', justifyContent: 'center', alignItems: 'center' },
   outlineBtnText: { fontSize: 16, fontWeight: '600', marginLeft: 8 },
+  legalRow: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 8, marginTop: 20, flexWrap: 'wrap' },
+  legalLink: { fontSize: 12, textDecorationLine: 'underline' },
   sectionHeader: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 16 },
   savedPostsScroll: { marginTop: 8 },
   savedPostCard: { width: 160, borderRadius: 16, overflow: 'hidden', marginRight: 12, borderWidth: 1, borderColor: 'rgba(0,0,0,0.05)' },

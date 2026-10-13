@@ -8,6 +8,7 @@ import * as AuthSession from 'expo-auth-session';
 import * as Linking from 'expo-linking';
 import { supabase } from '@/lib/supabase';
 import { completeAuthFromUrl } from '@/lib/auth-url';
+import { useRouter } from 'expo-router';
 
 WebBrowser.maybeCompleteAuthSession();
 
@@ -17,6 +18,7 @@ interface AuthScreenProps {
 
 export default function AuthScreen({ onComplete }: AuthScreenProps) {
   const [isLogin, setIsLogin] = useState(true);
+  const router = useRouter();
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
@@ -406,9 +408,9 @@ export default function AuthScreen({ onComplete }: AuthScreenProps) {
           {/* Terms */}
           <Text style={styles.termsText}>
             En continuant, vous acceptez nos{' '}
-            <Text style={styles.termsLink}>Conditions d&apos;utilisation</Text>
+            <Text style={styles.termsLink} onPress={() => router.push('/legal/terms')}>Conditions d&apos;utilisation</Text>
             {' '}et notre{' '}
-            <Text style={styles.termsLink}>Politique de confidentialité</Text>
+            <Text style={styles.termsLink} onPress={() => router.push('/legal/privacy')}>Politique de confidentialité</Text>
           </Text>
 
         </ScrollView>
