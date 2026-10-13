@@ -241,9 +241,9 @@ export default function AuthScreen({ onComplete }: AuthScreenProps) {
               contentFit="cover"
               accessibilityLabel="Geno"
             />
-            <Text style={[styles.title, { color: themeColors.text }]}>
-              Geno
-            </Text>
+            {/* <Text style={[styles.title, { color: themeColors.text }]}>
+              Trouvez plus qu’une rencontre. Trouvez une compatibilité
+            </Text> */}
             <Text style={[styles.subtitle, { color: themeColors.textMuted }]}>
               {isLogin ? 'Bienvenue de retour !' : 'Créez votre compte'}
             </Text>
@@ -262,7 +262,7 @@ export default function AuthScreen({ onComplete }: AuthScreenProps) {
                     styles.input, 
                     { backgroundColor: themeColors.inputBg, borderColor: themeColors.border, color: themeColors.text, paddingLeft: 40 }
                   ]}
-                  placeholder="votre@email.com"
+                  placeholder="votre@gmail.com"
                   placeholderTextColor={themeColors.icon}
                   value={formData.email}
                   onChangeText={(text) => setFormData({ ...formData, email: text })}
@@ -284,7 +284,7 @@ export default function AuthScreen({ onComplete }: AuthScreenProps) {
                       styles.input, 
                       { backgroundColor: themeColors.inputBg, borderColor: themeColors.border, color: themeColors.text, paddingLeft: 40 }
                     ]}
-                    placeholder="+33 6 12 34 56 78"
+                    placeholder="+228 90 10 20 30"
                     placeholderTextColor={themeColors.icon}
                     value={formData.phone}
                     onChangeText={(text) => setFormData({ ...formData, phone: text })}

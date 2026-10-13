@@ -16,7 +16,7 @@ export default function PrivacyScreen() {
         {
           heading: '1. Responsable de traitement',
           paragraphs: [
-            "Le responsable du traitement des données est [RAISON SOCIALE — à compléter], [siège social — à compléter]. Contact : [EMAIL DE CONTACT — à compléter].",
+            "Le responsable du traitement des données est la societe Geno Togo. Contact : mail@geno.com.",
           ],
         },
         {
@@ -66,14 +66,14 @@ export default function PrivacyScreen() {
         {
           heading: '8. Vos droits',
           paragraphs: [
-            "Vous disposez d'un droit d'accès, de rectification, d'effacement, de limitation et de portabilité de vos données, ainsi que d'un droit d'opposition. Exercez-les depuis l'écran Profil (suppression directe) ou par e-mail à [EMAIL DE CONTACT — à compléter].",
+            "Vous disposez d'un droit d'accès, de rectification, d'effacement, de limitation et de portabilité de vos données, ainsi que d'un droit d'opposition. Exercez-les depuis l'écran Profil (suppression directe) ou par e-mail à contact@geno.com.",
             "Vous pouvez également introduire une réclamation auprès de la CNIL (cnil.fr).",
           ],
         },
         {
           heading: '9. Contact',
           paragraphs: [
-            "Pour toute question relative à la confidentialité : [EMAIL DE CONTACT — à compléter].",
+            "Pour toute question relative à la confidentialité : contact@geno.com.",
           ],
         },
       ]}

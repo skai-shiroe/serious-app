@@ -16,7 +16,7 @@ export default function TermsScreen() {
         {
           heading: '1. Objet',
           paragraphs: [
-            "Les présentes conditions générales d'utilisation (« CGU ») régissent l'accès et l'utilisation de l'application Geno (« l'Application »), éditée par [RAISON SOCIALE — à compléter], [forme juridique] au capital de [montant] €, immatriculée au RCS de [ville] sous le numéro [n°], dont le siège social est situé [adresse] (« l'Éditeur »).",
+            "Les présentes conditions générales d'utilisation (« CGU ») régissent l'accès et l'utilisation de l'application Geno (« l'Application »), éditée par MiabeHub, SARL au capital de 1000 €, immatriculée au RCS de [ville] sous le numéro [n°], dont le siège social est situé [adresse] (« l'Éditeur »).",
             "En créant un compte et en utilisant l'Application, vous reconnaissez avoir lu et accepté les présentes CGU sans réserve.",
           ],
         },
@@ -66,7 +66,7 @@ export default function TermsScreen() {
           heading: '8. Droit applicable',
           paragraphs: [
             "Les présentes CGU sont soumises au droit français. En cas de litige, une résolution amiable sera recherchée avant toute action judiciaire.",
-            "Contact : [EMAIL DE CONTACT — à compléter]",
+            "Contact : contact@geno.com",
           ],
         },
       ]}
