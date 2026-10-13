@@ -230,7 +230,7 @@ export default function CoachingDetailScreen() {
     if (!post) return;
     try {
       await Share.share({
-        message: `${post.title}\n\n${post.content}\n\nDécouvrez plus de conseils sur Serious App !`,
+        message: `${post.title}\n\n${post.content}\n\nDécouvrez plus de conseils sur Geno !`,
       });
     } catch (error) {
       console.error(error);
