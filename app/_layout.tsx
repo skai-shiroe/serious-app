@@ -24,6 +24,7 @@ import {
   ScrollView,
   Modal,
   StyleSheet,
+  LogBox,
 } from 'react-native';
 import { Image } from 'expo-image';
 import {
@@ -71,6 +72,12 @@ import type { NotificationResponse } from '@/lib/push';
 // Le splash natif reste affiche jusqu a ce que l etat auth + profil soit connu :
 // evite tout clignotement entre l ecran de login, "Completer le profil" et l accueil.
 SplashScreen.preventAutoHideAsync().catch(() => {});
+
+// Bruit console benin emis par GoTrue au demarrage quand le refresh token
+// stocke localement est perime/revoque (compte supprime, deconnexion partielle,
+// session expiree). La session invalide est purgee par validateSession() ->
+// forgetSession() et l'utilisateur retombe sur l'ecran de connexion.
+LogBox.ignoreLogs(['Invalid Refresh Token', 'Refresh Token Not Found']);
 
 type ProfileStatus = 'unknown' | 'ready' | 'missing';
 
