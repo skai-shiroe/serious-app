@@ -50,6 +50,10 @@ google-services.json
 
 app-example
 
+# Supabase CLI : cache local (refs projet, versions) — jamais versionner,
+# le depot est public.
+supabase/.temp/
+
 # generated native folders
 /ios
 /android

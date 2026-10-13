@@ -27,7 +27,7 @@ export function IdentityVerifiedIcon({
 }
 
 /** Icone de certification complete (ambre), pour les listes compactes. */
-export function CertifiedIcon({ size = 16 }: { size?: number }) {
+export function CertifiedIcon({ size = 8 }: { size?: number }) {
   const isDark = useColorScheme() === 'dark';
   return <ShieldCheck color={isDark ? '#fbbf24' : '#b45309'} size={size} />;
 }

@@ -222,6 +222,30 @@ export default function ProfileScreen() {
    * L'Edge Function `delete-account` supprime les donnees puis auth.users ;
    * la session locale est videe uniquement si la suppression a reussi.
    */
+  /**
+   * `supabase.functions.invoke` ne remonte jamais le corps d'erreur de la
+   * fonction (message generique "non-2xx") : le detail ({ error, step })
+   * est dans `err.context` (Response selon la version du SDK). On lit ce
+   * corps en toute securite pour afficher l'etape fautive.
+   */
+  const readFunctionError = async (err: any): Promise<string> => {
+    try {
+      const ctx = err?.context;
+      if (!ctx) return err?.message || 'Impossible de supprimer le compte.';
+      const raw = typeof ctx?.json === 'function'
+        ? await ctx.json()
+        : typeof ctx === 'string'
+          ? JSON.parse(ctx)
+          : typeof ctx?.text === 'function'
+            ? JSON.parse(await ctx.text())
+            : ctx;
+      const msg = raw?.error || err?.message || 'Impossible de supprimer le compte.';
+      return raw?.step ? `${msg}\nÉtape : ${raw.step}` : msg;
+    } catch {
+      return err?.message || 'Impossible de supprimer le compte.';
+    }
+  };
+
   const handleDeleteAccount = () => {
     Alert.alert(
       'Supprimer mon compte',
@@ -236,7 +260,7 @@ export default function ProfileScreen() {
               const { error } = await supabase.functions.invoke('delete-account');
               if (error) throw error;
             } catch (err: any) {
-              Alert.alert('Erreur', err?.message || 'Impossible de supprimer le compte.');
+              Alert.alert('Erreur', await readFunctionError(err));
               return;
             }
             // Session viddee en local (scope local : pas d'appel serveur, qui

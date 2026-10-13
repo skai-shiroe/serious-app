@@ -6,6 +6,11 @@
 // peut evoluer, une table absente ne doit pas bloquer la suppression), puis
 // on supprime auth.users via la service role. Les tables de moderation
 // (user_blocks, user_reports) cascadent deja via leurs FK.
+//
+// Diagnostic : chaque echec repond { error, step } — `step` identifie
+// l'etape fautive (env / auth / fetch-matches / purge-<table> /
+// delete-auth-user). Les purges non-bloquantes sont retournees dans
+// `warnings` au lieu d'etre silencieusement ignorees.
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.0'
 
 const json = (body: unknown, status = 200) =>
@@ -13,6 +18,9 @@ const json = (body: unknown, status = 200) =>
     status,
     headers: { 'Content-Type': 'application/json' },
   })
+
+const fail = (step: string, message: string, status = 500) =>
+  json({ error: message, step }, status)
 
 Deno.serve(async (req: any) => {
   try {
@@ -27,43 +35,59 @@ Deno.serve(async (req: any) => {
 
     const supabaseUrl = Deno.env.get('SUPABASE_URL') ?? ''
     const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+    if (!supabaseUrl || !serviceKey) {
+      return fail('env', 'Variables d\'environnement manquantes (SUPABASE_URL / SERVICE_ROLE_KEY)', 500)
+    }
 
     // 1. Identite de l'appelant : le JWT du client, valide cote serveur.
+    //    getUser(token) EST obligatoire : sans argument, auth-js tente de
+    //    lire une session dans un stockage local absent sous Deno Edge
+    //    Runtime et echoue avec "Auth session missing!" sans meme appeler
+    //    le serveur.
     const authHeader = req.headers.get('Authorization') ?? ''
-    const asUser = createClient(supabaseUrl, serviceKey, {
-      global: { headers: { Authorization: authHeader } },
-    })
+    const token = authHeader.replace(/^Bearer\s+/i, '').trim()
+    if (!token) {
+      return fail('auth', 'Non authentifié', 401)
+    }
+    const asUser = createClient(supabaseUrl, serviceKey)
     const {
       data: { user },
       error: userError,
-    } = await asUser.auth.getUser()
+    } = await asUser.auth.getUser(token)
 
     if (userError || !user) {
-      return json({ error: 'Non authentifié' }, 401)
+      return fail('auth', userError?.message || 'Non authentifié', 401)
     }
 
     const uid = user.id
     const admin = createClient(supabaseUrl, serviceKey)
 
     // Best effort : on ignore les tables/colonnes absentes du schema actuel
-    // (code 42P01 table inexistante, PGRST204 colonne inconnue).
+    // (code 42P01 table inexistante, PGRST204 colonne inconnue). Les autres
+    // echecs sont collectes dans `warnings` pour visibilite cote client.
     const isBenign = (e: any) => e?.code === '42P01' || e?.code === 'PGRST204'
+    const warnings: string[] = []
     const drop = async (table: string, apply: (q: any) => any) => {
       try {
         const { error } = await apply(admin.from(table).delete())
         if (error && !isBenign(error)) {
           console.warn(`[delete-account] ${table}:`, error.message)
+          warnings.push(`${table}: ${error.message}`)
         }
       } catch (e) {
         console.warn(`[delete-account] ${table}:`, (e as any)?.message)
+        warnings.push(`${table}: ${(e as any)?.message}`)
       }
     }
 
     // Conversations de l'utilisateur : leurs messages partent avec.
-    const { data: matches } = await admin
+    const { data: matches, error: matchesError } = await admin
       .from('matches')
       .select('id')
       .or(`user_id_1.eq.${uid},user_id_2.eq.${uid}`)
+    if (matchesError) {
+      return fail('fetch-matches', matchesError.message)
+    }
     const matchIds = (matches || []).map((m: any) => m.id)
 
     if (matchIds.length > 0) {
@@ -87,12 +111,12 @@ Deno.serve(async (req: any) => {
     //    (s'il en existe) cascade ; sinon les lignes sont deja parties.
     const { error: deleteError } = await admin.auth.admin.deleteUser(uid)
     if (deleteError) {
-      return json({ error: deleteError.message }, 500)
+      return fail('delete-auth-user', deleteError.message)
     }
 
-    return json({ ok: true })
+    return json({ ok: true, warnings })
   } catch (e) {
     console.error('[delete-account]', e)
-    return json({ error: (e as any)?.message || 'Erreur inattendue' }, 500)
+    return fail('unhandled', (e as any)?.message || 'Erreur inattendue')
   }
 })
