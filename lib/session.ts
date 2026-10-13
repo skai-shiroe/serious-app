@@ -135,20 +135,12 @@ export async function validateSession(): Promise<User | null> {
     }
 
     if (isSessionInvalid(error)) {
-      console.warn(
-        '[Session] session invalide cote serveur (compte supprime ?) : deconnexion locale'
-      );
       await forgetSession();
       return null;
     }
 
-    console.warn(
-      '[Session] validation impossible, session locale conservee :',
-      error?.message || error
-    );
     return currentUser;
-  } catch (error) {
-    console.warn('[Session] validation impossible, session locale conservee :', error);
+  } catch {
     return currentUser;
   }
 }

@@ -32,8 +32,7 @@ export default function EditProfileScreen() {
 
       if (error) throw error;
       setProfileData(data);
-    } catch (error) {
-      console.log('Error fetching profile for edit', error);
+    } catch {
       router.back();
     } finally {
       setLoading(false);

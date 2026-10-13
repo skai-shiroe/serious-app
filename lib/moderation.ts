@@ -40,9 +40,7 @@ export async function fetchBlockedIds(userId: string): Promise<Set<string>> {
       if (row.user_id === userId) blocked.add(row.blocked_user_id);
       else blocked.add(row.user_id);
     }
-  } catch (error) {
-    console.warn('[Moderation] lecture des blocages impossible :', (error as any)?.message || error);
-  }
+  } catch {}
   return blocked;
 }
 

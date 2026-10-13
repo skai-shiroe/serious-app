@@ -51,7 +51,7 @@ Deno.serve(async (req: any) => {
     }
 
     if (notifications.length > 0) {
-      const res = await fetch('https://exp.host/--/api/v2/push/send', {
+      await fetch('https://exp.host/--/api/v2/push/send', {
         method: 'POST',
         headers: {
           'Accept': 'application/json',
@@ -60,7 +60,6 @@ Deno.serve(async (req: any) => {
         },
         body: JSON.stringify(notifications),
       })
-      console.log('Réponse Expo API:', await res.json())
     }
 
     return new Response(JSON.stringify({ success: true, count: notifications.length }), {

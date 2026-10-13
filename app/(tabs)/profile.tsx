@@ -98,9 +98,8 @@ export default function ProfileScreen() {
         };
       });
       setVerifState(latest);
-    } catch (e) {
+    } catch {
       // Indicateur purement informatif : un echec ne doit rien bloquer ici.
-      console.log('Error fetching verifications', e);
     }
   };
 
@@ -126,8 +125,7 @@ export default function ProfileScreen() {
           ? `${data.first_name || ''} ${data.last_name || ''}`.trim()
           : (user.user_metadata?.full_name || user.user_metadata?.name || user.email?.split('@')[0] || 'Utilisateur'),
       });
-    } catch (error: any) {
-      console.log('Error fetching profile', error);
+    } catch {
       setProfileError(
         'Impossible de charger votre profil. Vérifiez votre connexion puis réessayez.'
       );
@@ -155,8 +153,7 @@ export default function ProfileScreen() {
       // On filtre pour ne garder que les posts qui existent encore
       const posts = data?.map(f => f.coaching_posts).filter(p => p !== null) || [];
       setSavedPosts(posts);
-    } catch (error) {
-      console.log('Error fetching saved posts', error);
+    } catch {
       setSavedError('Conseils enregistrés indisponibles.');
     }
   };
@@ -199,9 +196,8 @@ export default function ProfileScreen() {
           };
         })
       );
-    } catch (error) {
+    } catch {
       // Section silencieuse : un echec ici ne doit pas casser l'ecran Profil.
-      console.log('Error fetching blocked list', error);
     }
   };
 

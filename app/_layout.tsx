@@ -515,13 +515,11 @@ export default function RootLayout() {
           .update({ push_token: expoPushToken })
           .eq('user_id', user.id);
       }
-    } catch (e) {
-      console.log("Erreur sauvegarde token:", e);
-    }
+    } catch {}
   };
 
   const registerForPushNotificationsAsync = async () => {
-    // Sous Expo Go : no-op avec log (voir lib/push.ts).
+    // Sous Expo Go : no-op silencieux (voir lib/push.ts).
     await registerPushToken(savePushToken);
   };
 
@@ -671,8 +669,7 @@ export default function RootLayout() {
         setIsAuthenticated(true);
         checkProfile(user.id);
       }
-    } catch (e) {
-      console.log(e);
+    } catch {
     } finally {
       setIsReady(true);
     }
@@ -700,14 +697,12 @@ export default function RootLayout() {
         return;
       }
 
-      console.warn(`[AuthFlow] checkProfile echec (${attempt}/2) : ${error.message}`);
       await new Promise((resolve) => setTimeout(resolve, 400 * attempt));
     }
 
     // 3) Reseau toujours muet : sans cache, on laisse l'utilisateur entrer plutot
     //    que de lui imposer a tort l'ecran "Completer le profil".
     if (cached === null) {
-      console.warn('[AuthFlow] statut profil indetermine -> acces autorise');
       setProfileStatus('ready');
     }
   };

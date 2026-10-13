@@ -112,8 +112,7 @@ export default function VerificationScreen() {
       if (hasUnseen) {
         await supabase.rpc('mark_verifications_seen');
       }
-    } catch (error: any) {
-      console.warn('[Verification] chargement impossible', error?.message || error);
+    } catch {
       setLoadError(
         'Impossible de charger vos vérifications. Vérifiez votre connexion puis réessayez.'
       );
@@ -157,8 +156,7 @@ export default function VerificationScreen() {
       if (error) throw error;
 
       setSlot(type, index, { uri: localUri, path, status: 'ready' });
-    } catch (error: any) {
-      console.warn('[Verification] envoi du document impossible', error?.message || error);
+    } catch {
       setSlot(type, index, { uri: localUri, status: 'error' });
       Alert.alert('Envoi impossible', "Le document n'a pas pu être envoyé. Réessayez.");
     }

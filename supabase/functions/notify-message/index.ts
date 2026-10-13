@@ -40,7 +40,7 @@ Deno.serve(async (req: any) => {
     const recipientProfile = (profiles as any[]).find((p: any) => p.user_id === recipientId)
 
     if (recipientProfile?.push_token) {
-      const res = await fetch('https://exp.host/--/api/v2/push/send', {
+      await fetch('https://exp.host/--/api/v2/push/send', {
         method: 'POST',
         headers: {
           'Accept': 'application/json',
@@ -55,8 +55,6 @@ Deno.serve(async (req: any) => {
         }),
       })
 
-      console.log('Réponse Expo API:', await res.json())
-      
       return new Response(JSON.stringify({ success: true, notified: true }), {
         headers: { "Content-Type": "application/json" },
       })

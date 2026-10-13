@@ -78,8 +78,7 @@ export default function CoachingDetailScreen() {
 
       if (error) throw error;
       setPost(data);
-    } catch (error) {
-      console.error('Error fetching post:', error);
+    } catch {
     } finally {
       setLoading(false);
     }
@@ -115,8 +114,7 @@ export default function CoachingDetailScreen() {
         .eq('user_id', user.id);
       
       setIsFavorite(favData ? favData.length > 0 : false);
-    } catch (error) {
-      console.error('Error fetching interactions:', error);
+    } catch {
     }
   };
 
@@ -139,8 +137,7 @@ export default function CoachingDetailScreen() {
 
       if (error) throw error;
       setComments(data || []);
-    } catch (error) {
-      console.error('Error fetching comments:', error);
+    } catch {
     }
   };
 
@@ -166,8 +163,7 @@ export default function CoachingDetailScreen() {
         setLikesCount(prev => prev + 1);
       }
       setIsLiked(!isLiked);
-    } catch (error) {
-      console.error('Error toggling like:', error);
+    } catch {
     }
   };
 
@@ -191,8 +187,7 @@ export default function CoachingDetailScreen() {
           .insert({ post_id: id, user_id: user.id });
       }
       setIsFavorite(!isFavorite);
-    } catch (error) {
-      console.error('Error toggling favorite:', error);
+    } catch {
     }
   };
 
@@ -232,9 +227,7 @@ export default function CoachingDetailScreen() {
       await Share.share({
         message: `${post.title}\n\n${post.content}\n\nDécouvrez plus de conseils sur Geno !`,
       });
-    } catch (error) {
-      console.error(error);
-    }
+    } catch {}
   };
 
   const getCategoryTheme = (category: string) => {

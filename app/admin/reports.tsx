@@ -152,8 +152,7 @@ export default function AdminReportsScreen() {
           reportCount: counts.get(report.reported_user_id) || 1,
         }))
       );
-    } catch (error: any) {
-      console.warn('[Admin] chargement des signalements impossible', error?.message || error);
+    } catch {
       setLoadError(
         'Impossible de charger les signalements. Vérifiez votre connexion puis réessayez.'
       );

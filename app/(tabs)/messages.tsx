@@ -147,9 +147,6 @@ export default function MessagesScreen() {
       if (!rpcError && rpcData) {
         lastMessages = rpcData;
       } else {
-        if (rpcError) {
-          console.warn('[Messages] RPC get_last_messages indisponible :', rpcError.message);
-        }
         lastMessages = await Promise.all(
           matchIds.map(async (matchId) => {
             const { data } = await supabase
@@ -200,8 +197,7 @@ export default function MessagesScreen() {
 
       // Avatars precharges en memoire : la liste s'affiche sans flash gris
       prefetchImages(visibleConvs.map((c) => c.otherUser.photos?.[0]));
-    } catch (error) {
-      console.error('Error fetching conversations:', error);
+    } catch {
       setLoadError(
         'Impossible de charger vos conversations. Vérifiez votre connexion puis réessayez.'
       );

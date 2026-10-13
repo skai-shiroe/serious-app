@@ -246,9 +246,7 @@ export default function ProfileCreation({ onComplete, initialData }: ProfileCrea
   const removeStoredPhoto = async (path: string) => {
     try {
       await supabase.storage.from('avatars').remove([path]);
-    } catch (error) {
-      console.warn('[Profil] ancienne photo non supprimée', path, error);
-    }
+    } catch {}
   };
 
   /**
@@ -297,8 +295,7 @@ export default function ProfileCreation({ onComplete, initialData }: ProfileCrea
         if (storedPath) void removeStoredPhoto(storedPath);
 
         return { index, url: data.publicUrl };
-      } catch (error: any) {
-        console.warn(`[Profil] envoi photo ${index} échoué :`, error?.message || error);
+      } catch {
         // On garde le base64 pour ce seul emplacement : "Réessayer" ne
         // repassera pas par la galerie.
         setPhotos((prev) => {

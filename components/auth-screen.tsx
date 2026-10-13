@@ -129,8 +129,6 @@ export default function AuthScreen({ onComplete }: AuthScreenProps) {
         scheme: 'seriousapp',
         path: 'auth-callback',
       });
-      console.log('[OAuth] redirectTo =', redirectUrl, '| flow = pkce');
-
       const { data, error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
@@ -143,12 +141,10 @@ export default function AuthScreen({ onComplete }: AuthScreenProps) {
       if (!data?.url) return;
 
       const result = await WebBrowser.openAuthSessionAsync(data.url, redirectUrl);
-      console.log('[OAuth] resultat =', result.type, (result as any).url || '');
 
       if (result.type === 'cancel' || result.type === 'dismiss') {
         // Fenetre fermee : si le deep link est deja passe par le listener
         // Linking, la session est etablie et onComplete a ete appele la-bas.
-        console.log('Fenetre Google fermee (deep link traite par le listener)');
         return;
       }
 

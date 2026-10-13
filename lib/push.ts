@@ -39,7 +39,6 @@ export function isPushSupported(): boolean {
 /** A appeler une fois au demarrage (remplace le setNotificationHandler top-level). */
 export function setupNotificationHandler(): void {
   if (Notifications == null) {
-    console.log('[Push] expo-notifications indisponible (Expo Go) : push desactives.');
     return;
   }
   Notifications.setNotificationHandler({
@@ -92,7 +91,6 @@ export async function registerPushToken(
   savePushToken: (token: string) => Promise<void>
 ): Promise<void> {
   if (!isPushSupported() || Notifications == null) {
-    console.log('[Push] enregistrement du token ignore (Expo Go ou emulateur).');
     return;
   }
   const { status: existingStatus } = await Notifications.getPermissionsAsync();
@@ -102,7 +100,6 @@ export async function registerPushToken(
     finalStatus = status;
   }
   if (finalStatus !== 'granted') {
-    console.log('Permission de notification refusee.');
     return;
   }
   try {
@@ -112,19 +109,13 @@ export async function registerPushToken(
     if (projectId) {
       token = (await Notifications.getExpoPushTokenAsync({ projectId })).data;
     } else {
-      console.warn(
-        "projectId EAS introuvable dans expoConfig.extra.eas : utilisation du mode par defaut."
-      );
       token = (await Notifications.getExpoPushTokenAsync()).data;
     }
     if (token) {
       await savePushToken(token);
       return;
     }
-    console.log('Aucun token push obtenu.');
-  } catch (e) {
-    console.log('Erreur lors de la récupération du token push:', e);
-  }
+  } catch {}
 }
 
 type RouteFn = (response: NotificationsType.NotificationResponse | null) => void;
@@ -139,7 +130,6 @@ export function subscribeNotificationRouting(
   markReady: () => void
 ): () => void {
   if (Notifications == null) {
-    console.log('[Push] routage des notifications desactive (Expo Go).');
     markReady();
     return () => {};
   }

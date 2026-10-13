@@ -140,8 +140,7 @@ export default function AdminVerificationsScreen() {
       );
 
       setItems(enriched);
-    } catch (error: any) {
-      console.warn('[Admin] chargement des demandes impossible', error?.message || error);
+    } catch {
       setLoadError(
         'Impossible de charger les demandes. Vérifiez votre connexion puis réessayez.'
       );

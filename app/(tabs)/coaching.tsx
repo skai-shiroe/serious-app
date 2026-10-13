@@ -76,8 +76,7 @@ export default function CoachingScreen() {
 
       if (error) throw error;
       setPosts(data || []);
-    } catch (error) {
-      console.error('Error fetching coaching posts:', error);
+    } catch {
       setLoadError(
         'Impossible de charger les conseils. Vérifiez votre connexion puis réessayez.'
       );
@@ -103,8 +102,7 @@ export default function CoachingScreen() {
 
       if (error) throw error;
       setUserRole(data.role);
-    } catch (error) {
-      console.error('Error fetching user role:', error);
+    } catch {
     } finally {
       setRoleLoading(false);
     }
@@ -192,12 +190,10 @@ export default function CoachingScreen() {
         : await supabase.from('coaching_posts').insert([row]);
 
       if (error?.code === '42703' && author) {
-        console.warn('[Coaching] colonne user_id absente (bloc SQL 6 non colle) : insertion sans auteur');
         ({ error } = await supabase.from('coaching_posts').insert([row]));
       }
 
       if (error) {
-        console.error('Erreur insertion Supabase:', error);
         throw new Error(error.message);
       }
 
@@ -206,7 +202,6 @@ export default function CoachingScreen() {
       setNewPost({ title: '', content: '', category: 'couple', image_url: '' });
       fetchPosts();
     } catch (error: any) {
-      console.error('Erreur complète:', error);
       const errorMessage = error.message || 'Impossible d\'ajouter le conseil';
       Alert.alert('Erreur', `Détails : ${errorMessage}`);
     } finally {

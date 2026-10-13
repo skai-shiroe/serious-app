@@ -64,7 +64,6 @@ Deno.serve(async (req: any) => {
       })
       
       const responseJson = await res.json()
-      console.log('Réponse Expo API pour le lot:', responseJson)
       // Si la requête globale est réussie, l'API renvoie { data: [...] }
       if (responseJson.data) {
         successCount += responseJson.data.length

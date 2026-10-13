@@ -188,8 +188,7 @@ export default function MatchScreen() {
       setProfiles(filtered);
       setCurrentIndex(0);
       setCurrentPhotoIndex(0);
-    } catch (error) {
-      console.log('Error fetching potential matches', error);
+    } catch {
       setLoadError(
         'Impossible de charger les profils. Vérifiez votre connexion puis réessayez.'
       );
@@ -243,8 +242,7 @@ export default function MatchScreen() {
       if (more.length > 0) {
         setProfiles((prev) => [...prev, ...more]);
       }
-    } catch (error) {
-      console.log('Error fetching more profiles', error);
+    } catch {
     } finally {
       loadingMoreRef.current = false;
     }
@@ -327,9 +325,7 @@ export default function MatchScreen() {
             });
           }
         }
-      } catch (err) {
-        console.error('Background swipe error:', err);
-      }
+      } catch {}
     })();
   };
 

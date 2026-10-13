@@ -273,11 +273,6 @@ export async function fetchCandidateProfiles(options: {
       const message = String(error?.message || '');
       if (error?.code === 'PGRST202' || message.includes('get_candidate_profiles')) {
         rpcMissing = true;
-        console.warn(
-          '[Candidates] RPC get_candidate_profiles absente de la base : repli client actif (voir README, section SQL).'
-        );
-      } else {
-        console.warn('[Candidates] RPC indisponible, repli client :', message);
       }
     }
   }

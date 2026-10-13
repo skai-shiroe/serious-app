@@ -180,15 +180,13 @@ export default function ChatScreen() {
           .eq('match_id', matchId)
           .neq('sender_id', user.id)
           .eq('read', false)
-          .then(({ error: readError }) => {
-            if (readError) console.warn('[Chat] marquage en lu:', readError.message);
+          .then(() => {
             // Le badge non-lus de l'onglet Messages se met a jour tout de
             // suite (l'UPDATE realtime de la table messages n'est pas
             // toujours dans la publication Supabase).
             notifyUnreadChanged();
           });
-      } catch (err) {
-        console.error('Error initializing chat:', err);
+      } catch {
         setLoadError(
           'Impossible de charger la conversation. Vérifiez votre connexion puis réessayez.'
         );
@@ -293,9 +291,7 @@ export default function ChatScreen() {
         .maybeSingle();
       if (error) throw error;
       if (data) updateProfileSheet(data);
-    } catch (err) {
-      console.warn('[Chat] chargement fiche profil:', err);
-    }
+    } catch {}
   };
 
   const handleSend = async () => {
@@ -324,9 +320,7 @@ export default function ChatScreen() {
           prev.some((m) => m.id === data.id) ? prev : [...prev, data]
         );
       }
-    } catch (err) {
-      console.error('Error sending message:', err);
-    }
+    } catch {}
   };
 
   const renderBubble = ({ item }: { item: Message }) => {
