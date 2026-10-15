@@ -24,6 +24,7 @@ import { Gesture, GestureDetector, GestureHandlerRootView } from 'react-native-g
 import Animated, { useAnimatedStyle, useSharedValue, withSpring, runOnJS, interpolate, Extrapolation, withTiming, FadeIn, FadeOut, ZoomIn } from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useProfileSheet } from '@/contexts/ProfileSheetContext';
+import { useRouter } from 'expo-router';
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 const SWIPE_THRESHOLD = SCREEN_WIDTH * 0.3;
@@ -65,6 +66,7 @@ export default function MatchScreen() {
   const [cityModalVisible, setCityModalVisible] = useState(false);
 
   const { openProfileSheet } = useProfileSheet();
+  const router = useRouter();
   const colorScheme = useColorScheme();
   const isDark = colorScheme === 'dark';
 
@@ -321,7 +323,10 @@ export default function MatchScreen() {
             Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
             setShowMatch({
               me: currentUser,
-              partner: swipedProfile
+              partner: swipedProfile,
+              // Id du match (recupere juste au-dessus) : indispensable pour
+              // ouvrir directement la conversation depuis la modale.
+              matchId: matchData.id
             });
           }
         }
@@ -728,7 +733,29 @@ export default function MatchScreen() {
                 </View>
               </View>
 
-              <TouchableOpacity style={styles.matchMessageBtn} onPress={() => setShowMatch(null)}>
+              {/* Ouvre la conversation du match (l ancien code fermait juste). */}
+              <TouchableOpacity
+                style={styles.matchMessageBtn}
+                onPress={() => {
+                  const target = showMatch;
+                  setShowMatch(null);
+                  if (!target?.matchId || !target.partner) return;
+                  router.push({
+                    pathname: '/chat/[id]',
+                    params: {
+                      id: target.matchId,
+                      partnerUserId: target.partner.user_id,
+                      partnerName: target.partner.first_name,
+                      partnerPhotos: JSON.stringify(target.partner.photos || []),
+                      partnerVerified: isFullyVerified(target.partner)
+                        ? 'full'
+                        : target.partner.identity_verified
+                          ? 'id'
+                          : 'none',
+                    },
+                  });
+                }}
+              >
                 <Text style={styles.matchMessageText}>Envoyer un message</Text>
               </TouchableOpacity>
 
