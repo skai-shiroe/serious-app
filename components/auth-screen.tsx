@@ -134,9 +134,6 @@ export default function AuthScreen({ onComplete }: AuthScreenProps) {
     setLoading(true);
     try {
       const redirectUrl = getAuthRedirectUrl();
-      // TEMP : a retirer apres diagnostic (permet de copier l'URL exacte a
-      // declarer dans Supabase > Authentication > URL Configuration).
-      console.info('[Auth] redirectUrl =', redirectUrl);
       const { data, error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
