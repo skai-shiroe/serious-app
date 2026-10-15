@@ -13,6 +13,14 @@ import { useRouter } from 'expo-router';
 
 WebBrowser.maybeCompleteAuthSession();
 
+// URL de retour OAuth / lien email. On ne FORCE jamais `scheme` :
+// makeRedirectUri choisit le bon schema selon l'environnement —
+//   Expo Go             -> exp://<host>:<port>/--/auth-callback
+//   dev build / preview -> seriousapp://auth-callback (schema de app.json)
+// Forcer 'seriousapp' produisait, dans Expo Go sur iOS, une URL que Safari ne
+// sait pas ouvrir : « Safari ne peut pas ouvrir la page ... ».
+const getAuthRedirectUrl = () => AuthSession.makeRedirectUri({ path: 'auth-callback' });
+
 interface AuthScreenProps {
   onComplete: () => void;
 }
@@ -125,10 +133,10 @@ export default function AuthScreen({ onComplete }: AuthScreenProps) {
   const handleGoogleAuth = async () => {
     setLoading(true);
     try {
-      const redirectUrl = AuthSession.makeRedirectUri({
-        scheme: 'seriousapp',
-        path: 'auth-callback',
-      });
+      const redirectUrl = getAuthRedirectUrl();
+      // TEMP : a retirer apres diagnostic (permet de copier l'URL exacte a
+      // declarer dans Supabase > Authentication > URL Configuration).
+      console.info('[Auth] redirectUrl =', redirectUrl);
       const { data, error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
@@ -189,7 +197,11 @@ export default function AuthScreen({ onComplete }: AuthScreenProps) {
 
     setLoading(true);
     try {
-      const { error } = await supabase.auth.resetPasswordForEmail(formData.email);
+      const { error } = await supabase.auth.resetPasswordForEmail(formData.email, {
+        // Meme redirect que l'OAuth : le lien email doit revenir dans l'app
+        // (sinon Safari retombe sur le Site URL et echoue).
+        redirectTo: getAuthRedirectUrl(),
+      });
       if (error) throw error;
       Alert.alert(
         'Email envoyé',

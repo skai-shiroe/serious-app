@@ -95,7 +95,7 @@ Ces URLs doivent être déclarées dans **Supabase → Authentication → URL Co
 
 ```
 seriousapp://auth-callback
-exp+seriousapp://auth-callback
+exp://**/--/auth-callback
 http://localhost:8081/**
 http://192.168.1.237:8081/**
 http://localhost:8083/**
@@ -108,8 +108,11 @@ Et dans **Google Cloud Console → Identifiants OAuth → Authorized redirect UR
 https://<PROJECT_REF>.supabase.co/auth/v1/callback
 ```
 
-> `seriousapp://auth-callback` est l'URL utilisée par les builds natifs (dev build / production),
-> `exp+seriousapp://auth-callback` par Expo Go, et les URLs `http://...` servent au développement web.
+> `seriousapp://auth-callback` est l'URL utilisée par les builds natifs (dev build / preview / production).
+> Sur **Expo Go (SDK 57)**, `makeRedirectUri()` produit `exp://<IP_METRO>:<PORT>/--/auth-callback`
+> (l'ancien format `exp+seriousapp://` n'existe plus). L'URL exacte du moment s'affiche dans Metro
+> au clic sur « Continuer avec Google » : `[Auth] redirectUrl = ...` — collez-la aussi dans la whitelist.
+> Les URLs `http://...` servent au développement web.
 
 ## 📲 Development Build (sans Expo Go)
 
