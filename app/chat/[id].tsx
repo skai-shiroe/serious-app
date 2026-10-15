@@ -134,6 +134,16 @@ export default function ChatScreen() {
     at: 0,
     event: 'stop',
   });
+  // Vrai des que le canal de frappe est rejoint (envoi mis en tampon avant).
+  const typingJoinedRef = useRef(false);
+  // Dernier evenement de frappe a envoyer des que le canal est rejoint.
+  const pendingTypingRef = useRef<'typing' | 'stop' | null>(null);
+  // Dernier created_at connu : borne du polling de rattrapage (voir effet).
+  // Vide tant que l'init n'a pas fixe la borne (le tick saute dans ce cas).
+  const lastKnownTsRef = useRef<string>('');
+  // Ids envoyes localement + horodatage : le tick ne doit PAS conclure
+  // « lu » sur un message dont l'insert serveur est peut-etre encore en vol.
+  const recentlySentRef = useRef<Map<string, number>>(new Map());
 
   const themeColors = {
     text: isDark ? '#ffffff' : '#111827',
@@ -150,6 +160,12 @@ export default function ChatScreen() {
     const channel = typingChannelRef.current;
     if (!channel) return;
     lastTypingSentRef.current = { at: Date.now(), event };
+    // Canal pas encore rejoint : on memorise, l'evenement partira au
+    // SUBSCRIBED plutot que de reposer sur un envoi REST fragile.
+    if (!typingJoinedRef.current) {
+      pendingTypingRef.current = event;
+      return;
+    }
     void channel.send({
       type: 'broadcast',
       event,
@@ -222,6 +238,13 @@ export default function ChatScreen() {
 
         // Reçu du plus récent au plus ancien : on remet dans l'ordre du chat.
         setMessages((history || []).slice().reverse());
+        // Borne du polling de rattrapage : seul le « neuf » sera interroge
+        // (history est triee desc => [0] est le plus recent). Conversation
+        // vide : on part de maintenant - 60 s pour ne rien rater.
+        lastKnownTsRef.current =
+          history && history.length
+            ? history[0].created_at
+            : new Date(Date.now() - 60000).toISOString();
 
         // 2. Récupérer le profil du partenaire
         const partnerId = match.user_id_1 === user.id ? match.user_id_2 : match.user_id_1;
@@ -279,6 +302,9 @@ export default function ChatScreen() {
         setMessages(prev =>
           prev.some(m => m.id === newMessage.id) ? prev : [...prev, newMessage]
         );
+        if (new Date(newMessage.created_at).getTime() > new Date(lastKnownTsRef.current).getTime()) {
+          lastKnownTsRef.current = newMessage.created_at;
+        }
         
         // Message du partenaire : il n'est plus en train d'ecrire, et mes
         // messages en attente sont considers remis (2 coches grises).
@@ -293,27 +319,32 @@ export default function ChatScreen() {
             .then(() => notifyUnreadChanged());
         }
       })
-      .on('postgres_changes', {
-        // Changement d'etat de lecture cote partenaire (read=false -> true).
-        // Si la publication Supabase n'inclut pas les UPDATE, le fallback
-        // AppState ci-dessous rattrape l'ecart au retour au premier plan.
-        event: 'UPDATE',
-        schema: 'public',
-        table: 'messages',
-        filter: `match_id=eq.${matchId}`,
-      }, (payload) => {
-        const updated = payload.new as Message;
-        if (!updated?.id) return;
-        setMessages((prev) =>
-          prev.map((m) =>
-            m.id === updated.id
-              ? { ...m, read: updated.read, delivered: updated.read || m.delivered }
-              : m
-          )
-        );
-        notifyUnreadChanged();
-      })
       .subscribe();
+
+      // Canal SEPARE pour les changements de lecture : si le serveur refuse
+      // le binding UPDATE (publication Supabase), seule cette connexion
+      // tombe — l'INSERT des messages entrants (canal ci-dessus) continue.
+      // Le polling de rattrapage ci-dessous couvre le reste.
+      const readChannel = supabase
+        .channel(`chat-read:${matchId}`)
+        .on('postgres_changes', {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'messages',
+          filter: `match_id=eq.${matchId}`,
+        }, (payload) => {
+          const updated = payload.new as Message;
+          if (!updated?.id) return;
+          setMessages((prev) =>
+            prev.map((m) =>
+              m.id === updated.id
+                ? { ...m, read: updated.read, delivered: updated.read || m.delivered }
+                : m
+            )
+          );
+          notifyUnreadChanged();
+        })
+        .subscribe();
 
     // Fallback realtime : re-synchrone l'historique au retour au premier plan
     // (certains UPDATE realtime ont pu etre manques pendant l'arriere-plan).
@@ -342,6 +373,7 @@ export default function ChatScreen() {
     return () => {
       appStateSubscription.remove();
       supabase.removeChannel(channel);
+      supabase.removeChannel(readChannel);
     };
     // Deps SANS currentUser : setCurrentUser(user) declenchait une seconde
     // passe complete de l'init (double requetes + double abonnement realtime).
@@ -407,7 +439,21 @@ export default function ChatScreen() {
         if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
         setPartnerTyping(false);
       })
-      .subscribe();
+      .subscribe((status) => {
+        typingJoinedRef.current = status === 'SUBSCRIBED';
+        if (status !== 'SUBSCRIBED') return;
+        // Un evenement de frappe a ete mis en tampon pendant la jointure :
+        // on le part maintenant que le canal est ouvert.
+        const pending = pendingTypingRef.current;
+        pendingTypingRef.current = null;
+        if (pending) {
+          void channel.send({
+            type: 'broadcast',
+            event: pending,
+            payload: { user_id: currentUserRef.current?.id ?? '' },
+          });
+        }
+      });
     typingChannelRef.current = channel;
 
     return () => {
@@ -433,6 +479,114 @@ export default function ChatScreen() {
     });
     return () => sub.remove();
   }, []);
+
+  // Fallback de lecture toutes les 3 s : la realtime (postgres_changes) peut
+  // manquer un INSERT (reseau, publication Supabase mal configuree). Ce
+  // polling ne recupere QUE le neuf (borne lastKnownTsRef) : les messages
+  // arrivent au pire 3 s plus tard sans avoir a sortir et rentrer du chat.
+  // Le passage a « lu » (coches bleues) est detecte par la disparition de
+  // l'id dans la liste de mes messages encore non lus cote serveur.
+  useEffect(() => {
+    if (!matchId) return;
+    let cancelled = false;
+    let inFlight = false;
+
+    const tick = async () => {
+      if (inFlight) return;
+      // Borne pas encore posee par l'init (ou init en echec) : on saute.
+      if (!lastKnownTsRef.current) return;
+      inFlight = true;
+      try {
+        const myId = currentUserRef.current?.id;
+        if (!myId) return;
+        // gt= est insensible au format PostgREST : on passe l'ISO brut.
+        const [news, myUnread] = await Promise.all([
+          supabase
+            .from('messages')
+            .select('*')
+            .eq('match_id', matchId)
+            .gt('created_at', lastKnownTsRef.current)
+            .order('created_at', { ascending: true }),
+          supabase
+            .from('messages')
+            .select('id')
+            .eq('match_id', matchId)
+            .eq('sender_id', myId)
+            .eq('read', false),
+        ]);
+        if (cancelled) return;
+
+        const rows = (news.data ?? []) as Message[];
+        const stillUnreadIds = new Set((myUnread.data ?? []).map((r) => r.id));
+
+        // Nouveaux messages (partenaire OU soi, si realtime rate l'envoi).
+        if (rows.length) {
+          lastKnownTsRef.current = rows[rows.length - 1].created_at;
+          setMessages((prev) => {
+            let next = prev;
+            for (const row of rows) {
+              if (!prev.some((m) => m.id === row.id)) {
+                next = [...next, row];
+              }
+            }
+            return next;
+          });
+          const fromPartner = rows.filter((r) => r.sender_id !== myId);
+          if (fromPartner.length) {
+            // Conversation ouverte : le message est lu des son arrivee.
+            supabase
+              .from('messages')
+              .update({ read: true })
+              .eq('match_id', matchId)
+              .neq('sender_id', myId)
+              .eq('read', false)
+              .then(() => notifyUnreadChanged());
+          }
+        }
+
+        // Mes messages : ceux qui n'apparaissent plus dans stillUnreadIds
+        // viennent d'etre lus par le partenaire -> coches bleues (UPDATE
+        // realtime ou pas).
+        setMessages((prev) => {
+          let changed = false;
+          const next = prev.map((m) => {
+            if (m.sender_id !== myId || m.read) return m;
+            // Envoi recent : l'insert serveur est peut-etre encore en vol
+            // (le message n'existerait pas encore dans stillUnreadIds).
+            // On ne conclut pas avant 5 s.
+            const sentAt = recentlySentRef.current.get(m.id);
+            if (sentAt !== undefined) {
+              if (Date.now() - sentAt <= 5000) return m;
+              recentlySentRef.current.delete(m.id);
+            }
+            if (!stillUnreadIds.has(m.id)) {
+              changed = true;
+              return { ...m, read: true, delivered: true };
+            }
+            return m;
+          });
+          return changed ? next : prev;
+        });
+      } catch {
+        // Best effort : le tick suivant reessaie.
+      } finally {
+        inFlight = false;
+      }
+    };
+
+    const interval = setInterval(() => { void tick(); }, 3000);
+    // Un retour au premier plan doit rattraper IMMEDIATEMENT, pas dans 3 s.
+    const appStateSubscription = AppState.addEventListener('change', (state) => {
+      if (state === 'active') void tick();
+    });
+    void tick();
+
+    return () => {
+      cancelled = true;
+      clearInterval(interval);
+      appStateSubscription.remove();
+    };
+  }, [matchId, reloadKey]);
 
   // WhatsApp : tap sur l'en-tete -> fiche complete du partenaire (la meme
   // bottom sheet que sur le deck Match). Elle s'ouvre IMMEDIATEMENT avec les
@@ -479,6 +633,7 @@ export default function ChatScreen() {
       if (data) {
         // Accuse de reception local : « remis » (2 coches grises) des que le
         // destinataire etait en ligne a l'envoi ; « lu » viendra par realtime.
+        recentlySentRef.current.set(data.id, Date.now());
         setMessages((prev) =>
           prev.some((m) => m.id === data.id)
             ? prev
