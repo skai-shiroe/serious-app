@@ -2,10 +2,10 @@ import React from 'react';
 import LegalScreen from '@/components/legal-screen';
 
 /**
- * Politique de confidentialité — RGPD + conformité stores (Google Play +
- * App Store exigent un accès depuis l'app). Adaptée aux données de santé
- * déclarées (marqueurs de compatibilité) et aux exigences de sécurité
- * mineurs des stores pour les apps de rencontres.
+- Politique de confidentialité — RGPD + conformité stores (Google Play +
+- App Store exigent un accès depuis l'app). Adaptée aux données de santé
+- déclarées (marqueurs de compatibilité) et aux exigences de sécurité
+- mineurs des stores pour les apps de rencontres.
  */
 export default function PrivacyScreen() {
   return (
@@ -16,7 +16,7 @@ export default function PrivacyScreen() {
         {
           heading: '1. Responsable de traitement',
           paragraphs: [
-            "Le responsable du traitement des données est la societe Geno Togo. Contact : mail@geno.com.",
+            "Le responsable du traitement des données est la société Geno Togo. Contact DPO / Confidentialité : privacy@geno.app.",
           ],
         },
         {
@@ -45,7 +45,7 @@ export default function PrivacyScreen() {
         {
           heading: '5. Partage et hébergement',
           paragraphs: [
-            "Les données sont hébergées par Supabase (serveurs situés dans l'Union européenne, chiffrement en transit et au repos). Les notifications push transitent par les services Apple (APNs) et Google (FCM).",
+            "Les données sont hébergées par Supabase (serveurs certifiés, chiffrement en transit et au repos). Les notifications push transitent par les services Apple (APNs) et Google (FCM).",
             "Aucune donnée personnelle n'est vendue ni louée à des tiers à des fins publicitaires.",
           ],
         },
@@ -66,14 +66,14 @@ export default function PrivacyScreen() {
         {
           heading: '8. Vos droits',
           paragraphs: [
-            "Vous disposez d'un droit d'accès, de rectification, d'effacement, de limitation et de portabilité de vos données, ainsi que d'un droit d'opposition. Exercez-les depuis l'écran Profil (suppression directe) ou par e-mail à contact@geno.com.",
-            "Vous pouvez également introduire une réclamation auprès de la CNIL (cnil.fr).",
+            "Vous disposez d'un droit d'accès, de rectification, d'effacement, de limitation et de portabilité de vos données, ainsi que d'un droit d'opposition. Exercez-les depuis l'écran Profil (suppression directe) ou par e-mail à privacy@geno.app.",
+            "Vous pouvez également introduire une réclamation auprès de l'autorité de protection des données compétente (ex: IPDCP au Togo ou la CNIL en France).",
           ],
         },
         {
           heading: '9. Contact',
           paragraphs: [
-            "Pour toute question relative à la confidentialité : contact@geno.com.",
+            "Pour toute question relative à la confidentialité ou à la protection de vos données : privacy@geno.app.",
           ],
         },
       ]}

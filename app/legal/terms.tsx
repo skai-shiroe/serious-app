@@ -2,10 +2,10 @@ import React from 'react';
 import LegalScreen from '@/components/legal-screen';
 
 /**
- * Conditions Générales d'Utilisation — placeholder pour la conformité
- * stores (Google Play + App Store exigent un accès depuis l'app).
- * Le texte est rédigé pour Geno (rencontres, données de santé
- * déclarées) mais doit être relu par un conseil juridique.
+- Conditions Générales d'Utilisation — Conforme aux exigences des stores
+- (Google Play + App Store) pour les applications de rencontres.
+- Inclut les clauses de modération, d'âge minimum (18+) et de non-responsabilité
+- médicale pour les marqueurs de compatibilité déclarés.
  */
 export default function TermsScreen() {
   return (
@@ -14,59 +14,59 @@ export default function TermsScreen() {
       updatedAt="13 octobre 2026"
       sections={[
         {
-          heading: '1. Objet',
+          heading: '1. Objet et Éditeur',
           paragraphs: [
-            "Les présentes conditions générales d'utilisation (« CGU ») régissent l'accès et l'utilisation de l'application Geno (« l'Application »), éditée par MiabeHub, SARL au capital de 1000 €, immatriculée au RCS de [ville] sous le numéro [n°], dont le siège social est situé [adresse] (« l'Éditeur »).",
+            "Les présentes conditions générales d'utilisation (« CGU ») régissent l'accès et l'utilisation de l'application Geno (« l'Application »), éditée par la société Geno Togo (« l'Éditeur »). Contact : legal@geno.app.",
             "En créant un compte et en utilisant l'Application, vous reconnaissez avoir lu et accepté les présentes CGU sans réserve.",
           ],
         },
         {
-          heading: '2. Éligibilité',
+          heading: '2. Éligibilité et avertissement médical',
           paragraphs: [
-            "L'Application est strictement réservée aux personnes majeures. En créant un compte, vous certifiez avoir au moins 18 ans révolus.",
-            "L'Application est un service de rencontres. Elle ne constitue en aucun cas un service de conseil médical, génétique ou de santé : les informations affichées sur le profil (notamment les marqueurs de santé déclarés) sont des informations de compatibilité partagées volontairement entre utilisateurs et ne remplacent jamais l'avis d'un professionnel de santé.",
+            "L'Application est strictement réservée aux personnes majeures. En créant un compte, vous certifiez sur l'honneur avoir au moins 18 ans révolus.",
+            "Avertissement important : Geno est un service de mise en relation sociale et amoureuse. L'Application ne constitue en aucun cas un service médical, un laboratoire d'analyses, ni un conseil en génétique ou en santé. Les informations affichées sur les profils (notamment les marqueurs de compatibilité déclarés comme le statut vis-à-vis de la drépanocytose) sont purement déclaratives et partagées volontairement par les utilisateurs. Elles ne remplacent en aucun cas un examen médical ou l'avis d'un professionnel de santé.",
           ],
         },
         {
-          heading: '3. Création de compte',
+          heading: '3. Création et sécurité du compte',
           paragraphs: [
-            "La création d'un compte suppose la fournie d'informations exactes et à jour (notamment une adresse e-mail valide). Vous êtes responsable de la confidentialité de vos identifiants et de toute activité effectuée depuis votre compte.",
-            "Un compte ne peut être cédé ni vendu. Vous ne pouvez détenir qu'un seul compte actif.",
+            "La création d'un compte nécessite la fourniture d'informations exactes, sincères et à jour (notamment une adresse e-mail valide). Vous êtes seul responsable de la confidentialité de vos identifiants et de toute activité effectuée depuis votre compte.",
+            "Un compte est strictement personnel : il ne peut être cédé, prêté ni vendu. Vous ne pouvez détenir qu'un seul compte actif sur la plateforme.",
           ],
         },
         {
-          heading: '4. Comportement attendu',
+          heading: '4. Comportement attendu et modération',
           paragraphs: [
-            "Geno promeut des échanges respectueux entre adultes consentants. Sont strictement interdits : tout contenu ou propos à caractère harcelant, discriminatoire, menaçant, pornographique ou illégal ; l'usurpation d'identité ; la collecte de données personnelles d'autres utilisateurs ; la publicité non sollicitée ; la publication de mineurs, y compris la vôtre.",
-            "Toute photo de nu, ou contournement de la modération automatique (lettres homoglyphes, images contournant les filtres), entraînera la suspension immédiate du compte.",
+            "Geno promeut des échanges bienveillants et respectueux. Sont strictement interdits : tout propos ou contenu à caractère harcelant, haineux, discriminatoire, menaçant, pornographique, pédopornographique ou illégal ; l'usurpation d'identité ; le spamming ; la publicité non sollicitée et la publication de photos de personnes mineures.",
+            "Toute publication de nudité, d'actes explicites ou toute tentative de contournement des filtres de modération automatique entraînera la suspension immédiate et définitive du compte, sans préavis.",
           ],
         },
         {
-          heading: '5. Vérification et modération',
+          heading: '5. Vérification des profils et sécurité',
           paragraphs: [
-            "Afin de lutter contre les faux profils, Geno propose une vérification d'identité et applique une modération automatisée puis manuelle (signalements traités par l'équipe de confiance).",
-            "Vous pouvez bloquer et signaler tout utilisateur depuis son profil ou la conversation. Les comptes bloqués ne peuvent plus interagir ni se retrouver dans les decks de découverte.",
+            "Afin de garantir un environnement sûr et de lutter contre les faux comptes, Geno met en place un système de vérification d'identité ainsi qu'une modération hybride (automatisée et humaine).",
+            "Vous disposez à tout moment de la possibilité de bloquer et de signaler un utilisateur depuis son profil ou la discussion. Un profil bloqué ne pourra plus interagir avec vous ni apparaître dans votre fil de découverte.",
           ],
         },
         {
-          heading: '6. Suppression de compte',
+          heading: '6. Suppression et résiliation',
           paragraphs: [
-            "Vous pouvez supprimer votre compte à tout moment depuis l'écran Profil > « Supprimer mon compte ». La suppression est définitive et immédiate : profil, photos, matchs et messages sont supprimés de la base de données et de l'authentification.",
-            "L'Éditeur peut suspendre ou résilier un compte en cas de manquement aux présentes CGU, sans préavis ni indemnité.",
+            "Vous pouvez supprimer votre compte à tout moment directement depuis l'application via l'écran Profil > Supprimer mon compte. Cette action est immédiate et irréversible : profil, photos, matchs et messages seront définitivement supprimés.",
+            "L'Éditeur se réserve le droit de suspendre ou de résilier l'accès d'un utilisateur à l'Application sans préavis en cas de violation des présentes CGU ou d'atteinte à la sécurité de la communauté.",
           ],
         },
         {
-          heading: '7. Responsabilité',
+          heading: '7. Limites de responsabilité',
           paragraphs: [
-            "Geno met tout en œuvre pour assurer la disponibilité de l'Application mais ne garantit pas l'absence d'interruption, ni l'adéquation des profils proposés. Les rencontres en personne se font sous votre seule responsabilité.",
-            "L'Éditeur ne saurait être tenu responsable des échanges entre utilisateurs ni du contenu qu'ils publient.",
+            "L'Éditeur met en œuvre tous les moyens raisonnables pour assurer la disponibilité et la sécurité de l'Application. Toutefois, Geno ne garantit pas une continuité de service ininterrompue ni le succès des rencontres initiées.",
+            "Les échanges et rencontres en personne se font sous la responsabilité exclusive des utilisateurs. L'Éditeur ne saurait être tenu responsable du comportement des utilisateurs en dehors ou au sein de l'Application.",
           ],
         },
         {
-          heading: '8. Droit applicable',
+          heading: '8. Droit applicable et contact',
           paragraphs: [
-            "Les présentes CGU sont soumises au droit français. En cas de litige, une résolution amiable sera recherchée avant toute action judiciaire.",
-            "Contact : contact@geno.com",
+            "Les présentes CGU sont régies et interprétées conformément aux lois en vigueur au Togo. En cas de litige, les parties s'engagent à rechercher une solution amiable prioritaire avant toute action judiciaire.",
+            "Pour toute question juridique ou signalement spécifique : legal@geno.app ou contact@geno.app.",
           ],
         },
       ]}
