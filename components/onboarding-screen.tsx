@@ -1,6 +1,6 @@
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
-import { Activity, ChevronRight, Heart, Shield } from 'lucide-react-native';
+import { ChevronRight } from 'lucide-react-native';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
     Dimensions,
@@ -25,6 +25,8 @@ import Animated, {
     withTiming,
 } from 'react-native-reanimated';
 import { Button } from './ui/button';
+import { LofiIllustration, LOFI_STAGE } from './lofi-illustration';
+import { LOFI_DNA_SVG, LOFI_HEART_SVG, LOFI_PRIVACY_SVG, LOFI_SEARCH_SVG } from '@/lib/lofi-svgs';
 
 const { width } = Dimensions.get('window');
 
@@ -38,21 +40,27 @@ interface OnboardingScreenProps {
 
 const slides = [
     {
-        icon: Heart,
-        title: 'Rencontre Serieuse',
+        art: LOFI_HEART_SVG,
+        title: 'Rencontre Sérieuse',
         description: 'Trouvez un partenaire compatible qui partage vos valeurs et vos aspirations pour une relation authentique et durable.',
         colors: ['#fb7185', '#f472b6'] as const // rose-400 to pink-400
     },
     {
-        icon: Activity,
-        title: 'Compatibilite Medicale',
-        description: 'Prenez des decisions eclairees grace a notre systeme de compatibilite base sur le groupe sanguin et le statut drepanocytaire.',
+        art: LOFI_SEARCH_SVG,
+        title: 'Découverte Ciblée',
+        description: 'Affinez votre recherche avec nos filtres (âge, ville) et découvrez uniquement des profils qui correspondent à vos envies.',
+        colors: ['#fbbf24', '#fb923c'] as const // amber-400 to orange-400
+    },
+    {
+        art: LOFI_DNA_SVG,
+        title: 'Compatibilité Médicale',
+        description: 'Prenez des décisions éclairées grâce à notre système de compatibilité basé sur le groupe sanguin et le statut drépanocytaire.',
         colors: ['#60a5fa', '#22d3ee'] as const // blue-400 to cyan-400
     },
     {
-        icon: Shield,
-        title: 'Confidentialite Totale',
-        description: 'Vos donnees medicales et personnelles sont protegees avec les plus hauts standards de securite et de confidentialite.',
+        art: LOFI_PRIVACY_SVG,
+        title: 'Confidentialité Totale',
+        description: 'Vos données médicales et personnelles sont protégées avec les plus hauts standards de sécurité et de confidentialité.',
         colors: ['#c084fc', '#818cf8'] as const // purple-400 to indigo-400
     }
 ];
@@ -98,14 +106,14 @@ function SlideBackground({ item, index, scrollX, floatY }: {
 }
 
 /** Contenu d'une slide : entree en cascade au montage, puis animations
- *  pilotees par le scroll — l'icone « pop » au centrage (echelle + rotation
- *  + respiration continue) et les textes fondent en fonction de la distance. */
-function OnboardingSlide({ item, index, scrollX }: {
+ *  pilotees par le scroll — l'illustration « pop » au centrage (echelle +
+ *  rotation + respiration continue) et les textes fondent selon la distance. */
+function OnboardingSlide({ item, index, scrollX, currentSlide }: {
     item: Slide;
     index: number;
     scrollX: SharedValue<number>;
+    currentSlide: number;
 }) {
-    const Icon = item.icon;
 
     const textFadeStyle = useAnimatedStyle(() => ({
         opacity: 0.25 + 0.75 * closenessOf(scrollX, index),
@@ -117,6 +125,7 @@ function OnboardingSlide({ item, index, scrollX }: {
                 { scale: 0.86 + 0.14 * closeness },
                 { rotate: `${(1 - closeness) * -12}deg` },
             ],
+            renderToHardwareTextureAndroid: true,
         };
     });
 
@@ -127,6 +136,7 @@ function OnboardingSlide({ item, index, scrollX }: {
     }, [pulse]);
     const pulseStyle = useAnimatedStyle(() => ({
         transform: [{ scale: pulse.value }],
+        renderToHardwareTextureAndroid: true,
     }));
 
     return (
@@ -134,19 +144,13 @@ function OnboardingSlide({ item, index, scrollX }: {
             <Animated.View entering={FadeInDown.delay(60).duration(500)}>
                 <Animated.View style={iconPopStyle}>
                     <Animated.View style={pulseStyle}>
-                        <LinearGradient
-                            colors={item.colors}
-                            style={styles.iconContainer}
-                            start={{ x: 0, y: 0 }}
-                            end={{ x: 1, y: 1 }}
-                        >
-                            {/* Slide 1 = ecran de marque : wordmark Geno blanc. */}
-                            {index === 0 ? (
-                                <Image source={GENO_WORDMARK} style={styles.logoWordmark} contentFit="contain" />
-                            ) : (
-                                <Icon width={64} height={64} color="#ffffff" strokeWidth={1.5} />
-                            )}
-                        </LinearGradient>
+                        {/* Illustration SVG animee (SMIL via WebView) : montee
+                            uniquement pour la slide active et ses voisines. */}
+                        {Math.abs(index - currentSlide) <= 1 ? (
+                            <LofiIllustration xml={item.art} />
+                        ) : (
+                            <View style={styles.artPlaceholder} />
+                        )}
                     </Animated.View>
                 </Animated.View>
             </Animated.View>
@@ -235,7 +239,7 @@ export function OnboardingScreen({ onComplete }: OnboardingScreenProps) {
     const handleSkip = () => onComplete();
 
     const renderSlide = ({ item, index }: { item: Slide; index: number }) => (
-        <OnboardingSlide item={item} index={index} scrollX={scrollX} />
+        <OnboardingSlide item={item} index={index} scrollX={scrollX} currentSlide={currentSlide} />
     );
 
     return (
@@ -253,8 +257,9 @@ export function OnboardingScreen({ onComplete }: OnboardingScreenProps) {
                 ))}
             </View>
 
-            {/* Skip Button */}
+            {/* Marque Geno visible des la premiere slide + bouton Passer. */}
             <View style={styles.header}>
+                <Image source={GENO_WORDMARK} style={styles.headerLogo} contentFit="contain" />
                 <TouchableOpacity
                     onPress={handleSkip}
                     style={styles.skipButton}
@@ -348,9 +353,14 @@ const styles = StyleSheet.create({
     },
     header: {
         flexDirection: 'row',
-        justifyContent: 'flex-end',
+        justifyContent: 'space-between',
+        alignItems: 'center',
         paddingHorizontal: 24,
         paddingTop: 16,
+    },
+    headerLogo: {
+        width: 48,
+        height: 48,
     },
     skipButton: {
         padding: 8,
@@ -360,21 +370,11 @@ const styles = StyleSheet.create({
         fontSize: 16,
         fontWeight: '500',
     },
-    iconContainer: {
-        width: 128,
-        height: 128,
-        borderRadius: 64,
-        justifyContent: 'center',
-        alignItems: 'center',
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 10 },
-        shadowOpacity: 0.1,
-        shadowRadius: 20,
-        elevation: 8,
-    },
-    logoWordmark: {
-        width: 104,
-        height: 104,
+    // Placeholder de scene quand la WebView de l'illustration n'est pas
+    // montee (slide eloignee) : garde la mise en page stable.
+    artPlaceholder: {
+        width: LOFI_STAGE.width,
+        height: LOFI_STAGE.height,
     },
     title: {
         fontSize: 28,
