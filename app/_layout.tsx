@@ -28,7 +28,6 @@ import {
 } from 'react-native';
 import { Image } from 'expo-image';
 import {
-  Heart,
   X as XIcon,
   MapPin,
   Briefcase,
@@ -357,7 +356,7 @@ function ProfileBottomSheet() {
               </View>
             </GestureDetector>
 
-      <ScrollView contentContainerStyle={{ paddingBottom: 100 }} style={{ flex: 1 }}>
+      <ScrollView contentContainerStyle={{ paddingBottom: 32 }} style={{ flex: 1 }}>
         <ScrollView horizontal pagingEnabled showsHorizontalScrollIndicator={false} style={{ height: 450 }}>
           {rendered.photos?.map((photo: string, index: number) => (
             <Image
@@ -454,34 +453,30 @@ function ProfileBottomSheet() {
           )}
         </View>
       </ScrollView>
-      
-      <View style={{ 
-        position: 'absolute', 
-        bottom: 0, 
-        left: 0, 
-        right: 0, 
-        padding: 24, 
-        paddingBottom: Platform.OS === 'ios' ? 40 : 24,
-        flexDirection: 'row', 
-        justifyContent: 'center', 
-        gap: 20,
-        backgroundColor: isDark ? '#111827' : '#ffffff',
-        borderTopWidth: 1,
-        borderTopColor: isDark ? '#1f2937' : '#f3f4f6'
-      }}>
-        <TouchableOpacity 
-          onPress={requestClose}
-          style={{ width: 64, height: 64, borderRadius: 32, backgroundColor: isDark ? '#1f2937' : '#f3f4f6', justifyContent: 'center', alignItems: 'center' }}
-        >
-          <XIcon size={32} color="#ef4444" />
-        </TouchableOpacity>
-        <TouchableOpacity 
-          onPress={requestClose}
-          style={{ width: 64, height: 64, borderRadius: 32, backgroundColor: '#f43f5e', justifyContent: 'center', alignItems: 'center' }}
-        >
-          <Heart size={32} color="#fff" fill="#fff" />
-        </TouchableOpacity>
-      </View>
+
+      {/* Fermeture : seule action de la fiche (X en haut a droite, au-dessus
+          des photos). Pas de bouton « coeur » : il dupliquait la croix et
+          laissait entendre un like qui n'existait pas. Le drag sur la
+          poignee, le tap sur le fond et le bouton retour ferment aussi. */}
+      <TouchableOpacity
+        onPress={requestClose}
+        accessibilityRole="button"
+        accessibilityLabel="Fermer la fiche profil"
+        hitSlop={10}
+        style={{
+          position: 'absolute',
+          top: 40,
+          right: 16,
+          width: 36,
+          height: 36,
+          borderRadius: 18,
+          backgroundColor: 'rgba(0,0,0,0.45)',
+          alignItems: 'center',
+          justifyContent: 'center',
+        }}
+      >
+        <XIcon size={22} color="#fff" />
+      </TouchableOpacity>
           </Animated.View>
         </Animated.View>
       </GestureHandlerRootView>
