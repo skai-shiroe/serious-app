@@ -11,7 +11,8 @@ import {
   Platform, 
   useColorScheme,
   ActivityIndicator,
-  Keyboard 
+  Keyboard,
+  AppState
 } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useProfileSheet } from '@/contexts/ProfileSheetContext';
@@ -19,6 +20,7 @@ import { ArrowLeft, Send, Check, CheckCheck, WifiOff } from 'lucide-react-native
 import { LinearGradient } from 'expo-linear-gradient';
 import { Image } from 'expo-image';
 import { supabase } from '@/lib/supabase';
+import type { RealtimeChannel } from '@supabase/supabase-js';
 import { getUser } from '@/lib/session';
 import { fetchBlockedIds } from '@/lib/moderation';
 import { IMAGE_CACHE_POLICY, photoSource, prefetchImages } from '@/lib/images';
@@ -37,12 +39,34 @@ const formatTime = (dateString: string) => {
   return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 };
 
+/** « Vu à 14:32 » / « Hier à 14:32 » / « Vu le 12/10 » pour l'en-tete. */
+const formatSeenAt = (dateString: string) => {
+  const date = new Date(dateString);
+  const now = new Date();
+  const time = formatTime(dateString);
+  if (date.toDateString() === now.toDateString()) return `Vu à ${time}`;
+  const yesterday = new Date(now.getTime() - 86400000);
+  if (date.toDateString() === yesterday.toDateString()) return `Hier à ${time}`;
+  return `Vu le ${date.toLocaleDateString([], { day: '2-digit', month: '2-digit' })}`;
+};
+
+/** Ecart mini entre deux evenements broadcast « en train d'ecrire ». */
+const TYPING_THROTTLE_MS = 2000;
+/** Sans nouveau signal, l'indicateur s'efface tout seul apres ce delai. */
+const TYPING_LINGER_MS = 3500;
+
 interface Message {
   id: string;
   match_id: string;
   sender_id: string;
   content: string;
   read: boolean;
+  /**
+   * Accuse de reception « remis » (2 coches grises) — UNIQUEMENT EN MEMOIRE :
+   * jamais ecrit en base, donc aucune migration SQL. Vrai des que le
+   * destinataire etait/est devenu en ligne ou a renvoye un signal realtime.
+   */
+  delivered?: boolean;
   created_at: string;
   /** 'text' (defaut) ou 'sticker' (content = 'sticker:<nom>'). */
   type?: string;
@@ -95,8 +119,21 @@ export default function ChatScreen() {
   const [reloadKey, setReloadKey] = useState(0);
   // Blocage bilatral avec le partenaire : l'envoi est coupe dans les deux sens.
   const [chatBlocked, setChatBlocked] = useState(false);
+  // Vrai pendant que le partenaire tape (signal broadcast, auto-efface apres
+  // TYPING_LINGER_MS sans nouveau signal).
+  const [partnerTyping, setPartnerTyping] = useState(false);
+  // Dernier heartbeat connu du partenaire, pour « Vu à HH:MM » hors ligne.
+  const [partnerLastSeen, setPartnerLastSeen] = useState<string | null>(null);
 
   const flatListRef = useRef<FlatList>(null);
+  // Canal broadcast de frappe (cree dans un effet dedie, ferme au demontage).
+  const typingChannelRef = useRef<RealtimeChannel | null>(null);
+  const typingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Throttle d'envoi : trace du dernier evenement broadcast envoye.
+  const lastTypingSentRef = useRef<{ at: number; event: 'typing' | 'stop' }>({
+    at: 0,
+    event: 'stop',
+  });
 
   const themeColors = {
     text: isDark ? '#ffffff' : '#111827',
@@ -106,6 +143,36 @@ export default function ChatScreen() {
     border: isDark ? '#374151' : '#e5e7eb',
     inputBg: isDark ? '#374151' : '#ffffff',
     bubbleThem: isDark ? '#374151' : '#f3f4f6',
+  };
+
+  /** Envoie un evenement broadcast « frappe » (best effort, sans garantie). */
+  const sendTypingEvent = (event: 'typing' | 'stop') => {
+    const channel = typingChannelRef.current;
+    if (!channel) return;
+    lastTypingSentRef.current = { at: Date.now(), event };
+    void channel.send({
+      type: 'broadcast',
+      event,
+      payload: { user_id: currentUserRef.current?.id ?? '' },
+    });
+  };
+
+  /**
+   * Passe a « remis » (2 coches grises) tous mes messages encore sur « envoye ».
+   * Appele quand le partenaire est en ligne ou nous renvoie un signal realtime.
+   * Rien n'est ecrit en base : c'est un etat d'affichage uniquement.
+   */
+  const markPendingDelivered = () => {
+    setMessages((prev) => {
+      if (!prev.some((m) => m.sender_id === currentUserRef.current?.id && !m.read && !m.delivered)) {
+        return prev;
+      }
+      return prev.map((m) =>
+        m.sender_id === currentUserRef.current?.id && !m.read && !m.delivered
+          ? { ...m, delivered: true }
+          : m
+      );
+    });
   };
 
   // Initialisation
@@ -213,8 +280,12 @@ export default function ChatScreen() {
           prev.some(m => m.id === newMessage.id) ? prev : [...prev, newMessage]
         );
         
-        // Marquer comme lu si on est dans le chat
+        // Message du partenaire : il n'est plus en train d'ecrire, et mes
+        // messages en attente sont considers remis (2 coches grises).
         if (newMessage.sender_id !== currentUserRef.current?.id) {
+          if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
+          setPartnerTyping(false);
+          markPendingDelivered();
           supabase
             .from('messages')
             .update({ read: true })
@@ -222,14 +293,58 @@ export default function ChatScreen() {
             .then(() => notifyUnreadChanged());
         }
       })
+      .on('postgres_changes', {
+        // Changement d'etat de lecture cote partenaire (read=false -> true).
+        // Si la publication Supabase n'inclut pas les UPDATE, le fallback
+        // AppState ci-dessous rattrape l'ecart au retour au premier plan.
+        event: 'UPDATE',
+        schema: 'public',
+        table: 'messages',
+        filter: `match_id=eq.${matchId}`,
+      }, (payload) => {
+        const updated = payload.new as Message;
+        if (!updated?.id) return;
+        setMessages((prev) =>
+          prev.map((m) =>
+            m.id === updated.id
+              ? { ...m, read: updated.read, delivered: updated.read || m.delivered }
+              : m
+          )
+        );
+        notifyUnreadChanged();
+      })
       .subscribe();
 
+    // Fallback realtime : re-synchrone l'historique au retour au premier plan
+    // (certains UPDATE realtime ont pu etre manques pendant l'arriere-plan).
+    const appStateSubscription = AppState.addEventListener('change', (state) => {
+      if (state !== 'active') return;
+      const resync = async () => {
+        try {
+          const { data, error } = await supabase
+            .from('messages')
+            .select('*')
+            .eq('match_id', matchId)
+            .order('created_at', { ascending: true });
+          if (error || !data) return;
+          setMessages((prev) => {
+            const localById = new Map(prev.map((m) => [m.id, m]));
+            return (data as Message[]).map((m) => {
+              const local = localById.get(m.id);
+              return { ...m, delivered: m.read || local?.read || local?.delivered || false };
+            });
+          });
+        } catch {}
+      };
+      void resync();
+    });
+
     return () => {
+      appStateSubscription.remove();
       supabase.removeChannel(channel);
     };
     // Deps SANS currentUser : setCurrentUser(user) declenchait une seconde
     // passe complete de l'init (double requetes + double abonnement realtime).
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [matchId, reloadKey]);
 
   // Presence du partenaire en TEMPS REEL : un seul abonnement, plus aucune
@@ -240,7 +355,12 @@ export default function ChatScreen() {
 
     let cancelled = false;
     const apply = (lastSeen?: string | null) => {
-      if (!cancelled) setIsPartnerOnline(isRecentlySeen(lastSeen));
+      if (cancelled) return;
+      setPartnerLastSeen(lastSeen ?? null);
+      const online = isRecentlySeen(lastSeen);
+      setIsPartnerOnline(online);
+      // Le destinataire est actif : mes messages en attente sont remis
+      if (online) markPendingDelivered();
     };
 
     supabase
@@ -265,6 +385,45 @@ export default function ChatScreen() {
       supabase.removeChannel(channel);
     };
   }, [partner?.user_id]);
+
+  // WhatsApp : indicateur « en train d'ecrire ». Broadcast realtime pur (aucune
+  // ligne en base, latence ~100 ms), throttle a l'envoi, auto-efface si le
+  // signal s'arrete (TYPING_LINGER_MS).
+  useEffect(() => {
+    if (!matchId || chatBlocked) return;
+
+    const channel = supabase.channel(`typing:${matchId}`, {
+      config: { broadcast: { self: false } },
+    });
+    channel
+      .on('broadcast', { event: 'typing' }, ({ payload }) => {
+        if (!payload?.user_id || payload.user_id === currentUserRef.current?.id) return;
+        setPartnerTyping(true);
+        if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
+        typingTimeoutRef.current = setTimeout(() => setPartnerTyping(false), TYPING_LINGER_MS);
+      })
+      .on('broadcast', { event: 'stop' }, ({ payload }) => {
+        if (payload?.user_id && payload.user_id === currentUserRef.current?.id) return;
+        if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
+        setPartnerTyping(false);
+      })
+      .subscribe();
+    typingChannelRef.current = channel;
+
+    return () => {
+      if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
+      // Signale l'arret avant fermeture (best effort : le timeout couvre le
+      // cas ou ce paquet ne part pas).
+      void channel.send({
+        type: 'broadcast',
+        event: 'stop',
+        payload: { user_id: currentUserRef.current?.id ?? '' },
+      });
+      supabase.removeChannel(channel);
+      typingChannelRef.current = null;
+      setPartnerTyping(false);
+    };
+  }, [matchId, chatBlocked]);
 
   // WhatsApp : quand le clavier s'ouvre, ramener le dernier message au-dessus
   // de la barre de saisie (le KAV pousse deja l'input, la liste doit suivre).
@@ -299,6 +458,8 @@ export default function ChatScreen() {
 
     const text = inputText.trim();
     setInputText('');
+    // L'envoi clot la frappe : on emet un « stop » explicite.
+    sendTypingEvent('stop');
     // Pas de Keyboard.dismiss() : comme WhatsApp, le clavier reste ouvert
     // pour ecrire immediatement la suite.
 
@@ -316,11 +477,32 @@ export default function ChatScreen() {
       // Insertion optimiste : le message s'affiche immediatement, sans
       // attendre l'evenement realtime (dedup par id s'il arrive quand meme).
       if (data) {
+        // Accuse de reception local : « remis » (2 coches grises) des que le
+        // destinataire etait en ligne a l'envoi ; « lu » viendra par realtime.
         setMessages((prev) =>
-          prev.some((m) => m.id === data.id) ? prev : [...prev, data]
+          prev.some((m) => m.id === data.id)
+            ? prev
+            : [...prev, { ...data, delivered: isPartnerOnline }]
         );
       }
     } catch {}
+  };
+
+  /**
+   * Gere la frappe : met a jour le champ ET diffuse « en train d'ecrire »
+   * (throttle TYPING_THROTTLE_MS pour ne pas inonder le canal broadcast).
+   */
+  const handleInputChange = (text: string) => {
+    setInputText(text);
+    if (!text.trim()) {
+      // Champ vide : on arrete explicitement (sinon l'autre reste bloque
+      // jusqu'au timeout d'inactivite).
+      if (lastTypingSentRef.current.event !== 'stop') sendTypingEvent('stop');
+      return;
+    }
+    if (Date.now() - lastTypingSentRef.current.at >= TYPING_THROTTLE_MS) {
+      sendTypingEvent('typing');
+    }
   };
 
   const renderBubble = ({ item }: { item: Message }) => {
@@ -351,9 +533,14 @@ export default function ChatScreen() {
         </View>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
           <Text style={[styles.timeText, { color: themeColors.textMuted }]}>{formatTime(item.created_at)}</Text>
-          {isMe && (
-            item.read ? <CheckCheck size={14} color="#3b82f6" /> : <Check size={14} color={themeColors.textMuted} />
-          )}
+          {isMe &&
+            (item.read ? (
+              <CheckCheck size={14} color="#34B7F1" />
+            ) : item.delivered ? (
+              <CheckCheck size={14} color={themeColors.textMuted} />
+            ) : (
+              <Check size={14} color={themeColors.textMuted} />
+            ))}
         </View>
       </View>
     );
@@ -429,10 +616,20 @@ export default function ChatScreen() {
                 )}
               </View>
               <View style={styles.statusRow}>
-                <View style={[styles.statusDot, { backgroundColor: isPartnerOnline ? '#10b981' : '#9ca3af' }]} />
-                <Text style={[styles.statusText, { color: themeColors.textMuted }]}>
-                  {isPartnerOnline ? 'En ligne' : 'Hors ligne'}
-                </Text>
+                {partnerTyping ? (
+                  <Text style={[styles.statusText, styles.typingText]}>{'en train d\'écrire…'}</Text>
+                ) : (
+                  <>
+                    <View style={[styles.statusDot, { backgroundColor: isPartnerOnline ? '#10b981' : '#9ca3af' }]} />
+                    <Text style={[styles.statusText, { color: themeColors.textMuted }]}>
+                      {isPartnerOnline
+                        ? 'En ligne'
+                        : partnerLastSeen
+                          ? formatSeenAt(partnerLastSeen)
+                          : 'Hors ligne'}
+                    </Text>
+                  </>
+                )}
               </View>
             </View>
           </TouchableOpacity>
@@ -474,7 +671,8 @@ export default function ChatScreen() {
             placeholder="Écrire un message..."
             placeholderTextColor={themeColors.textMuted}
             value={inputText}
-            onChangeText={setInputText}
+            onChangeText={handleInputChange}
+            onBlur={() => sendTypingEvent('stop')}
             multiline
           />
           <TouchableOpacity onPress={handleSend} style={styles.sendBtn} disabled={!inputText.trim()}>
@@ -512,6 +710,8 @@ const styles = StyleSheet.create({
   statusRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   statusDot: { width: 8, height: 8, borderRadius: 4 },
   statusText: { fontSize: 12 },
+  // « en train d'ecrire… » : meme taille que le statut, teinte rose de la marque.
+  typingText: { color: '#f43f5e', fontStyle: 'italic', fontWeight: '600' },
   messagesList: { padding: 16, paddingBottom: 24 },
   messageWrapper: { marginBottom: 12, maxWidth: '80%' },
   messageWrapperMe: { alignSelf: 'flex-end', alignItems: 'flex-end' },
