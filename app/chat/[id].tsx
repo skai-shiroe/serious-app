@@ -1,5 +1,5 @@
 import { SafeAreaView } from 'react-native-safe-area-context';
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { 
   View, 
   Text, 
@@ -50,6 +50,23 @@ const formatSeenAt = (dateString: string) => {
   return `Vu le ${date.toLocaleDateString([], { day: '2-digit', month: '2-digit' })}`;
 };
 
+/** Cle de jour locale (annee-mois-jour) : sert a grouper la discussion. */
+const dayKeyOf = (iso: string) => {
+  const d = new Date(iso);
+  return `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`;
+};
+
+/** En-tete de section de discussion : « Aujourd'hui » / « Hier » / date. */
+const formatDayLabel = (iso: string) => {
+  const date = new Date(iso);
+  const now = new Date();
+  const startOfDay = (d: Date) => new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
+  const diffDays = Math.round((startOfDay(now) - startOfDay(date)) / 86400000);
+  if (diffDays === 0) return "Aujourd'hui";
+  if (diffDays === 1) return 'Hier';
+  return date.toLocaleDateString([], { day: '2-digit', month: '2-digit', year: 'numeric' });
+};
+
 /** Ecart mini entre deux evenements broadcast « en train d'ecrire ». */
 const TYPING_THROTTLE_MS = 2000;
 /** Sans nouveau signal, l'indicateur s'efface tout seul apres ce delai. */
@@ -71,6 +88,11 @@ interface Message {
   /** 'text' (defaut) ou 'sticker' (content = 'sticker:<nom>'). */
   type?: string;
 }
+
+/** Element de liste : en-tête de jour OU bulle de message. */
+type ChatListItem =
+  | { kind: 'day'; id: string; label: string }
+  | { kind: 'message'; id: string; message: Message };
 
 export default function ChatScreen() {
   // La liste des discussions transmet le partenaire : l'en-tete s'affiche des
@@ -152,7 +174,8 @@ export default function ChatScreen() {
     headerBg: isDark ? '#1f2937' : '#ffffff',
     border: isDark ? '#374151' : '#e5e7eb',
     inputBg: isDark ? '#374151' : '#ffffff',
-    bubbleThem: isDark ? '#374151' : '#f3f4f6',
+    // Bulle du destinataire : bleu (blanc en texte) — mes bulles restent roses.
+    bubbleThem: isDark ? '#1D4ED8' : '#2563EB',
   };
 
   /** Envoie un evenement broadcast « frappe » (best effort, sans garantie). */
@@ -660,7 +683,7 @@ export default function ChatScreen() {
     }
   };
 
-  const renderBubble = ({ item }: { item: Message }) => {
+  const renderBubble = (item: Message) => {
     const isMe = item.sender_id === currentUser?.id;
 
     // Anciens stickers de test (fonctionnalité reportée) : au lieu d'afficher
@@ -682,7 +705,7 @@ export default function ChatScreen() {
           styles.bubble, 
           isMe ? styles.bubbleMe : [styles.bubbleThem, { backgroundColor: themeColors.bubbleThem }]
         ]}>
-          <Text style={[styles.messageText, isMe ? styles.messageTextMe : { color: themeColors.text }]}>
+          <Text style={[styles.messageText, isMe ? styles.messageTextMe : styles.messageTextThem]}>
             {item.content}
           </Text>
         </View>
@@ -700,6 +723,34 @@ export default function ChatScreen() {
       </View>
     );
   };
+
+  // Regroupement par jour : un en-tête de date entre deux jours consecutifs.
+  // Derive de `messages` via useMemo : realtime, polling 3 s et accuses de
+  // lecture restent strictement inchanges, seule la vue est transformee.
+  const listItems = useMemo<ChatListItem[]>(() => {
+    const items: ChatListItem[] = [];
+    let lastDay = '';
+    for (const message of messages) {
+      const key = dayKeyOf(message.created_at);
+      if (key !== lastDay) {
+        items.push({ kind: 'day', id: `day-${key}`, label: formatDayLabel(message.created_at) });
+        lastDay = key;
+      }
+      items.push({ kind: 'message', id: message.id, message });
+    }
+    return items;
+  }, [messages]);
+
+  const renderListItem = ({ item }: { item: ChatListItem }) =>
+    item.kind === 'day' ? (
+      <View style={styles.daySeparator}>
+        <View style={[styles.dayPill, { backgroundColor: themeColors.inputBg }]}>
+          <Text style={[styles.dayText, { color: themeColors.textMuted }]}>{item.label}</Text>
+        </View>
+      </View>
+    ) : (
+      renderBubble(item.message)
+    );
 
   // Spinner plein ecran uniquement si on n'a meme pas l'en-tete (deep link
   // direct sans params) : sinon l'en-tete s'affiche d'emblee et le centre
@@ -800,9 +851,9 @@ export default function ChatScreen() {
         ) : (
         <FlatList
           ref={flatListRef}
-          data={messages}
+          data={listItems}
           keyExtractor={(item) => item.id}
-          renderItem={renderBubble}
+          renderItem={renderListItem}
           contentContainerStyle={styles.messagesList}
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
@@ -868,6 +919,10 @@ const styles = StyleSheet.create({
   // « en train d'ecrire… » : meme taille que le statut, teinte rose de la marque.
   typingText: { color: '#f43f5e', fontStyle: 'italic', fontWeight: '600' },
   messagesList: { padding: 16, paddingBottom: 24 },
+  // En-tête de jour : pastille centree subtile (type WhatsApp).
+  daySeparator: { alignItems: 'center', marginVertical: 8 },
+  dayPill: { paddingHorizontal: 12, paddingVertical: 4, borderRadius: 999 },
+  dayText: { fontSize: 11, fontWeight: '600' },
   messageWrapper: { marginBottom: 12, maxWidth: '80%' },
   messageWrapperMe: { alignSelf: 'flex-end', alignItems: 'flex-end' },
   messageWrapperThem: { alignSelf: 'flex-start', alignItems: 'flex-start' },
@@ -876,6 +931,8 @@ const styles = StyleSheet.create({
   bubbleThem: { borderBottomLeftRadius: 2 },
   messageText: { fontSize: 16, lineHeight: 22 },
   messageTextMe: { color: '#ffffff' },
+  // Bulles du destinataire (fond bleu) : texte blanc dans les deux thèmes.
+  messageTextThem: { color: '#ffffff' },
   timeText: { fontSize: 11, marginTop: 4, marginHorizontal: 4 },
   inputContainer: { flexDirection: 'row', alignItems: 'flex-end', padding: 12, borderTopWidth: 1 },
   input: { flex: 1, minHeight: 44, maxHeight: 120, borderWidth: 1, borderRadius: 22, paddingHorizontal: 16, paddingTop: 10, paddingBottom: 10, fontSize: 16, marginRight: 10 },
