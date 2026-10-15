@@ -125,7 +125,6 @@ function OnboardingSlide({ item, index, scrollX, currentSlide }: {
                 { scale: 0.86 + 0.14 * closeness },
                 { rotate: `${(1 - closeness) * -12}deg` },
             ],
-            renderToHardwareTextureAndroid: true,
         };
     });
 
@@ -136,7 +135,6 @@ function OnboardingSlide({ item, index, scrollX, currentSlide }: {
     }, [pulse]);
     const pulseStyle = useAnimatedStyle(() => ({
         transform: [{ scale: pulse.value }],
-        renderToHardwareTextureAndroid: true,
     }));
 
     return (
@@ -356,11 +354,11 @@ const styles = StyleSheet.create({
         justifyContent: 'space-between',
         alignItems: 'center',
         paddingHorizontal: 24,
-        paddingTop: 16,
+        paddingTop: 12,
     },
     headerLogo: {
-        width: 48,
-        height: 48,
+        width: 40,
+        height: 40,
     },
     skipButton: {
         padding: 8,
@@ -380,7 +378,7 @@ const styles = StyleSheet.create({
         fontSize: 28,
         fontWeight: '700',
         color: '#111827', // gray-900
-        marginBottom: 16,
+        marginBottom: 10,
         textAlign: 'center',
     },
     description: {
@@ -392,8 +390,8 @@ const styles = StyleSheet.create({
     },
     footer: {
         paddingHorizontal: 32,
-        paddingBottom: 40,
-        gap: 32,
+        paddingBottom: 28,
+        gap: 24,
     },
     // Barre de progression : piste pleine largeur, remplissage anime.
     progressTrack: {
