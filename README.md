@@ -610,3 +610,20 @@ lancement, application au suivant).
 ## ✨ Design & Expérience
 
 L'application suit une charte graphique premium articulée autour de dégradés vibrants (`#f43f5e` ➡️ `#ec4899`), optimisée pour le **Dark Mode** et offrant un retour haptique à chaque interaction clé pour une expérience utilisateur tactile et vivante.
+
+## 🗂️ Panneau web d'administration (`admin-web/`)
+
+Dashboard **Next.js** séparé (statistiques, modération, articles coaching, journal push),
+branché sur le même projet Supabase avec le JWT d'un compte `admin`/`manager` :
+
+- **SQL** : `sql/admin-panel.sql` (bloc 10, idempotent) — RPC `admin_stats`,
+  files paginées `admin_verifications_queue` / `admin_reports_queue`,
+  recherche `admin_users_search`, ban administratif (`profiles.banned_at` +
+  `admin_set_banned()` + trigger anti-auto-unban), policies admin sur les
+  articles/commentaires coaching.
+- **Sécurité** : gate UI (session + `profiles.role`) **et** garde réelle
+  `is_admin()` dans chaque RPC security definer ; `anon` sans droits ;
+  aucune `service_role` côté web.
+- **Démarrage** : `cd admin-web && npm install && npm run dev` — détails dans
+  [`admin-web/README.md`](admin-web/README.md).
+
