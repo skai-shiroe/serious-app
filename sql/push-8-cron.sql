@@ -35,7 +35,7 @@ begin
     if v.t1 is not null and v.t1 <> ''
        and public.push_allowed(v.u1, 'match_reminder', v.id::text, interval '24 hours') then
       perform public.send_push(
-        array[v.t1], '💬 Dites bonjour !',
+        array[v.t1], '🗨️ Dites bonjour !',
         'Vous avez un match avec ' || coalesce(v.n2, 'quelqu''un') ||
         ' mais aucun message : lancez la discussion !',
         jsonb_build_object('type', 'match'), 'matches', 'default');
@@ -45,7 +45,7 @@ begin
     if v.t2 is not null and v.t2 <> ''
        and public.push_allowed(v.u2, 'match_reminder', v.id::text, interval '24 hours') then
       perform public.send_push(
-        array[v.t2], '💬 Dites bonjour !',
+        array[v.t2], '🗨️ Dites bonjour !',
         'Vous avez un match avec ' || coalesce(v.n1, 'quelqu''un') ||
         ' mais aucun message : lancez la discussion !',
         jsonb_build_object('type', 'match'), 'matches', 'default');
@@ -86,8 +86,8 @@ begin
     if public.push_allowed(v.uid, 'unread_digest', 'daily', interval '20 hours') then
       perform public.send_push(
         array[v.token],
-        case when v.n = 1 then '📩 1 message non lu'
-             else '📩 ' || v.n || ' messages non lus' end,
+        case when v.n = 1 then '💌 1 message non lu'
+             else '💌 ' || v.n || ' messages non lus' end,
         'Ouvrez Messagerie pour y répondre',
         jsonb_build_object('type', 'match'),
         'messages', 'default');
@@ -165,8 +165,8 @@ begin
         perform public.send_push(
           array[r.push_token],
           case when v.newcomers = 1
-               then '💖 1 nouveau profil à ' || v.city
-               else '💖 ' || v.newcomers || ' nouveaux profils à ' || v.city end,
+               then '✨ 1 nouveau profil à ' || v.city
+               else '✨ ' || v.newcomers || ' nouveaux profils à ' || v.city end,
           'Découvrez les nouveaux profils de votre ville cette semaine.',
           jsonb_build_object('type', 'city_digest'),
           'system', 'default');

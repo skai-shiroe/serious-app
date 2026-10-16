@@ -64,7 +64,7 @@ begin
   end if;
 
   perform public.send_push(
-    array[v_token], '💬 Nouveau message',
+    array[v_token], '✉️ Nouveau message',
     coalesce(v_name, 'Quelqu''un') || ' vous a envoyé un message',
     jsonb_build_object('type', 'message', 'match_id', new.match_id),
     'messages', 'high');
@@ -84,7 +84,7 @@ begin
 
   perform public.send_push(
     v_tokens,
-    '✨ Nouveau conseil de coaching',
+    '💡 Nouveau conseil de coaching',
     coalesce(nullif(new.title, ''), 'Un nouveau conseil vient d''être publié'),
     jsonb_build_object('type', 'coaching', 'id', new.id),
     'coaching', 'default');
@@ -145,7 +145,7 @@ begin
   select first_name into v_name from public.profiles where user_id = new.user_id;
 
   perform public.send_push(
-    array[v_token], '💬 Nouveau commentaire',
+    array[v_token], '🗨️ Nouveau commentaire',
     coalesce(v_name, 'Quelqu''un') || ' a commenté votre conseil',
     jsonb_build_object('type', 'coaching', 'id', new.post_id),
     'coaching', 'default');
@@ -176,7 +176,7 @@ begin
   select first_name into v_name from public.profiles where user_id = new.user_id;
 
   perform public.send_push(
-    array[v_token], '👍 Nouveau like',
+    array[v_token], '👍🏾 Nouveau like',
     coalesce(v_name, 'Quelqu''un') || ' a aimé votre conseil',
     jsonb_build_object('type', 'coaching', 'id', new.post_id),
     'coaching', 'default');
@@ -207,7 +207,7 @@ begin
 
   perform public.send_push(
     array[v_token],
-    '💖 Quelqu''un vous a liké',
+    '❤️ Quelqu''un vous a liké',
     'Retournez dans « Découvrir » pour voir qui s''intéresse à vous',
     jsonb_build_object('type', 'swipe_like'),
     'matches', 'high');
