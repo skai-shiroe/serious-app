@@ -26,7 +26,7 @@ import Animated, {
 } from 'react-native-reanimated';
 import { Button } from './ui/button';
 import { LofiIllustration, LOFI_STAGE } from './lofi-illustration';
-import { LOFI_DNA_SVG, LOFI_HEART_SVG, LOFI_PRIVACY_SVG, LOFI_SEARCH_SVG } from '@/lib/lofi-svgs';
+import { LOFI_HEART_SVG, LOFI_PRIVACY_SVG, LOFI_SEARCH_SVG } from '@/lib/lofi-svgs';
 
 const { width } = Dimensions.get('window');
 
@@ -45,14 +45,9 @@ const slides = [
         description: 'Trouvez un partenaire compatible qui partage vos valeurs et vos aspirations pour une relation authentique et durable.',
         colors: ['#fb7185', '#f472b6'] as const // rose-400 to pink-400
     },
+
     {
         art: LOFI_SEARCH_SVG,
-        title: 'Découverte Ciblée',
-        description: 'Affinez votre recherche avec nos filtres (âge, ville) et découvrez uniquement des profils qui correspondent à vos envies.',
-        colors: ['#fbbf24', '#fb923c'] as const // amber-400 to orange-400
-    },
-    {
-        art: LOFI_DNA_SVG,
         title: 'Compatibilité Médicale',
         description: 'Prenez des décisions éclairées grâce à notre système de compatibilité basé sur le groupe sanguin et le statut drépanocytaire.',
         colors: ['#60a5fa', '#22d3ee'] as const // blue-400 to cyan-400
