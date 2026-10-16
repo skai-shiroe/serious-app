@@ -627,3 +627,31 @@ branché sur le même projet Supabase avec le JWT d'un compte `admin`/`manager` 
 - **Démarrage** : `cd admin-web && npm install && npm run dev` — détails dans
   [`admin-web/README.md`](admin-web/README.md).
 
+## 🖼️ Onboarding photo (remplacement des vignettes)
+
+L'écran d'onboarding est passé d'une liste de vignettes (`lofi-illustration`) à une
+expérience photo intégrale : 3 diapositives plein écran (`contentFit="cover"`), avec
+progression, `onComplete` et haptics conservés.
+
+- Images : `assets/images/rire_small.jpg`, `assets/images/brxwn.jpeg`, `assets/images/happy.jpeg`.
+- Rendus : `components/onboarding-hero.tsx` (slide photo) + `components/onboarding-screen.tsx`
+  (pager / swipe / progress / haptics).
+- Génération de l'artefact : `node compress-rire.cjs` → `assets/images/rire_small.jpg`
+  (JPEG 1024px, ~185 Ko).
+
+## 🗂️ Panneau web d'administration (`admin-web/`)
+
+Dashboard **Next.js** séparé (statistiques, modération, articles coaching, journal push),
+branché sur le même projet Supabase avec le JWT d'un compte `admin`/`manager` :
+
+- **SQL** : `sql/admin-panel.sql` (bloc 10, idempotent) — RPC `admin_stats`,
+  files paginées `admin_verifications_queue` / `admin_reports_queue`,
+  recherche `admin_users_search`, ban administratif (`profiles.banned_at` +
+  `admin_set_banned()` + trigger anti-auto-unban), policies admin sur les
+  articles/commentaires coaching.
+- **Sécurité** : gate UI (session + `profiles.role`) **et** garde réelle
+  `is_admin()` dans chaque RPC security definer ; `anon` sans droits ;
+  aucune `service_role` côté web.
+- **Démarrage** : `cd admin-web && npm install && npm run dev` — détails dans
+  [`admin-web/README.md`](admin-web/README.md).
+
