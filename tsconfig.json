@@ -9,7 +9,8 @@
     }
   },
   "exclude": [
-    "supabase/functions"
+    "supabase/functions",
+    "admin-web"
   ],
   "include": [
     "**/*.ts",
