@@ -706,38 +706,6 @@ export default function ProfileCreation({ onComplete, initialData }: ProfileCrea
         )}
       </View>
 
-      <View style={styles.row}>
-        <View style={{ flex: 1, marginRight: 8 }}>
-          <SimplePicker
-            label="Genre"
-            options={[
-              { label: 'Homme', value: 'homme' },
-              { label: 'Femme', value: 'femme' },
-            ]}
-            selectedValue={formData.gender}
-            onSelect={(v) => setFormData({ ...formData, gender: v })}
-            placeholder="Choisir"
-            themeColors={themeColors}
-          />
-        </View>
-        <View style={{ flex: 1, marginLeft: 8 }}>
-          <Text style={[styles.label, { color: themeColors.text }]}>Ville</Text>
-          <TouchableOpacity
-            style={[styles.pickerBtn, { backgroundColor: themeColors.inputBg, borderColor: themeColors.border }]}
-            onPress={() => setCityModalVisible(true)}
-            activeOpacity={0.7}
-          >
-            <MapPin color={themeColors.icon} size={16} style={{ marginRight: 6 }} />
-            <Text
-              style={{ color: formData.city ? themeColors.text : themeColors.icon, fontSize: 16, flex: 1 }}
-              numberOfLines={1}
-            >
-              {formData.city || 'Choisir'}
-            </Text>
-          </TouchableOpacity>
-        </View>
-      </View>
-
       {/* Telephone : drapeau + indicatif a gauche, numero national a droite */}
       <View style={styles.inputGroup}>
         <Text style={[styles.label, { color: themeColors.text }]}>Téléphone</Text>
@@ -774,6 +742,38 @@ export default function ProfileCreation({ onComplete, initialData }: ProfileCrea
         <Text style={[styles.phoneHint, { color: themeColors.textMuted }]}>
           {selectedCountry.name} — {selectedCountry.min_digits} chiffres attendus
         </Text>
+      </View>
+
+      <View style={styles.row}>
+        <View style={{ flex: 1, marginRight: 8 }}>
+          <SimplePicker
+            label="Genre"
+            options={[
+              { label: 'Homme', value: 'homme' },
+              { label: 'Femme', value: 'femme' },
+            ]}
+            selectedValue={formData.gender}
+            onSelect={(v) => setFormData({ ...formData, gender: v })}
+            placeholder="Choisir"
+            themeColors={themeColors}
+          />
+        </View>
+        <View style={{ flex: 1, marginLeft: 8 }}>
+          <Text style={[styles.label, { color: themeColors.text }]}>Ville</Text>
+          <TouchableOpacity
+            style={[styles.pickerBtn, { backgroundColor: themeColors.inputBg, borderColor: themeColors.border }]}
+            onPress={() => setCityModalVisible(true)}
+            activeOpacity={0.7}
+          >
+            <MapPin color={themeColors.icon} size={16} style={{ marginRight: 6 }} />
+            <Text
+              style={{ color: formData.city ? themeColors.text : themeColors.icon, fontSize: 16, flex: 1 }}
+              numberOfLines={1}
+            >
+              {formData.city || 'Choisir'}
+            </Text>
+          </TouchableOpacity>
+        </View>
       </View>
     </View>
   );
