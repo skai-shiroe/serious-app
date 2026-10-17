@@ -30,6 +30,7 @@ import { IMAGE_CACHE_POLICY, photoSource, prefetchImages } from '@/lib/images';
 import { isRecentlySeen } from '@/hooks/use-presence';
 import { notifyUnreadChanged } from '@/hooks/use-unread-count';
 import { EmptyState } from '@/components/empty-state';
+import { SwipeToReply } from '@/components/swipe-to-reply';
 import {
   CertifiedPhotoBadge,
   IdentityVerifiedIcon,
@@ -163,6 +164,7 @@ export default function ChatScreen() {
   const [editing, setEditing] = useState<{ id: string; text: string } | null>(null);
 
   const flatListRef = useRef<FlatList>(null);
+  const inputRef = useRef<TextInput>(null);
   // Canal broadcast de frappe (cree dans un effet dedie, ferme au demontage).
   const typingChannelRef = useRef<RealtimeChannel | null>(null);
   const typingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -762,6 +764,8 @@ export default function ChatScreen() {
     setMenuMessage(null);
     setEditing(null);
     setReplyTo(item);
+    // Swipe-pour-repondre (comme WhatsApp) : le clavier s'ouvre aussitot.
+    requestAnimationFrame(() => inputRef.current?.focus());
   };
 
   /** Bloc 14 — éditer : le texte revient dans le champ, validation = UPDATE. */
@@ -843,6 +847,10 @@ export default function ChatScreen() {
       : undefined;
 
     return (
+      <SwipeToReply
+        onReply={() => startReply(item)}
+        direction={isMe ? 'left' : 'right'}
+      >
       <Pressable
         onLongPress={() => openMessageMenu(item)}
         delayLongPress={450}
@@ -887,6 +895,7 @@ export default function ChatScreen() {
             ))}
         </View>
       </Pressable>
+      </SwipeToReply>
     );
   };
 
@@ -1060,6 +1069,7 @@ export default function ChatScreen() {
           )}
           <View style={styles.inputRow}>
           <TextInput
+            ref={inputRef}
             style={[styles.input, { backgroundColor: themeColors.inputBg, color: themeColors.text, borderColor: themeColors.border }]}
             placeholder={editing ? 'Modifier...' : 'Écrire un message...'}
             placeholderTextColor={themeColors.textMuted}
