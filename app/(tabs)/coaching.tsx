@@ -1,5 +1,5 @@
 import { SafeAreaView } from 'react-native-safe-area-context';
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { View, Text, StyleSheet, ScrollView, useColorScheme, TouchableOpacity, ActivityIndicator, RefreshControl, Platform, Modal, TextInput, Alert, KeyboardAvoidingView } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Picker } from '@react-native-picker/picker';
@@ -10,7 +10,7 @@ import { getUser } from '@/lib/session';
 import { decode } from 'base64-arraybuffer';
 import * as ImagePicker from 'expo-image-picker';
 import { LinearGradient } from 'expo-linear-gradient';
-import { Heart, Activity, Sparkles, Clock, ChevronRight, Plus, X, Camera, Image as ImageIcon, WifiOff } from 'lucide-react-native';
+import { Heart, Activity, Sparkles, Clock, ChevronRight, Plus, X, Camera, Image as ImageIcon, WifiOff, Lightbulb } from 'lucide-react-native';
 import { EmptyState } from '@/components/empty-state';
 
 interface CoachingPost {
@@ -27,6 +27,9 @@ const CATEGORIES = [
   { id: 'all', label: 'Tous', icon: Sparkles },
   { id: 'couple', label: 'Couple', icon: Heart },
   { id: 'santé', label: 'Santé', icon: Activity },
+  // Sans puce « Astuce », le tap sur un badge Astuce n'aurait aucune puce
+  // de selectionnee dans la barre de filtres.
+  { id: 'astuce', label: 'Astuce', icon: Lightbulb },
 ];
 
 export default function CoachingScreen() {
@@ -37,6 +40,8 @@ export default function CoachingScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [activeCategory, setActiveCategory] = useState('all');
+  /** Ref du flux : remonte en haut quand on filtre depuis le badge d'une carte. */
+  const scrollRef = useRef<ScrollView>(null);
   const [userRole, setUserRole] = useState<string | null>(null);
   const [roleLoading, setRoleLoading] = useState(true);
   const [isModalVisible, setIsModalVisible] = useState(false);
@@ -57,6 +62,16 @@ export default function CoachingScreen() {
     card: isDark ? '#1f2937' : '#ffffff',
     border: isDark ? '#374151' : '#f3f4f6',
     accent: '#f43f5e',
+  };
+
+  /**
+   * Tap sur le badge catégorie d'une carte : filtre le flux par cette
+   * catégorie (même source de vérité que les puces) + retour en haut.
+   */
+  const filterByCategory = (category: string) => {
+    setLoading(true);
+    setActiveCategory(category);
+    scrollRef.current?.scrollTo({ y: 0, animated: true });
   };
 
   const fetchPosts = async () => {
@@ -231,8 +246,9 @@ export default function CoachingScreen() {
 
   return (
     <SafeAreaView style={[styles.safeArea, { backgroundColor: themeColors.bg }]}>
-      <ScrollView 
-        contentContainerStyle={styles.scrollContent} 
+      <ScrollView
+        ref={scrollRef}
+        contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={themeColors.accent} />
@@ -331,9 +347,16 @@ export default function CoachingScreen() {
                 )}
                 <View style={styles.postContent}>
                   <View style={styles.postHeader}>
+                  {/* Badge cliquable : filtre le flux sur cette catégorie */}
+                  <TouchableOpacity
+                    activeOpacity={0.85}
+                    hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+                    onPress={() => filterByCategory(post.category)}
+                  >
                     <LinearGradient colors={theme.colors} style={styles.categoryBadge}>
                       <Text style={styles.categoryBadgeText}>{theme.label}</Text>
                     </LinearGradient>
+                  </TouchableOpacity>
                     <View style={styles.timeContainer}>
                       <Clock size={12} color={themeColors.textMuted} />
                       <Text style={[styles.timeText, { color: themeColors.textMuted }]}>
@@ -504,8 +527,8 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     overflow: 'hidden',
     ...Platform.select({
-      ios: { shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.1, shadowRadius: 12 },
-      android: { elevation: 4 },
+      ios: { shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.06, shadowRadius: 8 },
+      android: { elevation: 2 },
     }),
   },
   postImage: { width: '100%', height: 180 },
