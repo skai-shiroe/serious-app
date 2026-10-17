@@ -12,11 +12,14 @@ import {
   useColorScheme,
   ActivityIndicator,
   Keyboard,
-  AppState
+  AppState,
+  Modal,
+  Pressable,
+  Alert
 } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useProfileSheet } from '@/contexts/ProfileSheetContext';
-import { ArrowLeft, Send, Check, CheckCheck, WifiOff } from 'lucide-react-native';
+import { ArrowLeft, Send, Check, CheckCheck, WifiOff, X, Reply, Pencil, Trash2 } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Image } from 'expo-image';
 import { supabase } from '@/lib/supabase';
@@ -87,6 +90,12 @@ interface Message {
   created_at: string;
   /** 'text' (defaut) ou 'sticker' (content = 'sticker:<nom>'). */
   type?: string;
+  /** Heure de la derniere edition (null si jamais edite) — bloc 14. */
+  edited_at?: string | null;
+  /** Suppression douce : la ligne reste, l'app affiche « Message supprimé ». */
+  is_deleted?: boolean;
+  /** Id du message cite (reponse) — null si envoi simple. */
+  reply_to_id?: string | null;
 }
 
 /** Element de liste : en-tête de jour OU bulle de message. */
@@ -146,6 +155,12 @@ export default function ChatScreen() {
   const [partnerTyping, setPartnerTyping] = useState(false);
   // Dernier heartbeat connu du partenaire, pour « Vu à HH:MM » hors ligne.
   const [partnerLastSeen, setPartnerLastSeen] = useState<string | null>(null);
+  // Bloc 14 — message selectionne pour le menu d'actions (appui long).
+  const [menuMessage, setMenuMessage] = useState<Message | null>(null);
+  // Bloc 14 — message cite (reponse) : barre au-dessus du composer.
+  const [replyTo, setReplyTo] = useState<Message | null>(null);
+  // Bloc 14 — edition en cours : { id, texte initial }.
+  const [editing, setEditing] = useState<{ id: string; text: string } | null>(null);
 
   const flatListRef = useRef<FlatList>(null);
   // Canal broadcast de frappe (cree dans un effet dedie, ferme au demontage).
@@ -633,8 +648,35 @@ export default function ChatScreen() {
   const handleSend = async () => {
     if (!inputText.trim() || !currentUser || !matchId || chatBlocked) return;
 
+    // Bloc 14 — validation d'une EDITION : UPDATE, pas d'INSERT.
+    if (editing) {
+      const text = inputText.trim();
+      const editId = editing.id;
+      setEditing(null);
+      setInputText('');
+      sendTypingEvent('stop');
+      setMessages((prev) =>
+        prev.map((m) =>
+          m.id === editId ? { ...m, content: text, edited_at: new Date().toISOString() } : m
+        )
+      );
+      const { error } = await supabase
+        .from('messages')
+        .update({ content: text, edited_at: new Date().toISOString() })
+        .eq('id', editId);
+      // Echec (RLS ou bloc 14 non pousse) : on recharge pour revenir au texte serveur.
+      if (error) {
+        const { data } = await supabase.from('messages').select('*').eq('id', editId).maybeSingle();
+        if (data) setMessages((prev) => prev.map((m) => (m.id === editId ? (data as Message) : m)));
+      }
+      return;
+    }
+
     const text = inputText.trim();
     setInputText('');
+    // Bloc 14 — citation jointe a l'envoi (puis la barre se referme).
+    const quoted = replyTo;
+    setReplyTo(null);
     // L'envoi clot la frappe : on emet un « stop » explicite.
     sendTypingEvent('stop');
     // Pas de Keyboard.dismiss() : comme WhatsApp, le clavier reste ouvert
@@ -647,10 +689,33 @@ export default function ChatScreen() {
           match_id: matchId,
           sender_id: currentUser.id,
           content: text,
+          // Bloc 14 — citation (null si envoi simple ; colonne absente
+          // tant que le bloc 14 n'est pas pousse -> on reessaie sans).
+          ...(quoted ? { reply_to_id: quoted.id } : {}),
         })
         .select()
         .single();
-      if (error) throw error;
+      if (error) {
+        // Colonne reply_to_id inconnue : renvoi simple sans citation.
+        if (quoted && /reply_to_id|column|schema cache/i.test(error.message ?? '')) {
+          const retry = await supabase
+            .from('messages')
+            .insert({ match_id: matchId, sender_id: currentUser.id, content: text })
+            .select()
+            .single();
+          if (retry.error) throw retry.error;
+          if (retry.data) {
+            recentlySentRef.current.set(retry.data.id, Date.now());
+            setMessages((prev) =>
+              prev.some((m) => m.id === (retry.data as Message).id)
+                ? prev
+                : [...prev, { ...(retry.data as Message), delivered: isPartnerOnline }]
+            );
+          }
+          return;
+        }
+        throw error;
+      }
       // Insertion optimiste : le message s'affiche immediatement, sans
       // attendre l'evenement realtime (dedup par id s'il arrive quand meme).
       if (data) {
@@ -683,31 +748,132 @@ export default function ChatScreen() {
     }
   };
 
+  /**
+   * Bloc 14 — appui long sur une bulle : ouvre le menu d'actions.
+   * Messages supprimes : aucun menu (rien a faire dessus).
+   */
+  const openMessageMenu = (item: Message) => {
+    if (item.is_deleted) return;
+    setMenuMessage(item);
+  };
+
+  /** Bloc 14 — citer : pré-remplit la barre de citation au-dessus du composer. */
+  const startReply = (item: Message) => {
+    setMenuMessage(null);
+    setEditing(null);
+    setReplyTo(item);
+  };
+
+  /** Bloc 14 — éditer : le texte revient dans le champ, validation = UPDATE. */
+  const startEdit = (item: Message) => {
+    setMenuMessage(null);
+    setReplyTo(null);
+    setEditing({ id: item.id, text: item.content });
+    setInputText(item.content);
+  };
+
+  /**
+   * Bloc 14 — suppression DOUCE (soft) : la ligne reste en base
+   * (modération/admin), l'app affiche « Message supprimé ».
+   * Optimiste + rollback si l'UPDATE est refuse (RLS / bloc 14 non poussé).
+   */
+  const deleteMessage = (item: Message) => {
+    setMenuMessage(null);
+    Alert.alert('Supprimer ce message ?', 'Il sera remplacé par « Message supprimé ».', [
+      { text: 'Annuler', style: 'cancel' },
+      {
+        text: 'Supprimer',
+        style: 'destructive',
+        onPress: () => {
+          setMessages((prev) =>
+            prev.map((m) => (m.id === item.id ? { ...m, is_deleted: true } : m))
+          );
+          void (async () => {
+            const { error } = await supabase
+              .from('messages')
+              .update({ is_deleted: true })
+              .eq('id', item.id);
+            // Echec : rollback vers le contenu d'origine (serveur inchangé).
+            if (error) {
+              setMessages((prev) =>
+                prev.map((m) => (m.id === item.id ? { ...m, is_deleted: false } : m))
+              );
+            }
+          })();
+        },
+      },
+    ]);
+  };
+
   const renderBubble = (item: Message) => {
     const isMe = item.sender_id === currentUser?.id;
 
-    // Anciens stickers de test (fonctionnalité reportée) : au lieu d'afficher
-    // la note brute ('sticker:joy'), on affiche un 🎏 dans la bulle.
+    // Bloc 14 — message SUPPRIME (soft) : bulle neutre, texte italique,
+    // aucun menu (openMessageMenu ignore deja ces messages).
+    if (item.is_deleted) {
+      return (
+        <View style={[styles.messageWrapper, isMe ? styles.messageWrapperMe : styles.messageWrapperThem]}>
+          <View style={[styles.bubble, styles.bubbleDeleted, !isMe && { backgroundColor: themeColors.bubbleThem, opacity: 0.55 }]}>
+            <Text style={[styles.deletedText, { color: isMe ? 'rgba(255,255,255,0.85)' : 'rgba(255,255,255,0.9)' }]}>
+              Message supprime
+            </Text>
+          </View>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+            <Text style={[styles.timeText, { color: themeColors.textMuted }]}>{formatTime(item.created_at)}</Text>
+          </View>
+        </View>
+      );
+    }
+
+    // Anciens stickers de test
     const isSticker =
       item.type === 'sticker' ||
       (typeof item.content === 'string' && item.content.startsWith('sticker:'));
     if (isSticker) {
       return (
         <View style={[styles.messageWrapper, isMe ? styles.messageWrapperMe : styles.messageWrapperThem]}>
-          <Text style={{ fontSize: 64 }}>🎏</Text>
+          <Text style={{ fontSize: 64 }}>TROPHEE</Text>
         </View>
       );
     }
 
+    // Bloc 14 — message cite (reponse) : retrouve dans l'historique local.
+    const quoted = item.reply_to_id
+      ? messages.find((m) => m.id === item.reply_to_id)
+      : undefined;
+
     return (
-      <View style={[styles.messageWrapper, isMe ? styles.messageWrapperMe : styles.messageWrapperThem]}>
+      <Pressable
+        onLongPress={() => openMessageMenu(item)}
+        delayLongPress={450}
+        style={[styles.messageWrapper, isMe ? styles.messageWrapperMe : styles.messageWrapperThem]}
+      >
         <View style={[
-          styles.bubble, 
+          styles.bubble,
           isMe ? styles.bubbleMe : [styles.bubbleThem, { backgroundColor: themeColors.bubbleThem }]
         ]}>
+          {item.reply_to_id && (
+            <View style={[styles.quoteBox, isMe ? styles.quoteBoxMe : styles.quoteBoxThem]}>
+              <Text style={[styles.quoteAuthor, { color: isMe ? '#ffd6de' : '#e0e7ff' }]} numberOfLines={1}>
+                {quoted
+                  ? quoted.sender_id === currentUser?.id
+                    ? 'Vous'
+                    : partner?.first_name || 'Message'
+                  : 'Message'}
+              </Text>
+              <Text style={[styles.quoteText, { color: isMe ? 'rgba(255,255,255,0.9)' : 'rgba(255,255,255,0.85)' }]} numberOfLines={2}>
+                {quoted ? (quoted.is_deleted ? 'Message supprime' : quoted.content) : '...'}
+              </Text>
+            </View>
+          )}
           <Text style={[styles.messageText, isMe ? styles.messageTextMe : styles.messageTextThem]}>
             {item.content}
           </Text>
+          {item.edited_at && (
+            <Text style={[styles.editedHint, { color: isMe ? 'rgba(255,255,255,0.75)' : 'rgba(255,255,255,0.7)' }]}>
+              (modifie)
+            </Text>
+          )}
         </View>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
           <Text style={[styles.timeText, { color: themeColors.textMuted }]}>{formatTime(item.created_at)}</Text>
@@ -720,7 +886,7 @@ export default function ChatScreen() {
               <Check size={14} color={themeColors.textMuted} />
             ))}
         </View>
-      </View>
+      </Pressable>
     );
   };
 
@@ -872,9 +1038,30 @@ export default function ChatScreen() {
           </View>
         ) : (
         <View style={[styles.inputContainer, { backgroundColor: themeColors.headerBg, borderTopColor: themeColors.border, paddingBottom: Platform.OS === 'ios' ? 24 : 16 }]}>
+          {/* Bloc 14 — aperçu citation / edition au-dessus du champ. */}
+          {(replyTo || editing) && (
+            <View style={[styles.previewBar, { backgroundColor: themeColors.inputBg, borderLeftColor: '#f43f5e' }]}>
+              <View style={{ flex: 1 }}>
+                <Text style={[styles.previewTitle, { color: '#f43f5e' }]}>
+                  {editing ? 'Modifier le message' : `Repondre a ${replyTo?.sender_id === currentUser?.id ? 'vous' : partner?.first_name || '...'}`}
+                </Text>
+                <Text style={[styles.previewText, { color: themeColors.textMuted }]} numberOfLines={1}>
+                  {editing ? editing.text : replyTo?.is_deleted ? 'Message supprime' : replyTo?.content}
+                </Text>
+              </View>
+              <TouchableOpacity
+                onPress={() => { setReplyTo(null); setEditing(null); if (editing) setInputText(''); }}
+                style={styles.previewClose}
+                hitSlop={12}
+              >
+                <X color={themeColors.textMuted} size={18} />
+              </TouchableOpacity>
+            </View>
+          )}
+          <View style={styles.inputRow}>
           <TextInput
             style={[styles.input, { backgroundColor: themeColors.inputBg, color: themeColors.text, borderColor: themeColors.border }]}
-            placeholder="Écrire un message..."
+            placeholder={editing ? 'Modifier...' : 'Écrire un message...'}
             placeholderTextColor={themeColors.textMuted}
             value={inputText}
             onChangeText={handleInputChange}
@@ -886,11 +1073,50 @@ export default function ChatScreen() {
               colors={['#f43f5e', '#ec4899']}
               style={styles.sendGradient}
             >
-              <Send color="#ffffff" size={20} />
+              {editing ? <Check color="#ffffff" size={20} /> : <Send color="#ffffff" size={20} />}
             </LinearGradient>
           </TouchableOpacity>
+          </View>
         </View>
         )}
+
+        {/* Bloc 14 — menu d'actions (appui long sur une bulle). */}
+        <Modal
+          visible={!!menuMessage}
+          transparent
+          animationType="fade"
+          onRequestClose={() => setMenuMessage(null)}
+        >
+          <Pressable style={styles.menuOverlay} onPress={() => setMenuMessage(null)}>
+            <View style={[styles.menuBox, { backgroundColor: themeColors.headerBg }]}>
+              <TouchableOpacity
+                style={styles.menuItem}
+                onPress={() => menuMessage && startReply(menuMessage)}
+              >
+                <Reply color={themeColors.text} size={18} />
+                <Text style={[styles.menuText, { color: themeColors.text }]}>Repondre</Text>
+              </TouchableOpacity>
+              {menuMessage?.sender_id === currentUser?.id && (
+                <>
+                  <TouchableOpacity
+                    style={styles.menuItem}
+                    onPress={() => menuMessage && startEdit(menuMessage)}
+                  >
+                    <Pencil color={themeColors.text} size={18} />
+                    <Text style={[styles.menuText, { color: themeColors.text }]}>Modifier</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[styles.menuItem, styles.menuItemLast]}
+                    onPress={() => menuMessage && deleteMessage(menuMessage)}
+                  >
+                    <Trash2 color="#ef4444" size={18} />
+                    <Text style={[styles.menuText, { color: '#ef4444' }]}>Supprimer</Text>
+                  </TouchableOpacity>
+                </>
+              )}
+            </View>
+          </Pressable>
+        </Modal>
 
       </KeyboardAvoidingView>
     </SafeAreaView>
@@ -934,7 +1160,29 @@ const styles = StyleSheet.create({
   // Bulles du destinataire (fond bleu) : texte blanc dans les deux thèmes.
   messageTextThem: { color: '#ffffff' },
   timeText: { fontSize: 11, marginTop: 4, marginHorizontal: 4 },
-  inputContainer: { flexDirection: 'row', alignItems: 'flex-end', padding: 12, borderTopWidth: 1 },
+  inputContainer: { flexDirection: 'column', padding: 12, borderTopWidth: 1 },
+  inputRow: { flexDirection: 'row', alignItems: 'flex-end' },
+  // Bloc 14 — aperçu citation / edition au-dessus du champ (style WhatsApp).
+  previewBar: { flexDirection: 'row', alignItems: 'center', borderLeftWidth: 3, borderRadius: 8, paddingHorizontal: 10, paddingVertical: 8, marginBottom: 8 },
+  previewTitle: { fontSize: 12, fontWeight: '700' },
+  previewText: { fontSize: 13, marginTop: 2 },
+  previewClose: { width: 32, height: 32, justifyContent: 'center', alignItems: 'center' },
+  // Bloc 14 — menu d'actions (appui long sur une bulle).
+  menuOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', justifyContent: 'center', alignItems: 'center', padding: 24 },
+  menuBox: { width: '100%', maxWidth: 320, borderRadius: 16, paddingVertical: 6, overflow: 'hidden' },
+  menuItem: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 18, paddingVertical: 14, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: 'rgba(128,128,128,0.35)' },
+  menuItemLast: { borderBottomWidth: 0 },
+  menuText: { fontSize: 16 },
+  // Bloc 14 — citation dans la bulle (style WhatsApp).
+  quoteBox: { borderLeftWidth: 3, borderLeftColor: 'rgba(255,255,255,0.7)', paddingLeft: 8, marginBottom: 6, maxWidth: '100%' },
+  quoteBoxMe: {},
+  quoteBoxThem: {},
+  quoteAuthor: { fontSize: 12, fontWeight: '700' },
+  quoteText: { fontSize: 13, marginTop: 1 },
+  editedHint: { fontSize: 11, fontStyle: 'italic', marginTop: 4 },
+  // Bloc 14 — bulle d'un message supprime (soft delete).
+  bubbleDeleted: { opacity: 0.6 },
+  deletedText: { fontSize: 15, fontStyle: 'italic' },
   input: { flex: 1, minHeight: 44, maxHeight: 120, borderWidth: 1, borderRadius: 22, paddingHorizontal: 16, paddingTop: 10, paddingBottom: 10, fontSize: 16, marginRight: 10 },
   sendBtn: { width: 44, height: 44, marginBottom: 0 },
   sendGradient: { width: '100%', height: '100%', borderRadius: 22, justifyContent: 'center', alignItems: 'center' },
