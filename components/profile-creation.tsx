@@ -8,7 +8,6 @@ import {
   fetchCountries,
   formatE164,
   nationalFromE164,
-  onlyDigits,
   validateNational,
   type Country,
 } from '@/lib/countries';
@@ -17,9 +16,9 @@ import { decode } from 'base64-arraybuffer';
 import { Image } from 'expo-image';
 import * as ImagePicker from 'expo-image-picker';
 import { LinearGradient } from 'expo-linear-gradient';
-import { Activity, Camera, ChevronDown, ChevronLeft, ChevronRight, CircleAlert, Heart, Images, MapPin, User } from 'lucide-react-native';
+import { Activity, Camera, ChevronDown, ChevronLeft, ChevronRight, CircleAlert, Heart, Images, MapPin, User, X } from 'lucide-react-native';
 import React, { useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, Alert, Keyboard, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, useColorScheme, View, } from 'react-native';
+import { ActivityIndicator, Alert, Keyboard, KeyboardAvoidingView, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, useColorScheme, View, } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 interface ProfileCreationProps {
@@ -425,6 +424,46 @@ export default function ProfileCreation({ onComplete, initialData }: ProfileCrea
     }
 
     handlePickImage(index);
+  };
+
+  /**
+   * Supprime la photo d'un emplacement : fichier du bucket (best effort) puis
+   * slot remis a null. Un dernier retire demande confirmation (au moins une
+   * photo est requise sur un profil). Un envoi en cours n'est pas supprimable
+   * (le task remplirait le slot juste apres).
+   */
+  const handleRemovePhoto = (index: number) => {
+    const slot = photosRef.current[index];
+    if (!slot || slot.status === 'uploading') return;
+
+    const apply = () => {
+      base64Cache.current.delete(index);
+      setPhotos((prev) => {
+        const next = [...prev];
+        next[index] = null;
+        return next;
+      });
+      // Slot pret : le fichier actif. Slot en erreur : `storedPath` pointe
+      // encore vers l'ancienne photo (jamais remplacee) -> on la retire aussi,
+      // elle ne sera plus dans `photos` a la sauvegarde.
+      const path = slot.storedPath ?? storagePathFromUrl(slot.uri);
+      if (path) void removeStoredPhoto(path);
+    };
+
+    const ready = photosRef.current.filter((s) => s?.status === 'ready').length;
+    if (slot.status === 'ready' && ready <= 1) {
+      Alert.alert(
+        'Dernière photo',
+        'Au moins une photo est requise sur votre profil. Supprimer quand même ?',
+        [
+          { text: 'Annuler', style: 'cancel' },
+          { text: 'Supprimer', style: 'destructive', onPress: apply },
+        ]
+      );
+      return;
+    }
+
+    apply();
   };
 
   const handleSave = async () => {
@@ -1000,6 +1039,17 @@ export default function ProfileCreation({ onComplete, initialData }: ProfileCrea
                       <CircleAlert color="#ffffff" size={22} />
                     </View>
                   )}
+                  {/* Supprimer cette photo (pas pendant l'envoi) */}
+                  {slot.status !== 'uploading' && (
+                    <TouchableOpacity
+                      style={styles.slotDeleteBtn}
+                      onPress={() => handleRemovePhoto(index)}
+                      hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                      activeOpacity={0.8}
+                    >
+                      <X color="#ffffff" size={12} strokeWidth={3} />
+                    </TouchableOpacity>
+                  )}
                 </>
               ) : (
                 <Camera color={themeColors.icon} size={24} />
@@ -1353,6 +1403,21 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  /* Pastille X de suppression d'une photo (haut-droite du slot) */
+  slotDeleteBtn: {
+    position: 'absolute',
+    top: 4,
+    right: 4,
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    backgroundColor: 'rgba(0,0,0,0.65)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.6)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 2,
   },
   photoImage: {
     width: '100%',

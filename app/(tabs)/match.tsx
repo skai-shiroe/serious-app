@@ -28,6 +28,11 @@ import { useRouter } from 'expo-router';
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 const SWIPE_THRESHOLD = SCREEN_WIDTH * 0.3;
+/**
+ * Seuil vertical : glisser la carte vers le HAUT ouvre la fiche detail (i)
+ * au lieu de declencher like/dislike (composeur horizontal).
+ */
+const VERTICAL_SWIPE_THRESHOLD = SCREEN_HEIGHT * 0.15;
 
 const BLOOD_TYPES = ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'];
 const SICKLE_CELL_STATUS = [
@@ -343,6 +348,20 @@ export default function MatchScreen() {
       translateY.value = event.translationY;
     })
     .onEnd((event) => {
+      // Swipe vers le HAUT (zone ou peu de derivation horizontale) : ouvre la
+      // fiche complete du profil, comme le bouton (i). Pas de like/dislike.
+      if (
+        Math.abs(translateX.value) < SWIPE_THRESHOLD &&
+        translateY.value < -VERTICAL_SWIPE_THRESHOLD
+      ) {
+        translateY.value = withTiming(-SCREEN_HEIGHT * 0.3, { duration: 180 }, (finished) => {
+          if (finished) {
+            runOnJS(handleOpenProfileSheet)();
+            translateY.value = withSpring(0);
+          }
+        });
+        return;
+      }
       if (translateX.value > SWIPE_THRESHOLD) {
         translateX.value = withTiming(SCREEN_WIDTH * 1.5, { duration: 200 }, () => {
           runOnJS(onSwipeComplete)('right');
@@ -526,7 +545,27 @@ export default function MatchScreen() {
                     <MapPin color="#e5e7eb" size={16} />
                     <Text style={styles.city}>{currentProfile.city}</Text>
                   </View>
-                  
+
+                  {/* Centres d interet (5 premiers + « +n ») : deja presents
+                      dans le profil charge, zero requete supplementaire. */}
+                  {Array.isArray(currentProfile.interests) &&
+                    currentProfile.interests.length > 0 && (
+                      <View style={styles.interestsRow}>
+                        {currentProfile.interests.slice(0, 5).map((interest: string) => (
+                          <View key={interest} style={styles.interestChip}>
+                            <Text style={styles.interestChipText}>{interest}</Text>
+                          </View>
+                        ))}
+                        {currentProfile.interests.length > 5 && (
+                          <View style={styles.interestChip}>
+                            <Text style={styles.interestChipText}>
+                              +{currentProfile.interests.length - 5}
+                            </Text>
+                          </View>
+                        )}
+                      </View>
+                    )}
+
                   <View style={styles.tagsRow}>
                     <View style={[styles.tag, { backgroundColor: 'rgba(244,63,94,0.3)' }]}>
                       <Text style={styles.tagText}>{currentProfile.blood_type}</Text>
@@ -578,14 +617,14 @@ export default function MatchScreen() {
               onPress={() => handleAction('left')}
               activeOpacity={0.8}
             >
-              <X color="#ef4444" size={32} />
+              <X color="#ef4444" size={26} />
             </TouchableOpacity>
             <TouchableOpacity 
               style={[styles.actionBtn, styles.likeBtn, { backgroundColor: themeColors.card }]} 
               onPress={() => handleAction('right')}
               activeOpacity={0.8}
             >
-              <Heart color="#10b981" size={32} fill="#10b981" />
+              <Heart color="#10b981" size={26} fill="#10b981" />
             </TouchableOpacity>
           </View>
         )}
@@ -832,6 +871,16 @@ const styles = StyleSheet.create({
   tagsRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
   tag: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 12 },
   tagText: { color: '#ffffff', fontSize: 13, fontWeight: '700' },
+  interestsRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginBottom: 10 },
+  interestChip: {
+    paddingHorizontal: 9,
+    paddingVertical: 3,
+    borderRadius: 9,
+    backgroundColor: 'rgba(255,255,255,0.18)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.35)',
+  },
+  interestChipText: { color: '#f9fafb', fontSize: 11, fontWeight: '600' },
   infoIcon: { position: 'absolute', right: 24, bottom: 24, width: 44, height: 44, borderRadius: 22, backgroundColor: 'rgba(255,255,255,0.2)', justifyContent: 'center', alignItems: 'center' },
   buttonsContainer: { 
     flexDirection: 'row', 
@@ -841,10 +890,10 @@ const styles = StyleSheet.create({
     paddingTop: 8, 
     gap: 32 
   },
-  actionBtn: { 
-    width: 72, 
-    height: 72, 
-    borderRadius: 36, 
+  actionBtn: {
+    width: 58,
+    height: 58,
+    borderRadius: 29,
     justifyContent: 'center', 
     alignItems: 'center', 
     shadowColor: '#000', 
@@ -855,11 +904,23 @@ const styles = StyleSheet.create({
   },
   dislikeBtn: { borderColor: '#ef4444', borderWidth: 2 },
   likeBtn: { borderColor: '#10b981', borderWidth: 2 },
-  stamp: { position: 'absolute', top: 120, paddingHorizontal: 16, paddingVertical: 8, borderRadius: 12, borderWidth: 6, transform: [{ rotate: '-20deg' }], zIndex: 10 },
+  // Pastille blanche semi-opaque : le vert/rouge reste lisible sur TOUTES les
+  // photos (le texte seul se fondait dans les fonds clairs). Rotation conservee.
+  stamp: {
+    position: 'absolute',
+    top: 120,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 12,
+    borderWidth: 6,
+    backgroundColor: 'rgba(255,255,255,0.88)',
+    transform: [{ rotate: '-20deg' }],
+    zIndex: 10,
+  },
   stampLike: { left: 40, borderColor: '#10b981' },
-  stampTextLike: { color: '#10b981', fontSize: 32, fontWeight: 'bold', letterSpacing: 3 },
+  stampTextLike: { color: '#16a34a', fontSize: 32, fontWeight: 'bold', letterSpacing: 3 },
   stampNope: { right: 40, borderColor: '#ef4444', transform: [{ rotate: '20deg' }] },
-  stampTextNope: { color: '#ef4444', fontSize: 32, fontWeight: 'bold', letterSpacing: 3 },
+  stampTextNope: { color: '#dc2626', fontSize: 32, fontWeight: 'bold', letterSpacing: 3 },
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
   modalContent: { borderTopLeftRadius: 32, borderTopRightRadius: 32, padding: 32, maxHeight: '80%' },
   modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 32 },
