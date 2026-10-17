@@ -128,3 +128,30 @@ export const REPORT_REASONS: Record<ReportReason, string> = {
 };
 
 export const CATEGORIES: CoachingCategory[] = ['couple', 'santé', 'astuce'];
+
+// ── Referentiels dynamiques (bloc 11, table countries/cities/interests) ──
+export type InterestRow = {
+  id: number;
+  label: string;
+  is_active: boolean;
+  sort_order: number;
+};
+
+export type CountryRow = {
+  code: string;
+  name: string;
+  dial_code: string;
+  flag: string;
+  min_digits: number;
+  max_digits: number;
+  is_active: boolean;
+  sort_order: number;
+};
+
+export type CityRow = {
+  id: number;
+  country_code: string;
+  name: string;
+  is_active: boolean;
+};
+

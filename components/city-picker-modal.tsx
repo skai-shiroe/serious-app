@@ -1,4 +1,9 @@
-import { CITIES, normalizeText } from '@/lib/cities';
+import {
+  CITIES,
+  FALLBACK_CITIES_BY_COUNTRY,
+  fetchCities,
+  normalizeText,
+} from '@/lib/cities';
 import { Check, Search, X } from 'lucide-react-native';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
@@ -27,6 +32,8 @@ export type CityPickerTheme = {
 type CityPickerModalProps = {
   visible: boolean;
   selectedCity?: string | null;
+  /** Pays dont on veut les villes (null/absent = toutes les villes). */
+  countryCode?: string | null;
   title?: string;
   showAllCitiesOption?: boolean;
   allCitiesLabel?: string;
@@ -44,6 +51,7 @@ type CityPickerModalProps = {
 export default function CityPickerModal({
   visible,
   selectedCity = '',
+  countryCode = null,
   title = 'Votre ville',
   showAllCitiesOption = false,
   allCitiesLabel = 'Toutes les villes',
@@ -54,20 +62,25 @@ export default function CityPickerModal({
   onClose,
 }: CityPickerModalProps) {
   const [query, setQuery] = useState('');
+  // Villes dynamiques (table `cities`, bloc 11) : repli immediat sur la
+  // liste embarquee du pays, remplaciee des que la table repond.
+  const [cities, setCities] = useState<string[]>(CITIES);
   const wasVisibleRef = useRef(visible);
 
   useEffect(() => {
     if (visible && !wasVisibleRef.current) {
       setQuery('');
+      setCities(countryCode ? (FALLBACK_CITIES_BY_COUNTRY[countryCode] ?? CITIES) : CITIES);
+      fetchCities(countryCode).then(setCities).catch(() => {});
     }
     wasVisibleRef.current = visible;
-  }, [visible]);
+  }, [visible, countryCode]);
 
   const visibleCities = useMemo(() => {
     const normalizedQuery = normalizeText(query.trim());
-    if (!normalizedQuery) return CITIES;
-    return CITIES.filter((city) => normalizeText(city).includes(normalizedQuery));
-  }, [query]);
+    if (!normalizedQuery) return cities;
+    return cities.filter((city) => normalizeText(city).includes(normalizedQuery));
+  }, [cities, query]);
 
   const iconColor = theme.icon ?? theme.textMuted;
   const accentColor = theme.accent ?? '#f43f5e';

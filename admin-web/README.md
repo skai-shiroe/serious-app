@@ -14,7 +14,10 @@ gestion des utilisateurs (ban admin), articles coaching et journal push.
      `admin_update_report()`, `admin_users_search()`, `admin_push_log()` ;
    - trigger anti-auto-unban `profiles_ban_guard` ;
    - policies admin sur `coaching_posts` / `coaching_comments` (update/delete).
-2. Un compte Supabase avec `profiles.role` egal a `admin` ou `manager`.
+2. **SQL** : coller aussi `../sql/referentiels.sql` (bloc 11) — tables
+   `countries` / `cities` / `interests` alimentant la page `/referentiels` et l app
+   (pays/villes/interets dynamiques).
+3. Un compte Supabase avec `profiles.role` egal a `admin` ou `manager`.
 
 ## Démarrage
 
@@ -47,6 +50,7 @@ connecte, exactement comme l app mobile.
 - `/signalements` — file paginee, Traiter / Classer sans suite (RPC `admin_update_report`), ban direct
 - `/utilisateurs` — recherche nom/ville, badges, signalements recus, matchs, ban/deban (RPC `admin_set_banned`)
 - `/articles` — CRUD articles coaching (upload image bucket `coaching`), moderation des commentaires
+- `/referentiels` — CRUD dynamique intérêts / pays / villes (bloc 11 `sql/referentiels.sql`)
 - `/journal` — 100 derniers envois push (`push_log`)
 
 ## Déploiement (Vercel)

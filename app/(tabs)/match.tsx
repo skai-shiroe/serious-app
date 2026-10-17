@@ -94,6 +94,8 @@ export default function MatchScreen() {
   // Genre du visiteur, lu une seule fois puis mis en cache : il conditionne le
   // filtrage strict du deck (voir lib/candidates.ts).
   const viewerGenderRef = useRef<string | null | undefined>(undefined);
+  // Pays du visiteur : borne la liste de villes proposee par le filtre deck.
+  const [viewerCountry, setViewerCountry] = useState<string | null>(null);
   const loadViewerGender = useCallback(async (): Promise<string | null> => {
     if (viewerGenderRef.current !== undefined) return viewerGenderRef.current;
     try {
@@ -103,10 +105,11 @@ export default function MatchScreen() {
       } else {
         const { data } = await supabase
           .from('profiles')
-          .select('gender')
+          .select('gender, country_code')
           .eq('user_id', user.id)
           .maybeSingle();
         viewerGenderRef.current = data?.gender ?? null;
+        setViewerCountry(data?.country_code ?? null);
       }
     } catch {
       // Echec NON memorise : on retente a la prochaine lecture. Si on mettait
@@ -700,6 +703,7 @@ export default function MatchScreen() {
         <CityPickerModal
           visible={cityModalVisible}
           selectedCity={draftFilters.city}
+          countryCode={viewerCountry}
           title="Ville"
           showAllCitiesOption
           allCitiesLabel="Toutes les villes"

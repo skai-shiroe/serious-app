@@ -463,6 +463,19 @@ Trop longs pour être inlinés ici, les blocs 6 à 8 vivent dans `sql/` et se co
 > (fonctions `send_push`/`push_allowed` manquantes) ; sans le bloc 7, seule la décision de
 > vérification du bloc 5 continue de partir.
 
+**Blocs 9 à 11 — modération, panneau admin, référentiels (`sql/`)**
+
+| Étape | Fichier | Rôle |
+|---|---|---|
+| 1 | `sql/moderation.sql` | bloc 9 — signalements, blocages bilatéraux, policies |
+| 2 | `sql/admin-panel.sql` | bloc 10 — RPC `admin_*`, ban administratif, stats, policies coaching |
+| 3 | `sql/referentiels.sql` | bloc 11 — tables **dynamiques** `countries` / `cities` / `interests` + colonnes `profiles.country_code` / `phone_e164` ; lecture `authenticated`, écriture admin (RLS `is_admin()`) |
+
+> Le bloc 11 rend pilotables depuis `admin-web → /referentiels` : pays (drapeau, indicatif,
+> longueur attendue du numéro), villes par pays et centres d'intérêt (minimum 5 imposé à la
+> création du profil). Le téléphone n'est **plus** demandé à l'inscription (ni email ni Google) :
+> il est saisi en étape 1 de la création de profil, avec le drapeau/indicatif à gauche du champ.
+
 ## 🛡️ Vérification d'identité & génotype
 
 Deux vérifications indépendantes, lancées depuis **Mon Profil → Confiance** :
@@ -621,6 +634,9 @@ branché sur le même projet Supabase avec le JWT d'un compte `admin`/`manager` 
   recherche `admin_users_search`, ban administratif (`profiles.banned_at` +
   `admin_set_banned()` + trigger anti-auto-unban), policies admin sur les
   articles/commentaires coaching.
+- **Référentiels** : page `/referentiels` (bloc 11 `sql/referentiels.sql`) —
+  CRUD dynamique des intérêts, pays (drapeau/indicatif/longueur) et villes
+  (écriture RLS `is_admin()`, désactivation douce recommandée).
 - **Sécurité** : gate UI (session + `profiles.role`) **et** garde réelle
   `is_admin()` dans chaque RPC security definer ; `anon` sans droits ;
   aucune `service_role` côté web.
@@ -638,20 +654,4 @@ progression, `onComplete` et haptics conservés.
   (pager / swipe / progress / haptics).
 - Génération de l'artefact : `node compress-rire.cjs` → `assets/images/rire_small.jpg`
   (JPEG 1024px, ~185 Ko).
-
-## 🗂️ Panneau web d'administration (`admin-web/`)
-
-Dashboard **Next.js** séparé (statistiques, modération, articles coaching, journal push),
-branché sur le même projet Supabase avec le JWT d'un compte `admin`/`manager` :
-
-- **SQL** : `sql/admin-panel.sql` (bloc 10, idempotent) — RPC `admin_stats`,
-  files paginées `admin_verifications_queue` / `admin_reports_queue`,
-  recherche `admin_users_search`, ban administratif (`profiles.banned_at` +
-  `admin_set_banned()` + trigger anti-auto-unban), policies admin sur les
-  articles/commentaires coaching.
-- **Sécurité** : gate UI (session + `profiles.role`) **et** garde réelle
-  `is_admin()` dans chaque RPC security definer ; `anon` sans droits ;
-  aucune `service_role` côté web.
-- **Démarrage** : `cd admin-web && npm install && npm run dev` — détails dans
-  [`admin-web/README.md`](admin-web/README.md).
 

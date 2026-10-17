@@ -1,12 +1,23 @@
 import { supabase } from '@/lib/supabase';
 import { forgetSession, getUser } from '@/lib/session';
 import CityPickerModal from '@/components/city-picker-modal';
+import CountryPickerModal from '@/components/country-picker';
 import { IMAGE_CACHE_POLICY } from '@/lib/images';
+import {
+  FALLBACK_COUNTRIES,
+  fetchCountries,
+  formatE164,
+  nationalFromE164,
+  onlyDigits,
+  validateNational,
+  type Country,
+} from '@/lib/countries';
+import { FALLBACK_INTERESTS, MIN_INTERESTS, fetchInterests } from '@/lib/interests';
 import { decode } from 'base64-arraybuffer';
 import { Image } from 'expo-image';
 import * as ImagePicker from 'expo-image-picker';
 import { LinearGradient } from 'expo-linear-gradient';
-import { Activity, Camera, ChevronLeft, ChevronRight, CircleAlert, Heart, Images, MapPin, User } from 'lucide-react-native';
+import { Activity, Camera, ChevronDown, ChevronLeft, ChevronRight, CircleAlert, Heart, Images, MapPin, User } from 'lucide-react-native';
 import React, { useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Alert, Keyboard, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, useColorScheme, View, } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -129,7 +140,8 @@ function SimplePicker({
   );
 }
 
-const INTERESTS_LIST = ['Sport', 'Voyage', 'Musique', 'Cinéma', 'Lecture', 'Cuisine', 'Art', 'Jeux vidéo', 'Technologie', 'Nature', 'Photographie', 'Mode', 'Animaux', 'Fitness', 'Danse'];
+// Centres d interet : liste DYNAMIQUE (table `interests`, bloc 11),
+// chargee dans `interestsOptions` avec repli FALLBACK_INTERESTS.
 
 const BLOOD_TYPES = ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'];
 
@@ -179,9 +191,36 @@ export default function ProfileCreation({ onComplete, initialData }: ProfileCrea
     bloodType: initialData?.blood_type || '',
     sickleCell: initialData?.sickle_cell || '',
     bio: initialData?.bio || '',
+    // Pays + telephone : saisis ICI (creation/edition de profil), pas a
+    // l inscription — meme parcours pour un compte Google et un compte email.
+    countryCode: initialData?.country_code || 'TG',
+    phone: nationalFromE164(initialData?.phone_e164),
   });
 
   const [cityModalVisible, setCityModalVisible] = useState(false);
+  const [countryModalVisible, setCountryModalVisible] = useState(false);
+
+  // Referentiels dynamiques (bloc 11) : repli immediat sur les listes
+  // embarquees, remplacees des que Supabase repond.
+  const [countries, setCountries] = useState<Country[]>(FALLBACK_COUNTRIES);
+  const [interestsOptions, setInterestsOptions] = useState<string[]>(FALLBACK_INTERESTS);
+
+  useEffect(() => {
+    let alive = true;
+    (async () => {
+      const list = await fetchCountries();
+      if (alive && list.length > 0) setCountries(list);
+      const interests = await fetchInterests();
+      if (alive && interests.length > 0) setInterestsOptions(interests);
+    })();
+    return () => {
+      alive = false;
+    };
+  }, []);
+
+  /** Pays selectionne : drapeau + indicatif affiches a gauche du numero. */
+  const selectedCountry: Country =
+    countries.find((c) => c.code === formData.countryCode) ?? countries[0] ?? FALLBACK_COUNTRIES[0];
 
   // Pour la saisie structurée de la date de naissance
   const [bd, setBd] = useState({
@@ -454,6 +493,8 @@ export default function ProfileCreation({ onComplete, initialData }: ProfileCrea
           birth_date: bd.year && bd.month && bd.day ? `${bd.year}-${bd.month.padStart(2, '0')}-${bd.day.padStart(2, '0')}` : null,
           gender: formData.gender,
           city: formData.city,
+          country_code: formData.countryCode,
+          phone_e164: formData.phone ? formatE164(selectedCountry.dial_code, formData.phone) : null,
           religion: formData.religion,
           profession: formData.profession,
           interests: formData.interests,
@@ -525,6 +566,7 @@ export default function ProfileCreation({ onComplete, initialData }: ProfileCrea
       if (!formData.lastName.trim()) missing.push('le nom');
       if (!formData.gender) missing.push('le genre');
       if (!bd.day || !bd.month || bd.year.length < 4) missing.push('la date de naissance');
+      if (!formData.phone.trim()) missing.push('le numéro de téléphone');
 
       if (missing.length > 0) {
         Alert.alert(
@@ -539,6 +581,26 @@ export default function ProfileCreation({ onComplete, initialData }: ProfileCrea
         Alert.alert(
           'Âge minimum',
           "L'application est réservée aux personnes majeures (18 ans et plus)."
+        );
+        return;
+      }
+
+      // Longueur du numero selon le pays (ex. Togo = 8 chiffres).
+      const phoneError = validateNational(formData.phone, selectedCountry);
+      if (phoneError) {
+        Alert.alert('Numéro invalide', phoneError);
+        return;
+      }
+    }
+
+    // Etape 2 : au moins MIN_INTERESTS centres d interet (assoupli si la
+    // liste dynamique propose moins d options — configuration admin).
+    if (step === 2) {
+      const minRequired = Math.min(MIN_INTERESTS, interestsOptions.length);
+      if (formData.interests.length < minRequired) {
+        Alert.alert(
+          'Centres d\u2019intérêt',
+          `Sélectionnez au moins ${minRequired} centres d\u2019intérêt pour continuer.`
         );
         return;
       }
@@ -675,6 +737,44 @@ export default function ProfileCreation({ onComplete, initialData }: ProfileCrea
           </TouchableOpacity>
         </View>
       </View>
+
+      {/* Telephone : drapeau + indicatif a gauche, numero national a droite */}
+      <View style={styles.inputGroup}>
+        <Text style={[styles.label, { color: themeColors.text }]}>Téléphone</Text>
+        <View style={styles.phoneRow}>
+          <TouchableOpacity
+            style={[
+              styles.countryBtn,
+              { backgroundColor: themeColors.inputBg, borderColor: themeColors.border },
+            ]}
+            onPress={() => setCountryModalVisible(true)}
+            activeOpacity={0.7}
+          >
+            <Text style={styles.countryFlag}>{selectedCountry.flag}</Text>
+            <Text style={{ color: themeColors.text, fontSize: 16, fontWeight: '600' }}>
+              {selectedCountry.dial_code}
+            </Text>
+            <ChevronDown color={themeColors.icon} size={16} />
+          </TouchableOpacity>
+          <TextInput
+            style={[
+              styles.input,
+              styles.phoneInput,
+              { backgroundColor: themeColors.inputBg, borderColor: themeColors.border, color: themeColors.text },
+            ]}
+            placeholder="90 10 20 30"
+            placeholderTextColor={themeColors.icon}
+            keyboardType="number-pad"
+            value={formData.phone}
+            onChangeText={(t) =>
+              setFormData((prev) => ({ ...prev, phone: onlyDigits(t, selectedCountry.max_digits) }))
+            }
+          />
+        </View>
+        <Text style={[styles.phoneHint, { color: themeColors.textMuted }]}>
+          {selectedCountry.name} — {selectedCountry.min_digits} chiffres attendus
+        </Text>
+      </View>
     </View>
   );
 
@@ -722,9 +822,26 @@ export default function ProfileCreation({ onComplete, initialData }: ProfileCrea
       </View>
 
       <View style={styles.inputGroup}>
-        <Text style={[styles.label, { color: themeColors.text }]}>Centres d&apos;intérêt (plusieurs possibles)</Text>
+        <View style={styles.interestHeader}>
+          <Text style={[styles.label, { color: themeColors.text, marginBottom: 0 }]}>
+            Centres d&apos;intérêt
+          </Text>
+          <Text
+            style={[
+              styles.interestCounter,
+              {
+                color:
+                  formData.interests.length >= Math.min(MIN_INTERESTS, interestsOptions.length)
+                    ? '#10b981'
+                    : '#f43f5e',
+              },
+            ]}
+          >
+            {formData.interests.length}/{Math.min(MIN_INTERESTS, interestsOptions.length)} minimum
+          </Text>
+        </View>
         <View style={styles.tagsContainer}>
-          {INTERESTS_LIST.map((interest) => {
+          {interestsOptions.map((interest) => {
             const isSelected = formData.interests.includes(interest);
             return (
               <TouchableOpacity
@@ -1038,6 +1155,7 @@ export default function ProfileCreation({ onComplete, initialData }: ProfileCrea
       <CityPickerModal
         visible={cityModalVisible}
         selectedCity={formData.city}
+        countryCode={formData.countryCode}
         title="Votre ville"
         placeholder="Rechercher une ville..."
         emptyMessage="Aucune ville trouvée."
@@ -1054,6 +1172,25 @@ export default function ProfileCreation({ onComplete, initialData }: ProfileCrea
           setCityModalVisible(false);
         }}
         onClose={() => setCityModalVisible(false)}
+      />
+
+      {/* Selecteur de pays : change le drapeau + l indicatif du telephone */}
+      <CountryPickerModal
+        visible={countryModalVisible}
+        selectedCode={formData.countryCode}
+        theme={{
+          text: themeColors.text,
+          textMuted: themeColors.textMuted,
+          bgCard: themeColors.bgCard,
+          border: themeColors.border,
+          inputBg: themeColors.inputBg,
+          icon: themeColors.icon,
+        }}
+        onSelect={(country) => {
+          setFormData((prev) => ({ ...prev, countryCode: country.code }));
+          setCountryModalVisible(false);
+        }}
+        onClose={() => setCountryModalVisible(false)}
       />
     </SafeAreaView>
   );
@@ -1118,6 +1255,25 @@ const styles = StyleSheet.create({
   },
   charCount: { fontSize: 12, marginTop: 6, textAlign: 'right' },
   row: { flexDirection: 'row' },
+
+  /* Telephone + pays (drapeau + indicatif a gauche du numero) */
+  phoneRow: { flexDirection: 'row', gap: 8, alignItems: 'center' },
+  countryBtn: {
+    height: 48,
+    borderWidth: 1,
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  countryFlag: { fontSize: 20 },
+  phoneInput: { flex: 1, height: 48 },
+  phoneHint: { marginTop: 6, fontSize: 12 },
+
+  /* Centres d interet : compteur x/5 minimum */
+  interestHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  interestCounter: { fontSize: 13, fontWeight: '700' },
 
   /* Picker */
   pickerBtn: {

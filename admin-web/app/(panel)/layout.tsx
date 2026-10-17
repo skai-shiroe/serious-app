@@ -7,6 +7,7 @@ import {
   Bell,
   Flag,
   LayoutDashboard,
+  ListChecks,
   LogOut,
   Newspaper,
   ShieldCheck,
@@ -21,6 +22,7 @@ const NAV = [
   { href: '/signalements', label: 'Signalements', icon: Flag },
   { href: '/utilisateurs', label: 'Utilisateurs', icon: Users },
   { href: '/articles', label: 'Articles coaching', icon: Newspaper },
+  { href: '/referentiels', label: 'Référentiels', icon: ListChecks },
   { href: '/journal', label: 'Journal push', icon: Bell },
 ];
 

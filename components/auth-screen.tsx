@@ -1,7 +1,7 @@
 import { SafeAreaView } from 'react-native-safe-area-context';
 import React, { useState, useEffect } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, KeyboardAvoidingView, Platform, useColorScheme, ScrollView, Alert, ActivityIndicator } from 'react-native';
-import { Mail, Phone, Eye, EyeOff, Chrome } from 'lucide-react-native';
+import { Mail, Eye, EyeOff, Chrome } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Image } from 'expo-image';
 import * as WebBrowser from 'expo-web-browser';
@@ -32,7 +32,6 @@ export default function AuthScreen({ onComplete }: AuthScreenProps) {
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
     email: '',
-    phone: '',
     password: '',
     confirmPassword: ''
   });
@@ -107,14 +106,11 @@ export default function AuthScreen({ onComplete }: AuthScreenProps) {
         });
         if (error) throw error;
       } else {
+        // Le telephone n est PAS demande ici : il est saisi en creation de
+        // profil (drapeau + indicatif), y compris pour un compte Google.
         const { error } = await supabase.auth.signUp({
           email: formData.email,
           password: formData.password,
-          options: {
-            data: {
-              phone: formData.phone,
-            },
-          },
         });
         if (error) throw error;
         Alert.alert(
@@ -277,27 +273,6 @@ export default function AuthScreen({ onComplete }: AuthScreenProps) {
                 />
               </View>
             </View>
-
-            {/* Phone (Signup Only) */}
-            {!isLogin && (
-              <View style={styles.inputGroup}>
-                <Text style={[styles.label, { color: themeColors.text }]}>Téléphone</Text>
-                <View style={styles.inputWrapper}>
-                  <Phone color={themeColors.icon} size={20} style={styles.inputIcon} />
-                  <TextInput
-                    style={[
-                      styles.input, 
-                      { backgroundColor: themeColors.inputBg, borderColor: themeColors.border, color: themeColors.text, paddingLeft: 40 }
-                    ]}
-                    placeholder="+228 90 10 20 30"
-                    placeholderTextColor={themeColors.icon}
-                    value={formData.phone}
-                    onChangeText={(text) => setFormData({ ...formData, phone: text })}
-                    keyboardType="phone-pad"
-                  />
-                </View>
-              </View>
-            )}
 
             {/* Password */}
             <View style={styles.inputGroup}>
