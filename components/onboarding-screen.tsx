@@ -1,7 +1,7 @@
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { ChevronRight } from 'lucide-react-native';
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useRef, useState } from 'react';
 import {
   Dimensions,
   FlatList,
@@ -16,13 +16,10 @@ import { Image } from 'expo-image';
 import * as Haptics from 'expo-haptics';
 import Animated, {
   FadeIn,
-  FadeInDown,
   useAnimatedScrollHandler,
   useAnimatedStyle,
   SharedValue,
   useSharedValue,
-  withRepeat,
-  withTiming,
 } from 'react-native-reanimated';
 import { Button } from './ui/button';
 import Hero from './onboarding-hero';
@@ -30,156 +27,43 @@ import Hero from './onboarding-hero';
 const { width } = Dimensions.get('window');
 
 // Wordmark Geno (foreground adaptif : blanc transparent) — la marque est
-// visible dès la première slide de la première ouverture.
+// visible des la premiere slide de la premiere ouverture.
 const GENO_WORDMARK = require('@/assets/images/geno/android/res/mipmap-xxxhdpi/geno_foreground.png');
 
-// Photos plein écran, glissées vers une vraie première impression.
+// Photos plein ecran, glissees vers une vraie premiere impression.
 // 01 : le rire complice (joie, premier contact chaleureux).
 const SLIDE_1_IMAGE = require('@/assets/images/rire_small.jpg');
-// 02 : le regard intense (confiance, sérieux de la compatibilité).
+// 02 : le regard intense (confiance, serieux de la compatibilite).
 const SLIDE_2_IMAGE = require('@/assets/images/brxwn.jpeg');
-// 03 : la famille heureuse sous le ciel (avenir protégé, sécurité).
+// 03 : la famille heureuse sous le ciel (avenir protege, securite).
 const SLIDE_3_IMAGE = require('@/assets/images/happy.jpeg');
 
 const slides = [
   {
     image: SLIDE_1_IMAGE,
     title: 'Rencontre Sérieuse',
-    description: 'Trouve un partenaire compatible qui partage tes valeurs et tes aspirations pour une relation authentique et durable.',
-    colors: ['#fb7185', '#f472b6'] as const,
+    description:
+      'Trouve un partenaire compatible qui partage tes valeurs et tes aspirations pour une relation authentique et durable.',
   },
   {
     image: SLIDE_2_IMAGE,
     title: 'Compatibilité Médicale',
-    description: 'Prends des decisions informees grâce a notre systeme de compatibilite base sur le groupe sanguin et le statut drépanocytaire.',
-    colors: ['#60a5fa', '#22d3ee'] as const,
+    description:
+      'Prends des decisions informées grâce a notre système de compatibilité basé sur le groupe sanguin et le statut drépanocytaire.',
   },
   {
     image: SLIDE_3_IMAGE,
     title: 'Confidentialité Totale',
-    description: 'Tes donnees medicales et personnelles sont protegees avec les plus hauts standards de securite et de confidentialite.',
-    colors: ['#c084fc', '#818cf8'] as const,
+    description:
+      'Tes données médicales et personnelles sont protégées avec les plus hauts standards de sécurité et de confidentialité.',
   },
 ] as const;
 
 type Slide = (typeof slides)[number];
 
-// Fermeture douce d'un haptique (no-op sur web / si indisp.).
+// Fermeture douce d un haptique (no-op sur web / si indisp.).
 function hapticTap() {
   Haptics.selectionAsync().catch(() => {});
-}
-
-// Distance normalisee de la slide au centre de l'ecran : 1 = centree,
-// 0 = decale d'un ecran entier. Sert aux styles pilotes par le scroll.
-function closenessOf(scrollX: SharedValue<number>, index: number) {
-  'worklet';
-  return 1 - Math.min(Math.abs(scrollX.value - index * width) / width, 1);
-}
-
-/** Couche de fond d'une slide : lavis de couleur + deux orbes flottants.
- *  L'opacite suit le scroll au doigt (crossfade 1:1 pendant le swipe). */
-function SlideBackground({
-  item,
-  index,
-  scrollX,
-  floatY,
-}: {
-  item: Slide;
-  index: number;
-  scrollX: SharedValue<number>;
-  floatY: SharedValue<number>;
-}) {
-  const layerStyle = useAnimatedStyle(() => ({
-    opacity: closenessOf(scrollX, index),
-  }));
-  const floatStyle = useAnimatedStyle(() => ({
-    transform: [{ translateY: floatY.value }],
-  }));
-
-  return (
-    <Animated.View style={[StyleSheet.absoluteFill, layerStyle]} pointerEvents="none">
-      <Animated.View style={[StyleSheet.absoluteFill, floatStyle]}>
-        <LinearGradient colors={item.colors} style={[StyleSheet.absoluteFill, styles.wash]} />
-        <LinearGradient colors={item.colors} style={[styles.orb, styles.orbTop]} />
-        <LinearGradient colors={item.colors} style={[styles.orb, styles.orbBottom]} />
-      </Animated.View>
-    </Animated.View>
-  );
-}
-
-/** Contenu d'une slide : entree en cascade au montage, puis animations
- *  pilotees par le scroll — l'image « pop » au centrage (echelle +
- *  rotation + respiration continue) et les textes fondent selon la distance. */
-function OnboardingSlide({
-  item,
-  index,
-  scrollX,
-  currentSlide,
-}: {
-  item: Slide;
-  index: number;
-  scrollX: SharedValue<number>;
-  currentSlide: number;
-}) {
-
-  const textFadeStyle = useAnimatedStyle(() => ({
-    opacity: 0.25 + 0.75 * closenessOf(scrollX, index),
-  }));
-  const iconPopStyle = useAnimatedStyle(() => {
-    const closeness = closenessOf(scrollX, index);
-    return {
-      transform: [
-        { scale: 0.86 + 0.14 * closeness },
-        { rotate: `${(1 - closeness) * -12}deg` },
-      ],
-    };
-  });
-
-  // Respiration continue de l'image (legère, appreciable au repos).
-  const pulse = useSharedValue(1);
-  useEffect(() => {
-    pulse.value = withRepeat(withTiming(1.04, { duration: 1400 }), -1, true);
-  }, [pulse]);
-  const pulseStyle = useAnimatedStyle(() => ({
-    transform: [{ scale: pulse.value }],
-  }));
-
-  return (
-    <View style={styles.slide}>
-      <Animated.View entering={FadeInDown.delay(60).duration(500)}>
-        <Animated.View style={iconPopStyle}>
-          <Animated.View style={pulseStyle}>
-            {/* Image plein ecran (expo-image, contentFit cover) : montee
-                uniquement pour la slide active et ses voisines. */}
-            {Math.abs(index - currentSlide) <= 1 ? (
-              <Hero
-                source={item.image}
-                title={item.title}
-                description={item.description}
-                index={index}
-                slideTotal={slides.length}
-                isActive
-              />
-            ) : (
-              <View style={styles.artPlaceholder} />
-            )}
-          </Animated.View>
-        </Animated.View>
-      </Animated.View>
-
-      <Animated.View entering={FadeInDown.delay(200).duration(500)}>
-        <Animated.View style={textFadeStyle}>
-          <Text style={styles.title}>{item.title}</Text>
-        </Animated.View>
-      </Animated.View>
-
-      <Animated.View entering={FadeInDown.delay(320).duration(500)}>
-        <Animated.View style={textFadeStyle}>
-          <Text style={styles.description}>{item.description}</Text>
-        </Animated.View>
-      </Animated.View>
-    </View>
-  );
 }
 
 /** Barre de progression unique (degrade Geno) : avance au doigt avec le
@@ -210,16 +94,10 @@ function ProgressFill({ scrollX }: { scrollX: SharedValue<number> }) {
 export function OnboardingScreen({ onComplete }: { onComplete: () => void }) {
   const [currentSlide, setCurrentSlide] = useState(0);
   // Index « immediatement a jour » (double-tap sur Suivant pendant
-  // l'animation de scroll, avant la synchro momentum-end).
+  // l animation de scroll, avant la synchro momentum-end).
   const currentSlideRef = useRef(0);
   const listRef = useRef<FlatList<Slide>>(null);
   const scrollX = useSharedValue(0);
-  const floatY = useSharedValue(0);
-
-  // Derive lente des orbes de fond.
-  useEffect(() => {
-    floatY.value = withRepeat(withTiming(-16, { duration: 3200 }), -1, true);
-  }, [floatY]);
 
   const scrollHandler = useAnimatedScrollHandler((event) => {
     scrollX.value = event.contentOffset.x;
@@ -235,7 +113,7 @@ export function OnboardingScreen({ onComplete }: { onComplete: () => void }) {
     listRef.current?.scrollToOffset({ offset: target * width, animated: true });
   }, []);
 
-  // Le snap du pagingEnabled declenche momentum-end : on synchronise l'index
+  // Le snap du pagingEnabled declenche momentum-end : on synchronise l index
   // (et le haptique) sur la position reelle du scroll, au doigt compris.
   const handleMomentumEnd = useCallback((event: NativeSyntheticEvent<NativeScrollEvent>) => {
     const index = Math.round(event.nativeEvent.contentOffset.x / width);
@@ -254,41 +132,22 @@ export function OnboardingScreen({ onComplete }: { onComplete: () => void }) {
   const handleSkip = () => onComplete();
 
   const renderSlide = ({ item, index }: { item: Slide; index: number }) => (
-    <OnboardingSlide item={item} index={index} scrollX={scrollX} currentSlide={currentSlide} />
+    <View style={styles.slide}>
+      <Hero
+        source={item.image}
+        title={item.title}
+        description={item.description}
+        index={index}
+        slideTotal={slides.length}
+        isActive={index === currentSlide}
+      />
+    </View>
   );
 
   return (
-    <SafeAreaView style={styles.container}>
-      {/* Fond vivant : lavis + orbes par slide, crossfade pendant le swipe. */}
-      <View style={StyleSheet.absoluteFill} pointerEvents="none">
-        {slides.map((item, index) => (
-          <SlideBackground
-            key={index}
-            item={item}
-            index={index}
-            scrollX={scrollX}
-            floatY={floatY}
-          />
-        ))}
-      </View>
-
-      {/* Marque Geno visible des la premiere slide + bouton Passer. */}
-      <View style={styles.header}>
-        <Image source={GENO_WORDMARK} style={styles.headerLogo} contentFit="contain" />
-        <TouchableOpacity
-          onPress={handleSkip}
-          style={styles.skipButton}
-          accessibilityRole="button"
-          accessibilityLabel="Passer l'introduction"
-        >
-          <Animated.View entering={FadeIn.delay(150).duration(400)}>
-            <Text style={styles.skipText}>Passer</Text>
-          </Animated.View>
-        </TouchableOpacity>
-      </View>
-
-      {/* Pager swipable : le contenu suit le doigt 1:1, les styles
-          animes (pop de l'image, fondu des textes) suivent en direct. */}
+    <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
+      {/* Pager swipable : chaque slide est une photo plein-bleed (Hero).
+          Les items heritent de la hauteur du pager (alignItems stretch). */}
       <Animated.FlatList
         ref={listRef}
         data={slides}
@@ -306,6 +165,22 @@ export function OnboardingScreen({ onComplete }: { onComplete: () => void }) {
         windowSize={slides.length}
         style={styles.pager}
       />
+
+      {/* Marque Geno + bouton Passer, en surimpression sur la photo. */}
+      <View style={styles.header} pointerEvents="box-none">
+        <Image source={GENO_WORDMARK} style={styles.headerLogo} contentFit="contain" />
+        <TouchableOpacity
+          onPress={handleSkip}
+          style={styles.skipButton}
+          accessibilityRole="button"
+          accessibilityLabel="Passer l'introduction"
+        >
+          <Animated.View entering={FadeIn.delay(150).duration(400)}>
+            <Text style={styles.skipText}>Passer</Text>
+            
+          </Animated.View>
+        </TouchableOpacity>
+      </View>
 
       {/* Bottom Section */}
       <View style={styles.footer}>
@@ -333,40 +208,22 @@ export function OnboardingScreen({ onComplete }: { onComplete: () => void }) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#ffffff',
+    backgroundColor: '#0b1020',
   },
   pager: {
     flex: 1,
   },
+  // Chaque item occupe la largeur d ecran et toute la hauteur du pager :
+  // Hero (flex:1 + absoluteFill) a ainsi une reference de taille reelle.
   slide: {
     width,
-    paddingHorizontal: 32,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  // Lavis de couleur discret sur toute la surface de la slide active.
-  wash: {
-    opacity: 0.14,
-  },
-  // Orbes flottants : deux taches de couleur aux opposes de l'ecran.
-  orb: {
-    position: 'absolute',
-    borderRadius: 999,
-    opacity: 0.2,
-  },
-  orbTop: {
-    width: 260,
-    height: 260,
-    top: -90,
-    right: -80,
-  },
-  orbBottom: {
-    width: 220,
-    height: 220,
-    bottom: -70,
-    left: -70,
+    flex: 1,
   },
   header: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
@@ -381,31 +238,15 @@ const styles = StyleSheet.create({
     padding: 8,
   },
   skipText: {
-    color: '#6b7280', // gray-500
+    color: 'rgba(255,255,255,0.9)',
     fontSize: 16,
     fontWeight: '500',
   },
-  // Placeholder de scene quand l'image n'est pas monte (slide eloignee) :
-  // garde la mise en page stable.
-  artPlaceholder: {
-    width: 260,
-    height: 140,
-  },
-  title: {
-    fontSize: 28,
-    fontWeight: '700',
-    color: '#111827', // gray-900
-    marginBottom: 10,
-    textAlign: 'center',
-  },
-  description: {
-    fontSize: 16,
-    color: '#4b5563', // gray-600
-    textAlign: 'center',
-    lineHeight: 24,
-    maxWidth: 320,
-  },
   footer: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
     paddingHorizontal: 32,
     paddingBottom: 28,
     gap: 24,
@@ -414,7 +255,7 @@ const styles = StyleSheet.create({
   progressTrack: {
     height: 6,
     borderRadius: 3,
-    backgroundColor: '#fee2e2', // rose-100
+    backgroundColor: 'rgba(255,255,255,0.25)',
     overflow: 'hidden',
   },
   progressFill: {
