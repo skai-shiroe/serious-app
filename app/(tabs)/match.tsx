@@ -47,8 +47,9 @@ const DEFAULT_FILTERS = {
   ageMin: 18,
   ageMax: 70,
   city: '',
-  bloodType: '',
-  sickleCell: '',
+  // Multi-selection : [] = aucun filtre (ancien critere unique '').
+  bloodType: [] as string[],
+  sickleCell: [] as string[],
 };
 
 /** Bornes d'age du filtre (slider d'intervalle, cf. RangeSlider). */
@@ -160,8 +161,8 @@ export default function MatchScreen() {
   /** Nombre de filtres qui s'ecartent des valeurs par defaut. */
   const activeFilterCount =
     (filters.city ? 1 : 0) +
-    (filters.bloodType ? 1 : 0) +
-    (filters.sickleCell ? 1 : 0) +
+    (filters.bloodType.length > 0 ? 1 : 0) +
+    (filters.sickleCell.length > 0 ? 1 : 0) +
     (filters.ageMin !== DEFAULT_FILTERS.ageMin || filters.ageMax !== DEFAULT_FILTERS.ageMax
       ? 1
       : 0);
@@ -679,16 +680,22 @@ export default function MatchScreen() {
                   <Text style={[styles.filterLabel, { color: themeColors.textMuted }]}>Groupe Sanguin</Text>
                   <View style={styles.filterGrid}>
                     {BLOOD_TYPES.map(type => (
-                      <TouchableOpacity 
+                      <TouchableOpacity
                         key={type}
-                        onPress={() => setDraftFilters({ ...draftFilters, bloodType: draftFilters.bloodType === type ? '' : type })}
+                        onPress={() => setDraftFilters({
+                          ...draftFilters,
+                          // Multi-selection : cocher / decocher sans écraser les autres.
+                          bloodType: draftFilters.bloodType.includes(type)
+                            ? draftFilters.bloodType.filter((t: string) => t !== type)
+                            : [...draftFilters.bloodType, type],
+                        })}
                         style={[
-                          styles.filterChip, 
+                          styles.filterChip,
                           { borderColor: themeColors.border },
-                          draftFilters.bloodType === type && { backgroundColor: themeColors.accent, borderColor: themeColors.accent }
+                          draftFilters.bloodType.includes(type) && { backgroundColor: themeColors.accent, borderColor: themeColors.accent }
                         ]}
                       >
-                        <Text style={{ color: draftFilters.bloodType === type ? '#fff' : themeColors.text }}>{type}</Text>
+                        <Text style={{ color: draftFilters.bloodType.includes(type) ? '#fff' : themeColors.text }}>{type}</Text>
                       </TouchableOpacity>
                     ))}
                   </View>
@@ -698,16 +705,22 @@ export default function MatchScreen() {
                   <Text style={[styles.filterLabel, { color: themeColors.textMuted }]}>Statut Drépanocytaire</Text>
                   <View style={styles.filterGrid}>
                     {SICKLE_CELL_STATUS.map(status => (
-                      <TouchableOpacity 
+                      <TouchableOpacity
                         key={status.value}
-                        onPress={() => setDraftFilters({ ...draftFilters, sickleCell: draftFilters.sickleCell === status.value ? '' : status.value })}
+                        onPress={() => setDraftFilters({
+                          ...draftFilters,
+                          // Multi-selection : cocher / decocher sans écraser les autres.
+                          sickleCell: draftFilters.sickleCell.includes(status.value)
+                            ? draftFilters.sickleCell.filter((v: string) => v !== status.value)
+                            : [...draftFilters.sickleCell, status.value],
+                        })}
                         style={[
-                          styles.filterChip, 
+                          styles.filterChip,
                           { borderColor: themeColors.border, width: '47%' },
-                          draftFilters.sickleCell === status.value && { backgroundColor: '#3b82f6', borderColor: '#3b82f6' }
+                          draftFilters.sickleCell.includes(status.value) && { backgroundColor: '#3b82f6', borderColor: '#3b82f6' }
                         ]}
                       >
-                        <Text style={{ color: draftFilters.sickleCell === status.value ? '#fff' : themeColors.text }}>{status.label}</Text>
+                        <Text style={{ color: draftFilters.sickleCell.includes(status.value) ? '#fff' : themeColors.text }}>{status.label}</Text>
                       </TouchableOpacity>
                     ))}
                   </View>

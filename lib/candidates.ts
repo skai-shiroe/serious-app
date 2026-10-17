@@ -32,8 +32,10 @@ export type CandidateFilters = {
   ageMin: number;
   ageMax: number;
   city: string;
-  bloodType: string;
-  sickleCell: string;
+  /** Groupes sanguins coches (multi-selection) : `[]` = aucun filtre. */
+  bloodType: string[];
+  /** Genotypes coches (multi-selection) : `[]` = aucun filtre. */
+  sickleCell: string[];
 };
 
 export type CandidatePage = {
@@ -64,6 +66,16 @@ let rpcMissing = false;
 /** Transforme un filtre vide en `null` (l'API attend `null`, pas `''`). */
 function normalizeFilter(value: string): string | null {
   const trimmed = (value || '').trim();
+  return trimmed.length > 0 ? trimmed : null;
+}
+
+/**
+ * Filtre MULTI-selection : valeurs boutes, vide -> `null` (la RPC interprete
+ * `null` ET `array[]` comme « aucun filtre », l'equivalent de l'ancien `''`).
+ */
+function normalizeFilterList(values: string[] | null | undefined): string[] | null {
+  if (!values) return null;
+  const trimmed = values.map((v) => (v || '').trim()).filter((v) => v.length > 0);
   return trimmed.length > 0 ? trimmed : null;
 }
 
@@ -164,8 +176,8 @@ async function fetchViaRpc(
     p_limit: Math.min(Math.max(limit, 1), RPC_PAGE_MAX),
     p_after: after,
     p_city: normalizeFilter(filters.city),
-    p_blood_type: normalizeFilter(filters.bloodType),
-    p_sickle_cell: normalizeFilter(filters.sickleCell),
+    p_blood_types: normalizeFilterList(filters.bloodType),
+    p_sickle_cells: normalizeFilterList(filters.sickleCell),
     p_age_min: filters.ageMin,
     p_age_max: filters.ageMax,
     p_gender: targetGender,
@@ -190,8 +202,8 @@ async function fetchViaFallback(
 ): Promise<CandidatePage> {
   const swiped = await fetchSwipedIds(userId);
   const city = normalizeFilter(filters.city);
-  const bloodType = normalizeFilter(filters.bloodType);
-  const sickleCell = normalizeFilter(filters.sickleCell);
+  const bloodTypes = normalizeFilterList(filters.bloodType);
+  const sickleCells = normalizeFilterList(filters.sickleCell);
 
   const profiles: any[] = [];
   let cursor = after;
@@ -208,8 +220,8 @@ async function fetchViaFallback(
     // `ilike` sans joker = egalite insensible a la casse (cf. `lower()` en SQL).
     if (targetGender) query = query.ilike('gender', targetGender);
     if (city) query = query.ilike('city', `%${city}%`);
-    if (bloodType) query = query.eq('blood_type', bloodType);
-    if (sickleCell) query = query.eq('sickle_cell', sickleCell);
+    if (bloodTypes) query = query.in('blood_type', bloodTypes);
+    if (sickleCells) query = query.in('sickle_cell', sickleCells);
 
     const { data, error } = await query;
     if (error) throw error;

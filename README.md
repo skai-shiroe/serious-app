@@ -463,13 +463,14 @@ Trop longs pour être inlinés ici, les blocs 6 à 8 vivent dans `sql/` et se co
 > (fonctions `send_push`/`push_allowed` manquantes) ; sans le bloc 7, seule la décision de
 > vérification du bloc 5 continue de partir.
 
-**Blocs 9 à 11 — modération, panneau admin, référentiels (`sql/`)**
+**Blocs 9 à 12 — modération, panneau admin, référentiels, filtres deck (`sql/`)**
 
 | Étape | Fichier | Rôle |
 |---|---|---|
 | 1 | `sql/moderation.sql` | bloc 9 — signalements, blocages bilatéraux, policies |
 | 2 | `sql/admin-panel.sql` | bloc 10 — RPC `admin_*`, ban administratif, stats, policies coaching |
 | 3 | `sql/referentiels.sql` | bloc 11 — tables **dynamiques** `countries` / `cities` / `interests` + colonnes `profiles.country_code` / `phone_e164` ; lecture `authenticated`, écriture admin (RLS `is_admin()`) |
+| 4 | `sql/deck-filters.sql` | bloc 12 — RPC `get_candidate_profiles` en **multi-sélection** (`p_blood_types text[]`, `p_sickle_cells text[]`, `= ANY()` ; vide = aucun filtre) ; ancienne signature `drop`ée — un bundle app ancien bascule sur son repli client (dégradé sûr) |
 
 > Le bloc 11 rend pilotables depuis `admin-web → /referentiels` : pays (drapeau, indicatif,
 > longueur attendue du numéro), villes par pays et centres d'intérêt (minimum 5 imposé à la
