@@ -17,9 +17,9 @@ import {
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as Haptics from 'expo-haptics';
-import { Filter, Heart, MapPin, X, Info, ChevronLeft, ChevronRight, WifiOff } from 'lucide-react-native';
+import { Filter, Heart, MapPin, X, Info, ChevronLeft, ChevronRight, WifiOff, Undo2 } from 'lucide-react-native';
 import React, { useEffect, useState, useCallback, useRef } from 'react';
-import { ActivityIndicator, Dimensions, Modal, StyleSheet, Text, TouchableOpacity, useColorScheme, View, ScrollView } from 'react-native';
+import { ActivityIndicator, Alert, Dimensions, Modal, StyleSheet, Text, TouchableOpacity, useColorScheme, View, ScrollView } from 'react-native';
 import { Gesture, GestureDetector, GestureHandlerRootView } from 'react-native-gesture-handler';
 import Animated, { useAnimatedStyle, useSharedValue, withSpring, runOnJS, interpolate, Extrapolation, withTiming, FadeIn, FadeOut, ZoomIn } from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -33,6 +33,8 @@ const SWIPE_THRESHOLD = SCREEN_WIDTH * 0.3;
  * au lieu de declencher like/dislike (composeur horizontal).
  */
 const VERTICAL_SWIPE_THRESHOLD = SCREEN_HEIGHT * 0.15;
+/** Fenêtre de l'annulation de swipe : 1 seul niveau, 10 s après le geste. */
+const UNDO_WINDOW_MS = 10_000;
 
 const BLOOD_TYPES = ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'];
 const SICKLE_CELL_STATUS = [
@@ -70,6 +72,14 @@ export default function MatchScreen() {
   // (avant, chaque pucelle rechargait le deck pendant la saisie).
   const [draftFilters, setDraftFilters] = useState({ ...DEFAULT_FILTERS });
   const [cityModalVisible, setCityModalVisible] = useState(false);
+  // Dernier swipe effectué : annulation possible pendant UNDO_WINDOW_MS
+  // (1 seul niveau — remplacé à chaque nouveau swipe, cf. sql/undo-swipe.sql).
+  const [lastSwipe, setLastSwipe] = useState<{
+    swipedId: string;
+    direction: 'left' | 'right';
+    matchId?: string;
+    at: number;
+  } | null>(null);
 
   const { openProfileSheet } = useProfileSheet();
   const router = useRouter();
@@ -314,12 +324,18 @@ export default function MatchScreen() {
         if (!currentUser) return;
 
         const swipeDir = direction === 'right' ? 'like' : 'dislike';
-        
-        await supabase.from('swipes').insert({
+
+        const { error: swipeError } = await supabase.from('swipes').insert({
           swiper_id: currentUser.id,
           swiped_id: swipedProfile.user_id,
           direction: swipeDir
         });
+
+        // Undo : mémorise le swipe (1 niveau, 10 s). Pas de bouton si
+        // l'insert a échoué — il n'y aurait rien d'annulable.
+        if (!swipeError) {
+          setLastSwipe({ swipedId: swipedProfile.user_id, direction, at: Date.now() });
+        }
 
         if (swipeDir === 'like') {
           const { data: matchData } = await supabase
@@ -337,9 +353,75 @@ export default function MatchScreen() {
               // ouvrir directement la conversation depuis la modale.
               matchId: matchData.id
             });
+            // Le swipe venait de créer un match : à supprimer aussi en cas
+            // d'annulation (best effort, cf. handleUndoSwipe).
+            setLastSwipe((prev) => (prev ? { ...prev, matchId: matchData.id } : prev));
           }
         }
       } catch {}
+    })();
+  };
+
+  // Le bouton « Annuler » se masque tout seul après la fenêtre des 10 s.
+  useEffect(() => {
+    if (!lastSwipe) return;
+    const timer = setTimeout(() => setLastSwipe(null), UNDO_WINDOW_MS);
+    return () => clearTimeout(timer);
+  }, [lastSwipe]);
+
+  /**
+   * Annulation du dernier swipe : supprime la ligne `swipes` (RLS DELETE own,
+   * sql/undo-swipe.sql) et, s'il avait créé un match, le match ; puis revient
+   * d'une carte en arrière.
+   *
+   * Le delete est contrôlé via `.select()` : PostgREST ne renvoie PAS d'erreur
+   * quand 0 ligne est supprimée (cas d'une base sans le bloc 13) — dans ce cas
+   * on n'avance pas le deck et on prévient, sinon le swipe reviendrait au
+   * prochain démarrage sans que l'utilisateur le sache.
+   */
+  const handleUndoSwipe = () => {
+    const target = lastSwipe;
+    if (!target || currentIndexRef.current <= 0) {
+      setLastSwipe(null);
+      return;
+    }
+
+    (async () => {
+      try {
+        const me = await getUser();
+        if (!me) throw new Error('Session absente');
+
+        const { data: deleted, error } = await supabase
+          .from('swipes')
+          .delete()
+          .eq('swiper_id', me.id)
+          .eq('swiped_id', target.swipedId)
+          .eq('direction', target.direction === 'right' ? 'like' : 'dislike')
+          .select('swiped_id');
+        if (error) throw error;
+        if (!deleted || deleted.length === 0) {
+          throw new Error('RLS sans effet (sql/undo-swipe.sql non exécuté ?)');
+        }
+
+        if (target.matchId) {
+          // Best effort : le match disparait aussi, sinon il subsisterait
+          // orphelin d'un swipe qui n'existe plus.
+          await supabase.from('matches').delete().eq('id', target.matchId);
+        }
+
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+        setCurrentIndex((prev) => Math.max(prev - 1, 0));
+        setCurrentPhotoIndex(0);
+        translateX.value = withSpring(0);
+        translateY.value = withSpring(0);
+        setLastSwipe(null);
+      } catch (err: any) {
+        setLastSwipe(null);
+        Alert.alert(
+          'Annulation impossible',
+          String(err?.message || 'Vérifiez votre connexion puis réessayez.')
+        );
+      }
     })();
   };
 
@@ -610,6 +692,20 @@ export default function MatchScreen() {
             />
           )}
         </View>
+
+        {/* Annulation du dernier swipe : 1 seul niveau, fenêtre de 10 s */}
+        {lastSwipe && currentIndex > 0 && (
+          <View style={styles.undoRow}>
+            <TouchableOpacity
+              style={[styles.undoBtn, { backgroundColor: themeColors.card, borderColor: themeColors.border }]}
+              onPress={handleUndoSwipe}
+              activeOpacity={0.8}
+            >
+              <Undo2 color={themeColors.accent} size={18} />
+              <Text style={[styles.undoText, { color: themeColors.text }]}>Annuler</Text>
+            </TouchableOpacity>
+          </View>
+        )}
 
         {currentProfile && (
           <View style={styles.buttonsContainer}>
@@ -934,6 +1030,22 @@ const styles = StyleSheet.create({
   stampTextLike: { color: '#16a34a', fontSize: 32, fontWeight: 'bold', letterSpacing: 3 },
   stampNope: { right: 40, borderColor: '#ef4444', transform: [{ rotate: '20deg' }] },
   stampTextNope: { color: '#dc2626', fontSize: 32, fontWeight: 'bold', letterSpacing: 3 },
+  undoRow: { alignItems: 'center', paddingBottom: 4 },
+  undoBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingHorizontal: 18,
+    paddingVertical: 9,
+    borderRadius: 22,
+    borderWidth: 1,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.12,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  undoText: { fontSize: 14, fontWeight: '700' },
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
   modalContent: { borderTopLeftRadius: 32, borderTopRightRadius: 32, padding: 32, maxHeight: '80%' },
   modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 32 },

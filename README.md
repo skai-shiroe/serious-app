@@ -471,6 +471,7 @@ Trop longs pour être inlinés ici, les blocs 6 à 8 vivent dans `sql/` et se co
 | 2 | `sql/admin-panel.sql` | bloc 10 — RPC `admin_*`, ban administratif, stats, policies coaching |
 | 3 | `sql/referentiels.sql` | bloc 11 — tables **dynamiques** `countries` / `cities` / `interests` + colonnes `profiles.country_code` / `phone_e164` ; lecture `authenticated`, écriture admin (RLS `is_admin()`) |
 | 4 | `sql/deck-filters.sql` | bloc 12 — RPC `get_candidate_profiles` en **multi-sélection** (`p_blood_types text[]`, `p_sickle_cells text[]`, `= ANY()` ; vide = aucun filtre) ; ancienne signature `drop`ée — un bundle app ancien bascule sur son repli client (dégradé sûr) |
+| 5 | `sql/undo-swipe.sql` | bloc 13 — policies **DELETE** : `swipes` (auteur du swipe) + `matches` (participant), idempotent ; indispensable au bouton « Annuler » du deck (sans lui, l'undo échoue silencieusement → l'app affiche « Annulation impossible ») |
 
 > Le bloc 11 rend pilotables depuis `admin-web → /referentiels` : pays (drapeau, indicatif,
 > longueur attendue du numéro), villes par pays et centres d'intérêt (minimum 5 imposé à la
