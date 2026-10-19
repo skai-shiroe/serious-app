@@ -107,6 +107,15 @@ export function matchesTargetGender(
   return (profileGender || '').trim().toLowerCase() === target;
 }
 
+/** Génotypes autorisés par la règle de compatibilité définie pour Geno. */
+export function compatibleGenotypesFor(viewerGenotype: string | null | undefined): string[] {
+  const genotype = (viewerGenotype || '').trim().toUpperCase();
+  // AA n'apporte ni variant S ni C : les génotypes proposés, dont CC, restent compatibles.
+  if (genotype === 'AA') return ['AA', 'AS', 'AC', 'SS', 'SC', 'CC'];
+  // Par prudence, statut absent/inconnu ou autre variant : ne proposer que AA.
+  return ['AA'];
+}
+
 /** Age en annees revolues, ou `null` si la date est absente/illisible. */
 function calculateAge(birthDate?: string | null): number | null {
   if (!birthDate) return null;
@@ -201,6 +210,8 @@ async function fetchViaFallback(
   blocked: Set<string>
 ): Promise<CandidatePage> {
   const swiped = await fetchSwipedIds(userId);
+  const { data: viewer } = await supabase.from('profiles').select('sickle_cell').eq('user_id', userId).maybeSingle();
+  const compatibleGenotypes = compatibleGenotypesFor(viewer?.sickle_cell);
   const city = normalizeFilter(filters.city);
   const bloodTypes = normalizeFilterList(filters.bloodType);
   const sickleCells = normalizeFilterList(filters.sickleCell);
@@ -235,6 +246,7 @@ async function fetchViaFallback(
       if (swiped.has(profile.user_id)) continue;
       // Moderation : un blocage bilateral exclut le profil dans les 2 sens.
       if (blocked.has(profile.user_id)) continue;
+      if (!compatibleGenotypes.includes((profile.sickle_cell || '').trim().toUpperCase())) continue;
       // Age filtre DANS la boucle : on continue a paginer jusqu'a obtenir
       // `limit` profils reellement dans la tranche demandee.
       if (!isAgeInRange(profile.birth_date, filters.ageMin, filters.ageMax)) continue;

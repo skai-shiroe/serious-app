@@ -35,10 +35,11 @@ export function PageHeader({
   actions?: React.ReactNode;
 }) {
   return (
-    <div className="mb-6 flex flex-wrap items-end justify-between gap-3">
+    <div className="mb-7 flex flex-wrap items-end justify-between gap-4 border-b border-slate-200/70 pb-5">
       <div>
-        <h1 className="text-xl font-bold">{title}</h1>
-        {subtitle ? <p className="mt-1 text-sm text-slate-500">{subtitle}</p> : null}
+        <p className="mb-1 text-[10px] font-bold uppercase tracking-[0.2em] text-brand-600">GENO · ADMINISTRATION</p>
+        <h1 className="text-2xl font-extrabold tracking-tight text-slate-900 sm:text-[28px]">{title}</h1>
+        {subtitle ? <p className="mt-1.5 max-w-3xl text-sm leading-6 text-slate-500">{subtitle}</p> : null}
       </div>
       {actions ? <div className="flex items-center gap-2">{actions}</div> : null}
     </div>

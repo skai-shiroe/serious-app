@@ -120,8 +120,8 @@ export default function DashboardPage() {
   return (
     <div>
       <PageHeader
-        title="Vue densemble"
-        subtitle="Indicateurs en temps reel (RPC admin_stats) — fenetres 7 et 30 jours."
+        title="Vue d’ensemble"
+        subtitle="Indicateurs en temps réel — évolution sur les 7 et 30 derniers jours."
         actions={
           <button type="button" onClick={load} className="btn-ghost" disabled={loading}>
             Actualiser

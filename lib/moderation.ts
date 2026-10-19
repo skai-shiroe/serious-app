@@ -1,4 +1,5 @@
 import { supabase } from '@/lib/supabase';
+import { fetchAppSetting } from '@/lib/app-settings';
 
 /**
  * Moderation — signaler / bloquer (bloquant pour les stores).
@@ -8,7 +9,7 @@ import { supabase } from '@/lib/supabase';
  * - Signalement : alimente la file admin, ne bloque rien tout seul.
  */
 
-export type ReportReason = 'fake' | 'harassment' | 'inappropriate' | 'spam' | 'other';
+export type ReportReason = string;
 
 export const REPORT_REASONS: { value: ReportReason; label: string }[] = [
   { value: 'fake', label: 'Faux profil / usurpation' },
@@ -17,6 +18,11 @@ export const REPORT_REASONS: { value: ReportReason; label: string }[] = [
   { value: 'spam', label: 'Spam / arnaque' },
   { value: 'other', label: 'Autre motif' },
 ];
+
+export async function fetchReportReasons(): Promise<{ value: string; label: string }[]> {
+  const rows = await fetchAppSetting<Array<{ value: string; label: string }>>('moderation_reasons', REPORT_REASONS);
+  return Array.isArray(rows) && rows.length ? rows.filter((row) => row.value && row.label) : REPORT_REASONS;
+}
 
 export function reportReasonLabel(reason: string | null | undefined): string {
   return REPORT_REASONS.find((r) => r.value === reason)?.label || 'Signalement';
@@ -79,7 +85,7 @@ export async function unblockUser(userId: string, otherUserId: string): Promise<
 export async function reportUser(
   reporterId: string,
   reportedUserId: string,
-  reason: ReportReason,
+  reason: string,
   details?: string
 ): Promise<void> {
   const { error } = await supabase.from('user_reports').insert({

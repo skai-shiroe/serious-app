@@ -40,11 +40,18 @@ const FALLBACK_CI = [
   'Aboisso', 'Adzopé', 'Akoupé', 'Tingrela', 'Boundiali',
 ];
 
+const FALLBACK_CM = [
+  'Bafoussam', 'Bamenda', 'Bertoua', 'Buea', 'Douala', 'Dschang',
+  'Ebolowa', 'Garoua', 'Kribi', 'Kumba', 'Limbe', 'Maroua',
+  'Ngaoundéré', 'Nkongsamba', 'Yaoundé',
+];
+
 /** Repli hors ligne par pays (codes = countries.code). */
 export const FALLBACK_CITIES_BY_COUNTRY: Record<string, string[]> = {
   TG: FALLBACK_TG,
   BJ: FALLBACK_BJ,
   CI: FALLBACK_CI,
+  CM: FALLBACK_CM,
 };
 
 /** Ancienne liste unique (Togo) : repli des usages sans notion de pays. */

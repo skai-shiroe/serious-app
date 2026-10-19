@@ -25,6 +25,7 @@ import Animated, { useAnimatedStyle, useSharedValue, withSpring, runOnJS, interp
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useProfileSheet } from '@/contexts/ProfileSheetContext';
 import { useRouter } from 'expo-router';
+import { watchAppSetting } from '@/lib/app-settings';
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 const SWIPE_THRESHOLD = SCREEN_WIDTH * 0.3;
@@ -40,7 +41,10 @@ const BLOOD_TYPES = ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'];
 const SICKLE_CELL_STATUS = [
   { label: 'AA', value: 'AA' },
   { label: 'AS', value: 'AS' },
+  { label: 'AC', value: 'AC' },
   { label: 'SS', value: 'SS' },
+  { label: 'SC', value: 'SC' },
+  { label: 'CC', value: 'CC' },
   { label: 'Inconnu', value: 'inconnu' },
 ];
 
@@ -71,6 +75,10 @@ export default function MatchScreen() {
   // Brouillon edite dans la modale : rien ne part en requete avant « Appliquer »
   // (avant, chaque pucelle rechargait le deck pendant la saisie).
   const [draftFilters, setDraftFilters] = useState({ ...DEFAULT_FILTERS });
+  const [filterDefaults, setFilterDefaults] = useState({ ...DEFAULT_FILTERS });
+  const [bloodTypes, setBloodTypes] = useState(BLOOD_TYPES);
+  const [sickleStatuses, setSickleStatuses] = useState(SICKLE_CELL_STATUS);
+  const [ageBounds, setAgeBounds] = useState({ min: AGE_FILTER_MIN, max: AGE_FILTER_MAX });
   const [cityModalVisible, setCityModalVisible] = useState(false);
   // Dernier swipe effectué : annulation possible pendant UNDO_WINDOW_MS
   // (1 seul niveau — remplacé à chaque nouveau swipe, cf. sql/undo-swipe.sql).
@@ -85,6 +93,32 @@ export default function MatchScreen() {
   const router = useRouter();
   const colorScheme = useColorScheme();
   const isDark = colorScheme === 'dark';
+
+  useEffect(() => {
+    const config = { options: null as any, appDefaults: {} as any, flags: {} as Record<string, boolean> };
+    const applyConfig = () => {
+      const { options, appDefaults, flags } = config;
+      if (flags.medical_compatibility === false) {
+        setBloodTypes([]);
+        setSickleStatuses([]);
+      } else if (options) {
+        if (Array.isArray(options.blood_types)) setBloodTypes(options.blood_types);
+        if (Array.isArray(options.genotypes)) setSickleStatuses(options.genotypes);
+      }
+      if (!options) return;
+      const min = Math.min(98, Math.max(18, Number(appDefaults.default_age_min ?? options.matching?.age_min) || 18));
+      const max = Math.max(min + 1, Math.min(99, Number(appDefaults.default_age_max ?? options.matching?.age_max) || 80));
+      const defaults = { ...DEFAULT_FILTERS, ageMin: min, ageMax: max };
+      setAgeBounds({ min, max });
+      setFilterDefaults(defaults);
+      setFilters(defaults);
+      setDraftFilters(defaults);
+    };
+    const stopOptions = watchAppSetting<any>('profile_options', null, (value) => { config.options = value; applyConfig(); });
+    const stopDefaults = watchAppSetting<any>('app_defaults', {}, (value) => { config.appDefaults = value ?? {}; applyConfig(); });
+    const stopFlags = watchAppSetting<Record<string, boolean>>('feature_flags', {}, (value) => { config.flags = value ?? {}; applyConfig(); });
+    return () => { stopOptions(); stopDefaults(); stopFlags(); };
+  }, []);
 
   const themeColors = {
     text: isDark ? '#ffffff' : '#111827',
@@ -173,7 +207,7 @@ export default function MatchScreen() {
     (filters.city ? 1 : 0) +
     (filters.bloodType.length > 0 ? 1 : 0) +
     (filters.sickleCell.length > 0 ? 1 : 0) +
-    (filters.ageMin !== DEFAULT_FILTERS.ageMin || filters.ageMax !== DEFAULT_FILTERS.ageMax
+    (filters.ageMin !== filterDefaults.ageMin || filters.ageMax !== filterDefaults.ageMax
       ? 1
       : 0);
 
@@ -761,8 +795,8 @@ export default function MatchScreen() {
                     </Text>
                   </View>
                   <RangeSlider
-                    min={AGE_FILTER_MIN}
-                    max={AGE_FILTER_MAX}
+                    min={ageBounds.min}
+                    max={ageBounds.max}
                     low={draftFilters.ageMin}
                     high={draftFilters.ageMax}
                     onChange={setDraftAgeRange}
@@ -775,7 +809,7 @@ export default function MatchScreen() {
                 <View style={styles.filterSection}>
                   <Text style={[styles.filterLabel, { color: themeColors.textMuted }]}>Groupe Sanguin</Text>
                   <View style={styles.filterGrid}>
-                    {BLOOD_TYPES.map(type => (
+                    {bloodTypes.map(type => (
                       <TouchableOpacity
                         key={type}
                         onPress={() => setDraftFilters({
@@ -800,7 +834,7 @@ export default function MatchScreen() {
                 <View style={styles.filterSection}>
                   <Text style={[styles.filterLabel, { color: themeColors.textMuted }]}>Statut Drépanocytaire</Text>
                   <View style={styles.filterGrid}>
-                    {SICKLE_CELL_STATUS.map(status => (
+                    {sickleStatuses.map(status => (
                       <TouchableOpacity
                         key={status.value}
                         onPress={() => setDraftFilters({
@@ -836,7 +870,7 @@ export default function MatchScreen() {
 
                 <TouchableOpacity
                   style={[styles.resetBtn, { borderColor: themeColors.border }]}
-                  onPress={() => setDraftFilters({ ...DEFAULT_FILTERS })}
+                  onPress={() => setDraftFilters({ ...filterDefaults })}
                 >
                   <Text style={[styles.resetBtnText, { color: themeColors.textMuted }]}>
                     Réinitialiser les filtres

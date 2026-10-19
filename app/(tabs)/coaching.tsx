@@ -12,6 +12,7 @@ import * as ImagePicker from 'expo-image-picker';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Heart, Activity, Sparkles, Clock, ChevronRight, Plus, X, Camera, Image as ImageIcon, WifiOff, Lightbulb } from 'lucide-react-native';
 import { EmptyState } from '@/components/empty-state';
+import { watchAppSetting } from '@/lib/app-settings';
 
 interface CoachingPost {
   id: string;
@@ -48,12 +49,13 @@ export default function CoachingScreen() {
   const [newPost, setNewPost] = useState({ 
     title: '', 
     content: '', 
-    category: 'couple' as 'couple' | 'santé' | 'astuce',
+    category: 'couple',
     image_url: '' 
   });
   const [submitting, setSubmitting] = useState(false);
   // Distingue « aucun conseil » (flux vide) de « chargement echoue »
   const [loadError, setLoadError] = useState<string | null>(null);
+  const [categoryOptions, setCategoryOptions] = useState(CATEGORIES.filter((category) => category.id !== 'all'));
 
   const themeColors = {
     text: isDark ? '#ffffff' : '#111827',
@@ -124,8 +126,17 @@ export default function CoachingScreen() {
   };
 
   useEffect(() => {
+    const stopCategories = watchAppSetting<Array<{ value: string; label: string }>>('coaching_categories', [], (items) => {
+      if (Array.isArray(items)) {
+        const icons: Record<string, any> = { couple: Heart, santé: Activity, astuce: Lightbulb };
+        const next = items.filter((item) => item.value && item.label).map((item) => ({ id: item.value, label: item.label, icon: icons[item.value] ?? Sparkles }));
+        setCategoryOptions(next);
+        setNewPost((current) => !next.length ? current : next.some((item) => item.id === current.category) ? current : { ...current, category: next[0].id });
+      }
+    });
     fetchPosts();
     fetchUserRole();
+    return stopCategories;
   }, [activeCategory]);
 
   const onRefresh = () => {
@@ -240,7 +251,7 @@ export default function CoachingScreen() {
     switch (category) {
       case 'couple': return { colors: ['#f43f5e', '#ec4899'] as const, label: 'Couple' };
       case 'santé': return { colors: ['#10b981', '#3b82f6'] as const, label: 'Santé' };
-      default: return { colors: ['#8b5cf6', '#6366f1'] as const, label: 'Astuce' };
+      default: return { colors: ['#8b5cf6', '#6366f1'] as const, label: categoryOptions.find((item) => item.id === category)?.label ?? category };
     }
   };
 
@@ -282,7 +293,7 @@ export default function CoachingScreen() {
           style={styles.categoriesContainer}
           contentContainerStyle={styles.categoriesContent}
         >
-          {CATEGORIES.map((cat) => {
+          {[{ id: 'all', label: 'Tous', icon: Sparkles }, ...categoryOptions].map((cat) => {
             const Icon = cat.icon;
             const isSelected = activeCategory === cat.id;
             return (
@@ -422,9 +433,7 @@ export default function CoachingScreen() {
                     style={{ color: themeColors.text }}
                     dropdownIconColor={themeColors.text}
                   >
-                    <Picker.Item label="Couple" value="couple" />
-                    <Picker.Item label="Santé" value="santé" />
-                    <Picker.Item label="Astuce" value="astuce" />
+                    {categoryOptions.map((category) => <Picker.Item key={category.id} label={category.label} value={category.id} />)}
                   </Picker>
                 </View>
               </View>

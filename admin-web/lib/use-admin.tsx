@@ -13,7 +13,10 @@ export type AdminState = {
   checked: boolean;
   user: User | null;
   role: string | null;
+  permissions: Record<string, { can_view: boolean; can_manage: boolean }>;
 };
+
+const ADMIN_MODULES = ['dashboard','verifications','reports','users','coaching','references','notifications','settings','roles','audit'];
 
 /**
  * Session + role admin (profiles.role), comme le gate cote mobile
@@ -27,6 +30,7 @@ export function useAdmin(): AdminState {
     checked: false,
     user: null,
     role: null,
+    permissions: {},
   });
 
   useEffect(() => {
@@ -38,7 +42,7 @@ export function useAdmin(): AdminState {
         const user = data.user ?? null;
         if (!alive) return;
         if (!user) {
-          setState({ loading: false, isAdmin: false, checked: true, user: null, role: null });
+          setState({ loading: false, isAdmin: false, checked: true, user: null, role: null, permissions: {} });
           return;
         }
         const { data: profile } = await supabase
@@ -48,16 +52,26 @@ export function useAdmin(): AdminState {
           .maybeSingle();
         if (!alive) return;
         const role = (profile?.role as string | null) ?? null;
+        let permissions: AdminState['permissions'] = {};
+        if (isAdminRole(role)) {
+          const { data: access } = await supabase.rpc('admin_get_access');
+          if (access) {
+            permissions = Object.fromEntries(access.map((entry: { module: string; can_view: boolean; can_manage: boolean }) => [entry.module, { can_view: entry.can_view, can_manage: entry.can_manage }]));
+          } else if (role === 'admin') {
+            permissions = Object.fromEntries(ADMIN_MODULES.map((module) => [module, { can_view: true, can_manage: true }]));
+          }
+        }
         setState({
           loading: false,
           isAdmin: isAdminRole(role),
           checked: true,
           user,
           role,
+          permissions,
         });
       } catch {
         if (alive) {
-          setState({ loading: false, isAdmin: false, checked: true, user: null, role: null });
+          setState({ loading: false, isAdmin: false, checked: true, user: null, role: null, permissions: {} });
         }
       }
     })();

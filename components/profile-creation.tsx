@@ -12,6 +12,7 @@ import {
   type Country,
 } from '@/lib/countries';
 import { FALLBACK_INTERESTS, MIN_INTERESTS, fetchInterests } from '@/lib/interests';
+import { watchAppSetting } from '@/lib/app-settings';
 import { decode } from 'base64-arraybuffer';
 import { Image } from 'expo-image';
 import * as ImagePicker from 'expo-image-picker';
@@ -147,7 +148,10 @@ const BLOOD_TYPES = ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'];
 const SICKLE_CELL_STATUS = [
   { label: 'AA (Aucun trait)', value: 'AA' },
   { label: 'AS (Porteur sain)', value: 'AS' },
+  { label: 'AC (Porteur du gène C)', value: 'AC' },
   { label: 'SS (Drépanocytaire)', value: 'SS' },
+  { label: 'SC (Forme combinée S/C)', value: 'SC' },
+  { label: 'CC (Hb C homozygote)', value: 'CC' },
   { label: 'Je ne sais pas', value: 'inconnu' },
 ];
 
@@ -203,8 +207,21 @@ export default function ProfileCreation({ onComplete, initialData }: ProfileCrea
   // embarquees, remplacees des que Supabase repond.
   const [countries, setCountries] = useState<Country[]>(FALLBACK_COUNTRIES);
   const [interestsOptions, setInterestsOptions] = useState<string[]>(FALLBACK_INTERESTS);
+  const [profileOptions, setProfileOptions] = useState<any>({
+    gender: [{ label: 'Homme', value: 'homme' }, { label: 'Femme', value: 'femme' }],
+    religion: [{ label: 'Christianisme', value: 'christianisme' }, { label: 'Islam', value: 'islam' }, { label: 'Judaïsme', value: 'judaisme' }, { label: 'Bouddhisme', value: 'bouddhisme' }, { label: 'Hindouisme', value: 'hindouisme' }, { label: 'Autre', value: 'autre' }, { label: 'Aucune', value: 'aucune' }],
+    blood_types: BLOOD_TYPES,
+    genotypes: SICKLE_CELL_STATUS,
+  });
+  const [featureFlags, setFeatureFlags] = useState<Record<string, boolean>>({ medical_compatibility: true });
 
   useEffect(() => {
+    const stopOptions = watchAppSetting<any>('profile_options', null, (dynamicOptions) => {
+      if (dynamicOptions) setProfileOptions((current: any) => ({ ...current, ...dynamicOptions }));
+    });
+    const stopFlags = watchAppSetting<Record<string, boolean>>('feature_flags', {}, (flags) => {
+      if (flags) setFeatureFlags((current) => ({ ...current, ...flags }));
+    });
     let alive = true;
     (async () => {
       const list = await fetchCountries();
@@ -214,6 +231,8 @@ export default function ProfileCreation({ onComplete, initialData }: ProfileCrea
     })();
     return () => {
       alive = false;
+      stopOptions();
+      stopFlags();
     };
   }, []);
 
@@ -581,7 +600,8 @@ export default function ProfileCreation({ onComplete, initialData }: ProfileCrea
 
   const colorScheme = useColorScheme();
   const isDark = colorScheme === 'dark';
-  const totalSteps = 4;
+  const medicalCompatibilityEnabled = featureFlags.medical_compatibility !== false;
+  const totalSteps = medicalCompatibilityEnabled ? 4 : 3;
 
   const themeColors = {
     text: isDark ? '#ffffff' : '#111827',
@@ -787,10 +807,7 @@ export default function ProfileCreation({ onComplete, initialData }: ProfileCrea
         <View style={{ flex: 1, marginRight: 8 }}>
           <SimplePicker
             label="Genre"
-            options={[
-              { label: 'Homme', value: 'homme' },
-              { label: 'Femme', value: 'femme' },
-            ]}
+            options={profileOptions.gender}
             selectedValue={formData.gender}
             onSelect={(v) => setFormData({ ...formData, gender: v })}
             placeholder="Choisir"
@@ -834,15 +851,7 @@ export default function ProfileCreation({ onComplete, initialData }: ProfileCrea
 
       <SimplePicker
         label="Religion"
-        options={[
-          { label: 'Christianisme', value: 'christianisme' },
-          { label: 'Islam', value: 'islam' },
-          { label: 'Judaïsme', value: 'judaisme' },
-          { label: 'Bouddhisme', value: 'bouddhisme' },
-          { label: 'Hindouisme', value: 'hindouisme' },
-          { label: 'Autre', value: 'autre' },
-          { label: 'Aucune', value: 'aucune' },
-        ]}
+        options={profileOptions.religion}
         selectedValue={formData.religion}
         onSelect={(v) => setFormData({ ...formData, religion: v })}
         placeholder="Sélectionner"
@@ -937,7 +946,7 @@ export default function ProfileCreation({ onComplete, initialData }: ProfileCrea
       <View style={styles.inputGroup}>
         <Text style={[styles.label, { color: themeColors.text }]}>Groupe sanguin</Text>
         <View style={styles.tagsContainer}>
-          {BLOOD_TYPES.map((type) => {
+          {profileOptions.blood_types.map((type: string) => {
             const isSelected = formData.bloodType === type;
             return (
               <TouchableOpacity
@@ -965,7 +974,7 @@ export default function ProfileCreation({ onComplete, initialData }: ProfileCrea
       <View style={styles.inputGroup}>
         <Text style={[styles.label, { color: themeColors.text }]}>Statut drépanocytaire</Text>
         <View style={styles.tagsContainerColumn}>
-          {SICKLE_CELL_STATUS.map((status) => {
+          {profileOptions.genotypes.map((status: { value: string; label: string }) => {
             const isSelected = formData.sickleCell === status.value;
             return (
               <TouchableOpacity
@@ -1105,7 +1114,7 @@ export default function ProfileCreation({ onComplete, initialData }: ProfileCrea
       case 2:
         return renderStep2();
       case 3:
-        return renderStep3();
+        return medicalCompatibilityEnabled ? renderStep3() : renderStep4();
       case 4:
         return renderStep4();
       default:

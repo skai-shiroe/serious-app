@@ -24,6 +24,7 @@ export default function ReportsPage() {
   const [error, setError] = useState<string | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [banTarget, setBanTarget] = useState<ReportRow | null>(null);
+  const [reasonLabels, setReasonLabels] = useState<Record<string, string>>(REPORT_REASONS);
 
   const load = useCallback(async (status: ReportStatus | 'all', from: number) => {
     setLoading(true);
@@ -42,6 +43,12 @@ export default function ReportsPage() {
     setOffset(0);
     load(tab, 0);
   }, [tab, load]);
+
+  useEffect(() => {
+    void supabase.rpc('app_public_setting', { p_key: 'moderation_reasons' }).then(({ data }) => {
+      if (Array.isArray(data)) setReasonLabels(Object.fromEntries(data.map((item: { value: string; label: string }) => [item.value,item.label])));
+    });
+  }, []);
 
   const setStatus = async (row: ReportRow, status: ReportStatus) => {
     setBusyId(row.id);
@@ -129,7 +136,7 @@ export default function ReportsPage() {
                     {row.reported_banned_at ? <Pill tone="slate">Banni</Pill> : null}
                   </td>
                   <td>
-                    <p className="font-medium">{REPORT_REASONS[row.reason] ?? row.reason}</p>
+                    <p className="font-medium">{reasonLabels[row.reason] ?? row.reason}</p>
                     {row.details ? (
                       <p className="max-w-xs truncate text-xs text-slate-500" title={row.details}>
                         {row.details}

@@ -42,7 +42,8 @@ insert into public.countries (code, name, dial_code, flag, min_digits, max_digit
 values
   ('TG', 'Togo',           '+228', '🇹🇬', 8, 8,  10),
   ('BJ', 'Bénin',          '+229', '🇧🇯', 8, 10, 20),
-  ('CI', 'Côte d''Ivoire', '+225', '🇨🇮', 8, 10, 30)
+  ('CI', 'Côte d''Ivoire', '+225', '🇨🇮', 8, 10, 30),
+  ('CM', 'Cameroun',       '+237', '🇨🇲', 9, 9,  40)
 on conflict (code) do nothing;
 
 -- 3) Villes par pays (une seule graphie par ville et par pays)
@@ -72,6 +73,10 @@ insert into public.cities (country_code, name) values
   ('CI','Anyama'),('CI','Divo'),('CI','Grand-Bassam'),('CI','Touba'),('CI','Odienné'),
   ('CI','Ferkessédougou'),('CI','Biankouma'),('CI','Guiglo'),('CI','Duékoué'),('CI','Soubré'),
   ('CI','Aboisso'),('CI','Adzopé'),('CI','Akoupé'),('CI','Tingrela'),('CI','Boundiali')
+  ,('CM','Yaoundé'),('CM','Douala'),('CM','Garoua'),('CM','Bamenda'),('CM','Maroua')
+  ,('CM','Bafoussam'),('CM','Ngaoundéré'),('CM','Bertoua'),('CM','Buea'),('CM','Limbe')
+  ,('CM','Ebolowa'),('CM','Kribi'),('CM','Dschang'),('CM','Foumban'),('CM','Kumba')
+  ,('CM','Edéa'),('CM','Nkongsamba'),('CM','Sangmélima')
 on conflict do nothing;
 
 

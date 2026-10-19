@@ -1,5 +1,5 @@
 import React from 'react';
-import LegalScreen from '@/components/legal-screen';
+import DynamicLegalScreen from '@/components/dynamic-legal-screen';
 
 /**
 - Politique de confidentialité — RGPD + conformité stores (Google Play +
@@ -9,9 +9,10 @@ import LegalScreen from '@/components/legal-screen';
  */
 export default function PrivacyScreen() {
   return (
-    <LegalScreen
+    <DynamicLegalScreen
+      settingKey="privacy"
       title="Politique de confidentialité"
-      updatedAt="13 octobre 2026"
+      updatedAt="18 octobre 2026"
       sections={[
         {
           heading: '1. Responsable de traitement',
@@ -52,7 +53,7 @@ export default function PrivacyScreen() {
         {
           heading: '6. Conservation',
           paragraphs: [
-            "Les données sont conservées pendant la durée d'utilisation du compte, puis supprimées (ou anonymisées) lors de la suppression du compte, action réalisable directement dans l'application depuis l'écran Profil.",
+            "Les données sont conservées pendant la durée d'utilisation du compte, puis supprimées (ou anonymisées) lors de la suppression du compte, action réalisable depuis Profil > Sécurité et confidentialité.",
             "Les journaux techniques sont conservés au maximum 12 mois.",
           ],
         },
@@ -66,7 +67,7 @@ export default function PrivacyScreen() {
         {
           heading: '8. Vos droits',
           paragraphs: [
-            "Vous disposez d'un droit d'accès, de rectification, d'effacement, de limitation et de portabilité de vos données, ainsi que d'un droit d'opposition. Exercez-les depuis l'écran Profil (suppression directe) ou par e-mail à privacy@geno.app.",
+            "Vous disposez d'un droit d'accès, de rectification, d'effacement, de limitation et de portabilité de vos données, ainsi que d'un droit d'opposition. Exercez-les depuis Profil > Sécurité et confidentialité (suppression directe) ou par e-mail à privacy@geno.app.",
             "Vous pouvez également introduire une réclamation auprès de l'autorité de protection des données compétente (ex: IPDCP au Togo ou la CNIL en France).",
           ],
         },

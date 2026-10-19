@@ -45,9 +45,11 @@ import {
 
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { supabase } from '@/lib/supabase';
+import { watchAppSetting } from '@/lib/app-settings';
 import { currentUserId, getUser, validateSession } from '@/lib/session';
 import {
   REPORT_REASONS,
+  fetchReportReasons,
   blockUser,
   isUserBlocked,
   reportUser,
@@ -127,11 +129,14 @@ function ProfileModerationActions({
   // null = etat inconnu (chargement) : on n'affiche jamais Bloquer par erreur.
   const [isBlocked, setIsBlocked] = useState<boolean | null>(null);
   const [choosingReason, setChoosingReason] = useState(false);
+  const [reportReasons, setReportReasons] = useState(REPORT_REASONS);
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
     let alive = true;
     (async () => {
+      const dynamicReasons = await fetchReportReasons();
+      if (alive) setReportReasons(dynamicReasons);
       const me = await getUser();
       if (!alive || !me || me.id === targetUserId) return;
       const blocked = await isUserBlocked(me.id, targetUserId);
@@ -185,7 +190,7 @@ function ProfileModerationActions({
         <Text style={{ fontSize: 16, fontWeight: 'bold', color: isDark ? '#fff' : '#111827', marginBottom: 4 }}>
           Pourquoi signaler {targetName} ?
         </Text>
-        {REPORT_REASONS.map((reason) => (
+        {reportReasons.map((reason) => (
           <TouchableOpacity
             key={reason.value}
             activeOpacity={0.7}
@@ -491,6 +496,12 @@ export default function RootLayout() {
   const [hasSeenOnboarding, setHasSeenOnboarding] = useState(false);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [profileStatus, setProfileStatus] = useState<ProfileStatus>('unknown');
+  const [maintenanceMode, setMaintenanceMode] = useState(false);
+  const [isAdmin, setIsAdmin] = useState(false);
+
+  useEffect(() => watchAppSetting<{ maintenance_mode?: boolean }>('app_defaults', {}, (settings) => {
+    setMaintenanceMode(settings?.maintenance_mode === true);
+  }), []);
 
   // Routes publiques (CGU / politique de confidentialite) : lisibles avant la
   // creation de compte — exigence des stores. Elles contournent les gates
@@ -631,6 +642,7 @@ export default function RootLayout() {
     const { data: authListener } = supabase.auth.onAuthStateChange(async (event, session) => {
       if (!session?.user) {
         setIsAuthenticated(false);
+        setIsAdmin(false);
         setProfileStatus('unknown');
         return;
       }
@@ -688,12 +700,13 @@ export default function RootLayout() {
     for (let attempt = 1; attempt <= 2; attempt++) {
       const { data, error } = await supabase
         .from('profiles')
-        .select('id')
+        .select('id, role')
         .eq('user_id', userId)
         .maybeSingle();
 
       if (!error) {
         const ready = !!data;
+        setIsAdmin(data?.role === 'admin');
         setProfileStatus(ready ? 'ready' : 'missing');
         void writeProfileCache(userId, ready);
         return;
@@ -747,6 +760,15 @@ export default function RootLayout() {
   // loader, JAMAIS l'ecran "Completer le profil" — c'est la correction du flash.
   if (profileStatus === 'unknown' && !isLegalRoute) {
     return loadingScreen;
+  }
+
+  if (maintenanceMode && isAuthenticated && !isAdmin && !isLegalRoute) {
+    return (
+      <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', padding: 32, backgroundColor: colorScheme === 'dark' ? '#111827' : '#fff' }}>
+        <Text style={{ marginBottom: 12, fontSize: 24, fontWeight: '800', color: colorScheme === 'dark' ? '#fff' : '#111827' }}>Geno est en maintenance</Text>
+        <Text style={{ fontSize: 16, lineHeight: 24, textAlign: 'center', color: colorScheme === 'dark' ? '#d1d5db' : '#6b7280' }}>Nous effectuons une mise à jour. Réessaie dans quelques instants.</Text>
+      </View>
+    );
   }
 
   if (profileStatus === 'missing' && !isLegalRoute) {

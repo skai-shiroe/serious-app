@@ -1,5 +1,5 @@
 import React from 'react';
-import LegalScreen from '@/components/legal-screen';
+import DynamicLegalScreen from '@/components/dynamic-legal-screen';
 
 /**
 - Conditions Générales d'Utilisation — Conforme aux exigences des stores
@@ -9,9 +9,10 @@ import LegalScreen from '@/components/legal-screen';
  */
 export default function TermsScreen() {
   return (
-    <LegalScreen
+    <DynamicLegalScreen
+      settingKey="terms"
       title="Conditions d'utilisation"
-      updatedAt="13 octobre 2026"
+      updatedAt="18 octobre 2026"
       sections={[
         {
           heading: '1. Objet et Éditeur',
@@ -51,7 +52,7 @@ export default function TermsScreen() {
         {
           heading: '6. Suppression et résiliation',
           paragraphs: [
-            "Vous pouvez supprimer votre compte à tout moment directement depuis l'application via l'écran Profil > Supprimer mon compte. Cette action est immédiate et irréversible : profil, photos, matchs et messages seront définitivement supprimés.",
+            "Vous pouvez supprimer votre compte à tout moment directement depuis l'application via Profil > Sécurité et confidentialité. Cette action est immédiate et irréversible : profil, photos, matchs et messages seront définitivement supprimés.",
             "L'Éditeur se réserve le droit de suspendre ou de résilier l'accès d'un utilisateur à l'Application sans préavis en cas de violation des présentes CGU ou d'atteinte à la sécurité de la communauté.",
           ],
         },

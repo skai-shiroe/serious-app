@@ -20,6 +20,7 @@ export const FALLBACK_COUNTRIES: Country[] = [
   { code: 'TG', name: 'Togo', dial_code: '+228', flag: '🇹🇬', min_digits: 8, max_digits: 8 },
   { code: 'BJ', name: 'Bénin', dial_code: '+229', flag: '🇧🇯', min_digits: 8, max_digits: 10 },
   { code: 'CI', name: "Côte d'Ivoire", dial_code: '+225', flag: '🇨🇮', min_digits: 8, max_digits: 10 },
+  { code: 'CM', name: 'Cameroun', dial_code: '+237', flag: '🇨🇲', min_digits: 9, max_digits: 9 },
 ];
 
 const CACHE_KEY = 'geno:countries:v1';

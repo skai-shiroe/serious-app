@@ -1,9 +1,9 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { ImagePlus, Loader2, Save, X } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
-import { CATEGORIES, type CoachingCategory, type CoachingPost } from '@/lib/types';
+import type { CoachingCategory, CoachingPost } from '@/lib/types';
 
 /**
  * Creation / edition d un article coaching. Image : fichier vers le
@@ -24,10 +24,23 @@ export default function CoachingForm({
   const [title, setTitle] = useState(existing?.title ?? '');
   const [content, setContent] = useState(existing?.content ?? '');
   const [category, setCategory] = useState<CoachingCategory>(existing?.category ?? 'couple');
+  const [categories, setCategories] = useState<{ value: string; label: string }[]>([
+    { value: 'couple', label: 'Couple' }, { value: 'santé', label: 'Santé' }, { value: 'astuce', label: 'Astuce' },
+  ]);
   const [imageUrl, setImageUrl] = useState(existing?.image_url ?? '');
   const [file, setFile] = useState<File | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    void supabase.rpc('app_public_setting', { p_key: 'coaching_categories' }).then(({ data }) => {
+      if (Array.isArray(data) && data.length) {
+        const next = data.filter((item: any) => item.value && item.label);
+        setCategories(next);
+        if (!next.some((item: any) => item.value === category)) setCategory(next[0].value);
+      }
+    });
+  }, []);
 
   const save = async () => {
     if (busy) return;
@@ -115,9 +128,9 @@ export default function CoachingForm({
               onChange={(e) => setCategory(e.target.value as CoachingCategory)}
               className="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm outline-none focus:border-brand-500"
             >
-              {CATEGORIES.map((c) => (
-                <option key={c} value={c}>
-                  {c}
+              {categories.map((c) => (
+                <option key={c.value} value={c.value}>
+                  {c.label}
                 </option>
               ))}
             </select>

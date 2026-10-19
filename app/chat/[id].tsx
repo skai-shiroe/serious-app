@@ -75,6 +75,7 @@ const formatDayLabel = (iso: string) => {
 const TYPING_THROTTLE_MS = 2000;
 /** Sans nouveau signal, l'indicateur s'efface tout seul apres ce delai. */
 const TYPING_LINGER_MS = 3500;
+const MESSAGE_ACTION_WINDOW_MS = 4 * 60 * 60 * 1000;
 
 interface Message {
   id: string;
@@ -93,8 +94,10 @@ interface Message {
   type?: string;
   /** Heure de la derniere edition (null si jamais edite) — bloc 14. */
   edited_at?: string | null;
-  /** Suppression douce : la ligne reste, l'app affiche « Message supprimé ». */
+  /** Suppression pour tout le monde : affiche le placeholder de suppression. */
   is_deleted?: boolean;
+  /** Suppression uniquement chez l'expéditeur. */
+  hidden_for_sender?: boolean;
   /** Id du message cite (reponse) — null si envoi simple. */
   reply_to_id?: string | null;
 }
@@ -305,11 +308,7 @@ export default function ChatScreen() {
         // 4. Marquer comme lu EN ARRIERE-PLAN : ca ne bloque plus
         //    l'affichage de la conversation.
         supabase
-          .from('messages')
-          .update({ read: true })
-          .eq('match_id', matchId)
-          .neq('sender_id', user.id)
-          .eq('read', false)
+          .rpc('mark_match_messages_read', { p_match_id: matchId })
           .then(() => {
             // Le badge non-lus de l'onglet Messages se met a jour tout de
             // suite (l'UPDATE realtime de la table messages n'est pas
@@ -353,9 +352,7 @@ export default function ChatScreen() {
           setPartnerTyping(false);
           markPendingDelivered();
           supabase
-            .from('messages')
-            .update({ read: true })
-            .eq('id', newMessage.id)
+            .rpc('mark_match_messages_read', { p_match_id: matchId })
             .then(() => notifyUnreadChanged());
         }
       })
@@ -378,7 +375,15 @@ export default function ChatScreen() {
           setMessages((prev) =>
             prev.map((m) =>
               m.id === updated.id
-                ? { ...m, read: updated.read, delivered: updated.read || m.delivered }
+                ? {
+                    ...m,
+                    content: updated.content,
+                    edited_at: updated.edited_at,
+                    is_deleted: updated.is_deleted,
+                    hidden_for_sender: updated.hidden_for_sender,
+                    read: updated.read,
+                    delivered: updated.read || m.delivered,
+                  }
                 : m
             )
           );
@@ -575,11 +580,7 @@ export default function ChatScreen() {
           if (fromPartner.length) {
             // Conversation ouverte : le message est lu des son arrivee.
             supabase
-              .from('messages')
-              .update({ read: true })
-              .eq('match_id', matchId)
-              .neq('sender_id', myId)
-              .eq('read', false)
+              .rpc('mark_match_messages_read', { p_match_id: matchId })
               .then(() => notifyUnreadChanged());
           }
         }
@@ -654,6 +655,13 @@ export default function ChatScreen() {
     if (editing) {
       const text = inputText.trim();
       const editId = editing.id;
+      const editedMessage = messages.find((message) => message.id === editId);
+      if (!editedMessage || Date.now() - new Date(editedMessage.created_at).getTime() > MESSAGE_ACTION_WINDOW_MS) {
+        setEditing(null);
+        setInputText('');
+        Alert.alert('Délai dépassé', 'Un message ne peut être modifié que pendant les 4 heures suivant son envoi.');
+        return;
+      }
       setEditing(null);
       setInputText('');
       sendTypingEvent('stop');
@@ -662,14 +670,22 @@ export default function ChatScreen() {
           m.id === editId ? { ...m, content: text, edited_at: new Date().toISOString() } : m
         )
       );
-      const { error } = await supabase
+      const { data, error } = await supabase
         .from('messages')
         .update({ content: text, edited_at: new Date().toISOString() })
-        .eq('id', editId);
-      // Echec (RLS ou bloc 14 non pousse) : on recharge pour revenir au texte serveur.
-      if (error) {
+        .eq('id', editId)
+        .select('*')
+        .maybeSingle();
+      // Le serveur applique aussi la limite; aucune ligne retournée signifie
+      // également que la mise à jour a été bloquée par RLS.
+      if (error || !data) {
         const { data } = await supabase.from('messages').select('*').eq('id', editId).maybeSingle();
-        if (data) setMessages((prev) => prev.map((m) => (m.id === editId ? (data as Message) : m)));
+        setMessages((prev) => prev.map((m) => (m.id === editId ? ((data as Message | null) ?? editedMessage) : m)));
+        Alert.alert('Modification impossible', error?.message?.includes('4 heures')
+          ? 'Le délai de modification de 4 heures est dépassé.'
+          : 'Le message n’a pas pu être modifié.');
+      } else {
+        setMessages((prev) => prev.map((m) => (m.id === editId ? (data as Message) : m)));
       }
       return;
     }
@@ -770,43 +786,49 @@ export default function ChatScreen() {
 
   /** Bloc 14 — éditer : le texte revient dans le champ, validation = UPDATE. */
   const startEdit = (item: Message) => {
+    if (Date.now() - new Date(item.created_at).getTime() > MESSAGE_ACTION_WINDOW_MS) {
+      setMenuMessage(null);
+      Alert.alert('Délai dépassé', 'Un message ne peut être modifié que pendant les 4 heures suivant son envoi.');
+      return;
+    }
     setMenuMessage(null);
     setReplyTo(null);
     setEditing({ id: item.id, text: item.content });
     setInputText(item.content);
   };
 
-  /**
-   * Bloc 14 — suppression DOUCE (soft) : la ligne reste en base
-   * (modération/admin), l'app affiche « Message supprimé ».
-   * Optimiste + rollback si l'UPDATE est refuse (RLS / bloc 14 non poussé).
-   */
+  /** Suppression pour soi à tout moment, pour tous pendant les 4 premières heures. */
   const deleteMessage = (item: Message) => {
     setMenuMessage(null);
-    Alert.alert('Supprimer ce message ?', 'Il sera remplacé par « Message supprimé ».', [
+    const canDeleteForEveryone = Date.now() - new Date(item.created_at).getTime() <= MESSAGE_ACTION_WINDOW_MS;
+    const removeMessage = async (scope: 'me' | 'everyone') => {
+      setMessages((prev) => prev.map((message) => message.id !== item.id ? message : scope === 'everyone'
+        ? { ...message, is_deleted: true }
+        : { ...message, hidden_for_sender: true }));
+      const update = scope === 'everyone' ? { is_deleted: true } : { hidden_for_sender: true };
+      const { data, error } = await supabase
+        .from('messages')
+        .update(update)
+        .eq('id', item.id)
+        .select('id')
+        .maybeSingle();
+      if (error || !data) {
+        setMessages((prev) => prev.map((message) => message.id === item.id ? item : message));
+        Alert.alert('Suppression impossible', error?.message?.includes('4 heures')
+          ? 'Après 4 heures, tu peux supprimer le message uniquement de ta discussion.'
+          : 'Le message n’a pas pu être supprimé.');
+      }
+    };
+    const buttons: { text: string; style?: 'cancel' | 'destructive'; onPress?: () => void }[] = [
       { text: 'Annuler', style: 'cancel' },
-      {
-        text: 'Supprimer',
-        style: 'destructive',
-        onPress: () => {
-          setMessages((prev) =>
-            prev.map((m) => (m.id === item.id ? { ...m, is_deleted: true } : m))
-          );
-          void (async () => {
-            const { error } = await supabase
-              .from('messages')
-              .update({ is_deleted: true })
-              .eq('id', item.id);
-            // Echec : rollback vers le contenu d'origine (serveur inchangé).
-            if (error) {
-              setMessages((prev) =>
-                prev.map((m) => (m.id === item.id ? { ...m, is_deleted: false } : m))
-              );
-            }
-          })();
-        },
-      },
-    ]);
+      { text: 'Supprimer pour moi', style: 'destructive', onPress: () => { void removeMessage('me'); } },
+    ];
+    if (canDeleteForEveryone) {
+      buttons.push({ text: 'Supprimer pour tout le monde', style: 'destructive', onPress: () => { void removeMessage('everyone'); } });
+    }
+    Alert.alert('Supprimer ce message ?', canDeleteForEveryone
+      ? 'Choisis si tu veux le retirer seulement de ta discussion ou pour les deux personnes.'
+      : 'Le délai de suppression pour tout le monde est dépassé. Le message sera retiré uniquement de ta discussion.', buttons);
   };
 
   const renderBubble = (item: Message) => {
@@ -819,7 +841,7 @@ export default function ChatScreen() {
         <View style={[styles.messageWrapper, isMe ? styles.messageWrapperMe : styles.messageWrapperThem]}>
           <View style={[styles.bubble, styles.bubbleDeleted, !isMe && { backgroundColor: themeColors.bubbleThem, opacity: 0.55 }]}>
             <Text style={[styles.deletedText, { color: isMe ? 'rgba(255,255,255,0.85)' : 'rgba(255,255,255,0.9)' }]}>
-              Message supprime
+              Message supprimé
             </Text>
           </View>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
@@ -906,6 +928,7 @@ export default function ChatScreen() {
     const items: ChatListItem[] = [];
     let lastDay = '';
     for (const message of messages) {
+      if (message.hidden_for_sender && message.sender_id === currentUser?.id) continue;
       const key = dayKeyOf(message.created_at);
       if (key !== lastDay) {
         items.push({ kind: 'day', id: `day-${key}`, label: formatDayLabel(message.created_at) });
@@ -914,7 +937,7 @@ export default function ChatScreen() {
       items.push({ kind: 'message', id: message.id, message });
     }
     return items;
-  }, [messages]);
+  }, [messages, currentUser?.id]);
 
   const renderListItem = ({ item }: { item: ChatListItem }) =>
     item.kind === 'day' ? (
@@ -1106,15 +1129,17 @@ export default function ChatScreen() {
                 <Reply color={themeColors.text} size={18} />
                 <Text style={[styles.menuText, { color: themeColors.text }]}>Repondre</Text>
               </TouchableOpacity>
-              {menuMessage?.sender_id === currentUser?.id && (
+              {menuMessage && menuMessage.sender_id === currentUser?.id && (
                 <>
-                  <TouchableOpacity
-                    style={styles.menuItem}
-                    onPress={() => menuMessage && startEdit(menuMessage)}
-                  >
-                    <Pencil color={themeColors.text} size={18} />
-                    <Text style={[styles.menuText, { color: themeColors.text }]}>Modifier</Text>
-                  </TouchableOpacity>
+                  {Date.now() - new Date(menuMessage.created_at).getTime() <= MESSAGE_ACTION_WINDOW_MS && (
+                    <TouchableOpacity
+                      style={styles.menuItem}
+                      onPress={() => menuMessage && startEdit(menuMessage)}
+                    >
+                      <Pencil color={themeColors.text} size={18} />
+                      <Text style={[styles.menuText, { color: themeColors.text }]}>Modifier</Text>
+                    </TouchableOpacity>
+                  )}
                   <TouchableOpacity
                     style={[styles.menuItem, styles.menuItemLast]}
                     onPress={() => menuMessage && deleteMessage(menuMessage)}

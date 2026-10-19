@@ -15,6 +15,9 @@
 -- Idempotent : exécutable plusieurs fois.
 -- ══════════════════════════════════════════════════════════════════════
 
+-- L'ancienne surcharge de moderation/admin a p_gender en dernier : elle avait
+-- un type-signature different et survivait au DROP ci-dessus.
+drop function if exists get_candidate_profiles(integer, uuid, text, text, text, integer, integer, text);
 drop function if exists get_candidate_profiles(integer, uuid, text, text, text, text, integer, integer);
 
 create or replace function get_candidate_profiles(
@@ -49,6 +52,16 @@ as $$
     -- Matching strict : un profil ne voit que le genre opposé.
     and (p_gender is null or lower(p.gender) = lower(p_gender))
     and (p_city is null or p.city ilike '%' || p_city || '%')
+    -- Compatibilité médicale automatique. Un viewer AA peut rencontrer les
+    -- génotypes déclarés (CC compris) ; tout autre statut connu/inconnu ne voit
+    -- que AA. Les statuts manquants chez les candidats sont exclus.
+    and p.sickle_cell = any(
+      case
+        when (select upper(trim(v.sickle_cell)) from profiles v where v.user_id = auth.uid()) = 'AA'
+          then array['AA','AS','AC','SS','SC','CC']::text[]
+        else array['AA']::text[]
+      end
+    )
     -- Multi-sélection : vide/null = aucun filtre (ancien comportement '').
     and (
       p_blood_types is null

@@ -463,7 +463,7 @@ Trop longs pour être inlinés ici, les blocs 6 à 8 vivent dans `sql/` et se co
 > (fonctions `send_push`/`push_allowed` manquantes) ; sans le bloc 7, seule la décision de
 > vérification du bloc 5 continue de partir.
 
-**Blocs 9 à 12 — modération, panneau admin, référentiels, filtres deck (`sql/`)**
+**Blocs 9 à 15 — modération, compte, chat et sécurité (`sql/`)**
 
 | Étape | Fichier | Rôle |
 |---|---|---|
@@ -472,6 +472,8 @@ Trop longs pour être inlinés ici, les blocs 6 à 8 vivent dans `sql/` et se co
 | 3 | `sql/referentiels.sql` | bloc 11 — tables **dynamiques** `countries` / `cities` / `interests` + colonnes `profiles.country_code` / `phone_e164` ; lecture `authenticated`, écriture admin (RLS `is_admin()`) |
 | 4 | `sql/deck-filters.sql` | bloc 12 — RPC `get_candidate_profiles` en **multi-sélection** (`p_blood_types text[]`, `p_sickle_cells text[]`, `= ANY()` ; vide = aucun filtre) ; ancienne signature `drop`ée — un bundle app ancien bascule sur son repli client (dégradé sûr) |
 | 5 | `sql/undo-swipe.sql` | bloc 13 — policies **DELETE** : `swipes` (auteur du swipe) + `matches` (participant), idempotent ; indispensable au bouton « Annuler » du deck (sans lui, l'undo échoue silencieusement → l'app affiche « Annulation impossible ») |
+| 6 | `sql/chat-edit.sql` | bloc 14 — édition/suppression douce/réponse ; UPDATE limité aux messages de l'auteur, accusés de lecture via RPC du match |
+| 7 | `sql/security-hardening.sql` | bloc 15 — ferme l'accès public aux fonctions internes `SECURITY DEFINER`, fixe leur `search_path` et réserve les policies admin aux comptes connectés ; à exécuter en dernier |
 
 > Le bloc 11 rend pilotables depuis `admin-web → /referentiels` : pays (drapeau, indicatif,
 > longueur attendue du numéro), villes par pays et centres d'intérêt (minimum 5 imposé à la

@@ -4,7 +4,7 @@ export type VerificationStatus = 'pending' | 'approved' | 'rejected';
 export type VerificationType = 'identity' | 'genotype';
 export type ReportStatus = 'pending' | 'reviewed' | 'dismissed';
 export type ReportReason = 'fake' | 'harassment' | 'inappropriate' | 'spam' | 'other';
-export type CoachingCategory = 'couple' | 'santé' | 'astuce';
+export type CoachingCategory = string;
 
 export type AdminStats = {
   profiles_total: number;

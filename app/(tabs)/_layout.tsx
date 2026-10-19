@@ -1,12 +1,19 @@
 import { Tabs } from 'expo-router';
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { useColorScheme } from 'react-native';
 
 import { BottomTabBar } from '@/components/bottom-tab-bar';
+import { watchAppSetting } from '@/lib/app-settings';
 
 export default function TabLayout() {
   const colorScheme = useColorScheme();
   const isDark = colorScheme === 'dark';
+  const [flags, setFlags] = useState<Record<string, boolean>>({ coaching: true });
+  useEffect(() => {
+    return watchAppSetting<Record<string, boolean>>('feature_flags', {}, (value) => {
+      if (value) setFlags((current) => ({ ...current, ...value }));
+    });
+  }, []);
 
   return (
     <Tabs
@@ -19,7 +26,7 @@ export default function TabLayout() {
       }}>
       <Tabs.Screen name="match" options={{ title: 'Match' }} />
       <Tabs.Screen name="messages" options={{ title: 'Messages' }} />
-      <Tabs.Screen name="coaching" options={{ title: 'Coaching' }} />
+      <Tabs.Screen name="coaching" options={{ title: 'Coaching', href: flags.coaching === false ? null : undefined }} />
       <Tabs.Screen name="profile" options={{ title: 'Profil' }} />
     </Tabs>
   );
