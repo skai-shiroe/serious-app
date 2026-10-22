@@ -24,6 +24,7 @@ export type AdminStats = {
   messages_30d: number;
   swipes_7d: number;
   likes_7d: number;
+  profiles_liked_7d: number;
   coaching_posts: number;
   coaching_likes_30d: number;
   coaching_comments_30d: number;
@@ -36,6 +37,36 @@ export type DailyPoint = {
   new_messages: number;
   new_swipes: number;
   likes: number;
+};
+
+export type ActivitySummary = {
+  new_profiles: number;
+  new_matches: number;
+  new_messages: number;
+  new_swipes: number;
+  likes: number;
+  profiles_liked: number;
+  received_likes_page_opens: number;
+  received_likes_unique_users: number;
+  received_like_profiles_opened: number;
+  received_like_responses: number;
+  received_like_response_likes: number;
+  received_like_response_passes: number;
+};
+
+export type ActivityDailyPoint = DailyPoint & {
+  profiles_liked: number;
+  received_likes_page_opens: number;
+  received_likes_users: number;
+  received_like_profiles_opened: number;
+  received_like_responses: number;
+  received_like_response_likes: number;
+  received_like_response_passes: number;
+};
+
+export type AdminActivityData = {
+  summary: ActivitySummary;
+  series: ActivityDailyPoint[];
 };
 
 export type VerificationDoc = { path: string; label: string };

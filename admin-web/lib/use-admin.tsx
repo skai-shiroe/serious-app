@@ -45,20 +45,18 @@ export function useAdmin(): AdminState {
           setState({ loading: false, isAdmin: false, checked: true, user: null, role: null, permissions: {} });
           return;
         }
-        const { data: profile } = await supabase
-          .from('profiles')
-          .select('role')
-          .eq('user_id', user.id)
-          .maybeSingle();
+        const { data: profile } = await supabase.rpc('get_my_role');
         if (!alive) return;
-        const role = (profile?.role as string | null) ?? null;
+        const role = (profile as string | null) ?? null;
         let permissions: AdminState['permissions'] = {};
-        if (isAdminRole(role)) {
+        if (role === 'admin') {
+          // Les admins ont toujours tous les modules, même si une ancienne
+          // configuration SQL ne renvoie aucune ligne dans admin_get_access.
+          permissions = Object.fromEntries(ADMIN_MODULES.map((module) => [module, { can_view: true, can_manage: true }]));
+        } else if (role === 'manager') {
           const { data: access } = await supabase.rpc('admin_get_access');
           if (access) {
             permissions = Object.fromEntries(access.map((entry: { module: string; can_view: boolean; can_manage: boolean }) => [entry.module, { can_view: entry.can_view, can_manage: entry.can_manage }]));
-          } else if (role === 'admin') {
-            permissions = Object.fromEntries(ADMIN_MODULES.map((module) => [module, { can_view: true, can_manage: true }]));
           }
         }
         setState({

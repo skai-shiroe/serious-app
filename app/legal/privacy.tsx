@@ -12,7 +12,7 @@ export default function PrivacyScreen() {
     <DynamicLegalScreen
       settingKey="privacy"
       title="Politique de confidentialité"
-      updatedAt="18 octobre 2026"
+      updatedAt="22 octobre 2026"
       sections={[
         {
           heading: '1. Responsable de traitement',
@@ -24,7 +24,7 @@ export default function PrivacyScreen() {
           heading: '2. Données collectées',
           paragraphs: [
             "Compte : adresse e-mail, mot de passe (haché), identifiant unique.",
-            "Profil : prénom, âge, ville, bio, centres d'intérêt, photos, et les informations de compatibilité que vous renseignez volontairement, y compris vos marqueurs de santé déclarés (par exemple le statut vis-à-vis de la drépanocytose).",
+            "Profil : prénom, âge, ville, bio, centres d'intérêt, photos, et les informations de compatibilité que vous renseignez volontairement, comme le groupe sanguin et le statut vis-à-vis de la drépanocytose. Les photos de profil sont visibles aux utilisateurs auxquels Geno les propose et toute personne disposant de leur lien public peut également les consulter.",
             "Utilisation : matchs, likes, messages échangés, signalements et blocages, interactions avec les conseils de coaching.",
             "Technique : identifiants de notification push (sans données de localisation fine), journaux de connexion.",
             "Aucune donnée de géolocalisation précise n'est collectée : la localisation est limitée à la ville déclarée.",
@@ -34,7 +34,7 @@ export default function PrivacyScreen() {
           heading: '3. Finalités',
           paragraphs: [
             "Fournir le service de rencontres (matching, messagerie) ; assurer la sécurité de la plateforme (modération, détection de faux profils) ; envoyer les notifications liées aux matchs et messages ; améliorer l'expérience utilisateur.",
-            "Vos marqueurs de santé ne sont visibles que par les personnes avec qui vous avez un match, et uniquement si vous avez choisi de les renseigner.",
+            "Vos marqueurs de santé déclarés servent à appliquer les règles de compatibilité aux propositions. Ils ne sont pas renvoyés dans les profils de découverte ou les likes reçus ; ils ne deviennent visibles à l'autre personne qu'après un match réciproque, si vous avez choisi de les renseigner.",
           ],
         },
         {
@@ -54,14 +54,14 @@ export default function PrivacyScreen() {
           heading: '6. Conservation',
           paragraphs: [
             "Les données sont conservées pendant la durée d'utilisation du compte, puis supprimées (ou anonymisées) lors de la suppression du compte, action réalisable depuis Profil > Sécurité et confidentialité.",
-            "Les journaux techniques sont conservés au maximum 12 mois.",
+            "Les justificatifs de vérification sont conservés dans un espace privé jusqu’à la suppression du compte, sauf obligation légale de conservation. La durée de conservation des journaux techniques dépend de leur finalité et des règles du fournisseur d’hébergement.",
           ],
         },
         {
           heading: '7. Sécurité',
           paragraphs: [
             "Contrôle d'accès aux données au niveau base (Row Level Security), authentification par jeton, chiffrement TLS des échanges, service role jamais exposé côté client.",
-            "La vérification d'identité est traitée par un prestataire spécialisé ; les documents fournis ne sont pas conservés au-delà du temps nécessaire au contrôle.",
+            "Les justificatifs de vérification sont stockés dans un espace privé et accessibles aux personnes habilitées à traiter les demandes. Ils sont supprimés lors de la suppression du compte. Les accès à la base sont protégés par des règles Row Level Security et les échanges utilisent TLS ; les clés privilégiées ne sont jamais embarquées dans l’application.",
           ],
         },
         {

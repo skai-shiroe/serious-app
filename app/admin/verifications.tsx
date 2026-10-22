@@ -1,4 +1,5 @@
 import { supabase } from '@/lib/supabase';
+import { CertifiedIcon, VERIFIED_COLOR } from '@/components/verified-badge';
 import { getUser } from '@/lib/session';
 import { EmptyState } from '@/components/empty-state';
 import { IMAGE_CACHE_POLICY, imageSource } from '@/lib/images';
@@ -82,15 +83,11 @@ export default function AdminVerificationsScreen() {
       const user = await getUser();
       if (!user) return;
 
-      const { data: me, error: meError } = await supabase
-        .from('profiles')
-        .select('role')
-        .eq('user_id', user.id)
-        .maybeSingle();
+      const { data: me, error: meError } = await supabase.rpc('get_my_role');
 
       if (meError) throw meError;
 
-      const admin = me?.role === 'admin' || me?.role === 'manager';
+      const admin = me === 'admin' || me === 'manager';
       setIsAdmin(admin);
       setRoleLoading(false);
 
@@ -216,17 +213,17 @@ export default function AdminVerificationsScreen() {
               {
                 backgroundColor: isIdentity
                   ? 'rgba(244,63,94,0.15)'
-                  : 'rgba(34,211,238,0.16)',
+                  : 'rgba(0,149,246,0.12)',
               },
             ]}
           >
             {isIdentity ? (
               <ShieldCheck color="#f43f5e" size={14} />
             ) : (
-              <BadgeCheck color="#22d3ee" size={14} />
+              <CertifiedIcon size={14} />
             )}
             <Text
-              style={[styles.typePillText, { color: isIdentity ? '#f43f5e' : '#22d3ee' }]}
+              style={[styles.typePillText, { color: isIdentity ? '#f43f5e' : VERIFIED_COLOR }]}
             >
               {isIdentity ? 'Identité' : 'Génotype'}
             </Text>
@@ -358,7 +355,7 @@ export default function AdminVerificationsScreen() {
         />
       ) : items.length === 0 ? (
         <EmptyState
-          icon={<BadgeCheck color="#10b981" size={48} />}
+          icon={<CertifiedIcon size={48} />}
           title="Aucune demande en attente"
           message="Tout est à jour, revenez plus tard."
         />

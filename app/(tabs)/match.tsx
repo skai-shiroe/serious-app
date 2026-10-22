@@ -19,12 +19,12 @@ import { LinearGradient } from 'expo-linear-gradient';
 import * as Haptics from 'expo-haptics';
 import { Filter, Heart, MapPin, X, Info, ChevronLeft, ChevronRight, WifiOff, Undo2 } from 'lucide-react-native';
 import React, { useEffect, useState, useCallback, useRef } from 'react';
-import { ActivityIndicator, Alert, Dimensions, Modal, StyleSheet, Text, TouchableOpacity, useColorScheme, View, ScrollView } from 'react-native';
+import { ActivityIndicator, Alert, Dimensions, Modal, StyleSheet, Text, TouchableOpacity, useColorScheme, useWindowDimensions, View, ScrollView } from 'react-native';
 import { Gesture, GestureDetector, GestureHandlerRootView } from 'react-native-gesture-handler';
 import Animated, { useAnimatedStyle, useSharedValue, withSpring, runOnJS, interpolate, Extrapolation, withTiming, FadeIn, FadeOut, ZoomIn } from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useProfileSheet } from '@/contexts/ProfileSheetContext';
-import { useRouter } from 'expo-router';
+import { useFocusEffect, useRouter } from 'expo-router';
 import { watchAppSetting } from '@/lib/app-settings';
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
@@ -37,25 +37,11 @@ const VERTICAL_SWIPE_THRESHOLD = SCREEN_HEIGHT * 0.15;
 /** Fenêtre de l'annulation de swipe : 1 seul niveau, 10 s après le geste. */
 const UNDO_WINDOW_MS = 10_000;
 
-const BLOOD_TYPES = ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'];
-const SICKLE_CELL_STATUS = [
-  { label: 'AA', value: 'AA' },
-  { label: 'AS', value: 'AS' },
-  { label: 'AC', value: 'AC' },
-  { label: 'SS', value: 'SS' },
-  { label: 'SC', value: 'SC' },
-  { label: 'CC', value: 'CC' },
-  { label: 'Inconnu', value: 'inconnu' },
-];
-
 /** Filtres au repos (compteur « filtres actifs » + bouton reinitialiser). */
 const DEFAULT_FILTERS = {
   ageMin: 18,
   ageMax: 70,
   city: '',
-  // Multi-selection : [] = aucun filtre (ancien critere unique '').
-  bloodType: [] as string[],
-  sickleCell: [] as string[],
 };
 
 /** Bornes d'age du filtre (slider d'intervalle, cf. RangeSlider). */
@@ -76,8 +62,9 @@ export default function MatchScreen() {
   // (avant, chaque pucelle rechargait le deck pendant la saisie).
   const [draftFilters, setDraftFilters] = useState({ ...DEFAULT_FILTERS });
   const [filterDefaults, setFilterDefaults] = useState({ ...DEFAULT_FILTERS });
-  const [bloodTypes, setBloodTypes] = useState(BLOOD_TYPES);
-  const [sickleStatuses, setSickleStatuses] = useState(SICKLE_CELL_STATUS);
+  const [compatibilityInfoVisible, setCompatibilityInfoVisible] = useState(false);
+  const [viewerGenotype, setViewerGenotype] = useState<string | null>(null);
+  const [pendingReceivedLikes, setPendingReceivedLikes] = useState(0);
   const [ageBounds, setAgeBounds] = useState({ min: AGE_FILTER_MIN, max: AGE_FILTER_MAX });
   const [cityModalVisible, setCityModalVisible] = useState(false);
   // Dernier swipe effectué : annulation possible pendant UNDO_WINDOW_MS
@@ -93,18 +80,68 @@ export default function MatchScreen() {
   const router = useRouter();
   const colorScheme = useColorScheme();
   const isDark = colorScheme === 'dark';
+  const { height: windowHeight, width: windowWidth } = useWindowDimensions();
+  // L’iPhone SE (667 pt de haut) et les appareils compacts manquent surtout
+  // d’espace vertical : réduire les marges garde la carte et ses actions visibles.
+  const isCompactScreen = windowHeight <= 700 || windowWidth <= 360;
+
+  const refreshReceivedLikesCount = useCallback(async () => {
+    try {
+      const user = await getUser();
+      if (!user) {
+        setPendingReceivedLikes(0);
+        return;
+      }
+      const { data, error } = await supabase.rpc('get_received_likes_count');
+      if (error) throw error;
+      setPendingReceivedLikes(Math.max(0, Number(data) || 0));
+    } catch {
+      // Une indisponibilité réseau conserve le dernier nombre connu.
+    }
+  }, []);
+
+  useFocusEffect(useCallback(() => {
+    void refreshReceivedLikesCount();
+  }, [refreshReceivedLikesCount]));
 
   useEffect(() => {
-    const config = { options: null as any, appDefaults: {} as any, flags: {} as Record<string, boolean> };
+    let active = true;
+    let channel: ReturnType<typeof supabase.channel> | null = null;
+
+    const subscribeToSwipeChanges = async () => {
+      const user = await getUser();
+      if (!active || !user) return;
+
+      channel = supabase
+        .channel(`received-likes-count:${user.id}`)
+        .on('postgres_changes', {
+          event: '*',
+          schema: 'public',
+          table: 'swipes',
+        }, (payload) => {
+          const row = (payload.new && Object.keys(payload.new).length
+            ? payload.new
+            : payload.old) as { swiper_id?: string; swiped_id?: string };
+          // RLS limite les événements visibles aux swipes envoyés ou reçus
+          // par ce compte. On recalcule le total serveur après chaque changement.
+          if (row.swiper_id === user.id || row.swiped_id === user.id) {
+            void refreshReceivedLikesCount();
+          }
+        })
+        .subscribe();
+    };
+
+    void subscribeToSwipeChanges();
+    return () => {
+      active = false;
+      if (channel) void supabase.removeChannel(channel);
+    };
+  }, [refreshReceivedLikesCount]);
+
+  useEffect(() => {
+    const config = { options: null as any, appDefaults: {} as any };
     const applyConfig = () => {
-      const { options, appDefaults, flags } = config;
-      if (flags.medical_compatibility === false) {
-        setBloodTypes([]);
-        setSickleStatuses([]);
-      } else if (options) {
-        if (Array.isArray(options.blood_types)) setBloodTypes(options.blood_types);
-        if (Array.isArray(options.genotypes)) setSickleStatuses(options.genotypes);
-      }
+      const { options, appDefaults } = config;
       if (!options) return;
       const min = Math.min(98, Math.max(18, Number(appDefaults.default_age_min ?? options.matching?.age_min) || 18));
       const max = Math.max(min + 1, Math.min(99, Number(appDefaults.default_age_max ?? options.matching?.age_max) || 80));
@@ -116,8 +153,7 @@ export default function MatchScreen() {
     };
     const stopOptions = watchAppSetting<any>('profile_options', null, (value) => { config.options = value; applyConfig(); });
     const stopDefaults = watchAppSetting<any>('app_defaults', {}, (value) => { config.appDefaults = value ?? {}; applyConfig(); });
-    const stopFlags = watchAppSetting<Record<string, boolean>>('feature_flags', {}, (value) => { config.flags = value ?? {}; applyConfig(); });
-    return () => { stopOptions(); stopDefaults(); stopFlags(); };
+    return () => { stopOptions(); stopDefaults(); };
   }, []);
 
   const themeColors = {
@@ -153,13 +189,10 @@ export default function MatchScreen() {
       if (!user) {
         viewerGenderRef.current = null;
       } else {
-        const { data } = await supabase
-          .from('profiles')
-          .select('gender, country_code')
-          .eq('user_id', user.id)
-          .maybeSingle();
+        const { data } = await supabase.rpc('get_my_profile').single();
         viewerGenderRef.current = data?.gender ?? null;
         setViewerCountry(data?.country_code ?? null);
+        setViewerGenotype(data?.sickle_cell ?? null);
       }
     } catch {
       // Echec NON memorise : on retente a la prochaine lecture. Si on mettait
@@ -171,18 +204,6 @@ export default function MatchScreen() {
     // mais TypeScript ne le prouve pas).
     return viewerGenderRef.current ?? null;
   }, []);
-
-  const calculateAge = (birthDateStr: string) => {
-    if (!birthDateStr) return null;
-    const birthDate = new Date(birthDateStr);
-    const today = new Date();
-    let age = today.getFullYear() - birthDate.getFullYear();
-    const m = today.getMonth() - birthDate.getMonth();
-    if (m < 0 || (m === 0 && today.getDate() < birthDate.getDate())) {
-      age--;
-    }
-    return age;
-  };
 
   /** Ouvre la modale en repartant des filtres deja appliques. */
   const openFilters = () => {
@@ -205,8 +226,6 @@ export default function MatchScreen() {
   /** Nombre de filtres qui s'ecartent des valeurs par defaut. */
   const activeFilterCount =
     (filters.city ? 1 : 0) +
-    (filters.bloodType.length > 0 ? 1 : 0) +
-    (filters.sickleCell.length > 0 ? 1 : 0) +
     (filters.ageMin !== filterDefaults.ageMin || filters.ageMax !== filterDefaults.ageMax
       ? 1
       : 0);
@@ -232,11 +251,10 @@ export default function MatchScreen() {
 
       deckCursorRef.current = page.cursor;
 
-      // Filet de securite : les bornes d'age sont deja filtrees par la RPC
-      // (ou par la boucle du repli client).
+      // La RPC applique les filtres d'âge avant de renvoyer l'âge public.
       const filtered = page.profiles.filter(
         (p) =>
-          isAgeInRange(p.birth_date, filters.ageMin, filters.ageMax) &&
+          isAgeInRange(p.age, filters.ageMin, filters.ageMax) &&
           matchesTargetGender(p.gender, viewerGender)
       );
 
@@ -290,7 +308,7 @@ export default function MatchScreen() {
 
       const more = page.profiles.filter(
         (p) =>
-          isAgeInRange(p.birth_date, filters.ageMin, filters.ageMax) &&
+          isAgeInRange(p.age, filters.ageMin, filters.ageMax) &&
           matchesTargetGender(p.gender, viewerGender)
       );
 
@@ -572,28 +590,48 @@ export default function MatchScreen() {
     <GestureHandlerRootView style={{ flex: 1 }}>
       <SafeAreaView style={[styles.safeArea, { backgroundColor: themeColors.bg }]}>
         
-        <View style={styles.header}>
-          <View>
-            <Text style={[styles.headerTitle, { color: themeColors.text }]}>Découvrir</Text>
-            <Text style={[styles.headerSub, { color: themeColors.textMuted }]}>Trouvez votre compatibilité</Text>
+        <View style={[styles.header, isCompactScreen && styles.headerCompact]}>
+          <View style={styles.headerCopy}>
+            <Text style={[styles.headerTitle, isCompactScreen && styles.headerTitleCompact, { color: themeColors.text }]}>Découvrir</Text>
+            <Text style={[styles.headerSub, isCompactScreen && styles.headerSubCompact, { color: themeColors.textMuted }]}>Trouvez votre compatibilité</Text>
           </View>
-          <TouchableOpacity
-            style={[
-              styles.filterBtn,
-              { backgroundColor: themeColors.card, borderColor: themeColors.border, position: 'relative' },
-            ]}
-            onPress={openFilters}
-          >
-            <Filter color={activeFilterCount > 0 ? themeColors.accent : themeColors.text} size={20} />
-            {activeFilterCount > 0 && (
-              <View style={styles.filterBadge}>
-                <Text style={styles.filterBadgeText}>{activeFilterCount}</Text>
-              </View>
-            )}
-          </TouchableOpacity>
+          <View style={styles.headerActions}>
+            <TouchableOpacity
+              style={[styles.likesShortcut, { backgroundColor: themeColors.card, borderColor: themeColors.border }]}
+              onPress={() => router.push('/received-likes')}
+              accessibilityRole="button"
+              accessibilityLabel={`Voir les likes reçus${pendingReceivedLikes > 0 ? `, ${pendingReceivedLikes} en attente` : ''}`}
+            >
+              <Heart color={themeColors.accent} size={18} />
+              <Text style={[styles.likesShortcutText, { color: themeColors.accent }]}>Likes</Text>
+              {pendingReceivedLikes > 0 && (
+                <View style={styles.likesCountBadge}>
+                  <Text style={styles.likesCountBadgeText}>
+                    {pendingReceivedLikes > 99 ? '99+' : pendingReceivedLikes}
+                  </Text>
+                </View>
+              )}
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[
+                styles.filterBtn,
+                { backgroundColor: themeColors.card, borderColor: themeColors.border, position: 'relative' },
+              ]}
+              onPress={openFilters}
+              accessibilityRole="button"
+              accessibilityLabel="Ouvrir les filtres"
+            >
+              <Filter color={activeFilterCount > 0 ? themeColors.accent : themeColors.text} size={20} />
+              {activeFilterCount > 0 && (
+                <View style={styles.filterBadge}>
+                  <Text style={styles.filterBadgeText}>{activeFilterCount}</Text>
+                </View>
+              )}
+            </TouchableOpacity>
+          </View>
         </View>
 
-        <View style={styles.cardContainer}>
+        <View style={[styles.cardContainer, isCompactScreen && styles.cardContainerCompact]}>
           {nextProfile && (
             <Animated.View style={[styles.card, styles.nextCard, { backgroundColor: themeColors.card }, nextCardStyle]}>
               <Image
@@ -649,57 +687,60 @@ export default function MatchScreen() {
 
                 <LinearGradient
                   colors={['transparent', 'rgba(0,0,0,0.9)']}
-                  style={styles.cardGradient}
+                  style={[styles.cardGradient, isCompactScreen && styles.cardGradientCompact]}
                 >
                   <View style={styles.infoRow}>
-                    <Text style={styles.name}>{currentProfile.first_name}</Text>
+                    <Text style={[styles.name, isCompactScreen && styles.nameCompact]} numberOfLines={1}>{currentProfile.first_name}</Text>
                     {!isFullyVerified(currentProfile) && currentProfile.identity_verified && (
-                      <IdentityVerifiedIcon size={22} color="#22d3ee" />
+                      <IdentityVerifiedIcon size={22} />
                     )}
-                    <Text style={styles.age}>{calculateAge(currentProfile.birth_date)}</Text>
+                    <Text style={[styles.age, isCompactScreen && styles.ageCompact]}>{currentProfile.age ?? '—'}</Text>
                   </View>
-                  <View style={styles.locationRow}>
+                  <View style={[styles.locationRow, isCompactScreen && styles.locationRowCompact]}>
                     <MapPin color="#e5e7eb" size={16} />
-                    <Text style={styles.city}>{currentProfile.city}</Text>
+                    <Text style={[styles.city, isCompactScreen && styles.cityCompact]} numberOfLines={1}>{currentProfile.city}</Text>
                   </View>
 
                   {/* Centres d interet (5 premiers + « +n ») : deja presents
                       dans le profil charge, zero requete supplementaire. */}
                   {Array.isArray(currentProfile.interests) &&
                     currentProfile.interests.length > 0 && (
-                      <View style={styles.interestsRow}>
-                        {currentProfile.interests.slice(0, 5).map((interest: string) => (
+                      <View style={[styles.interestsRow, isCompactScreen && styles.interestsRowCompact]}>
+                        {currentProfile.interests.slice(0, isCompactScreen ? 3 : 5).map((interest: string) => (
                           <View key={interest} style={styles.interestChip}>
                             <Text style={styles.interestChipText}>{interest}</Text>
                           </View>
                         ))}
-                        {currentProfile.interests.length > 5 && (
+                        {currentProfile.interests.length > (isCompactScreen ? 3 : 5) && (
                           <View style={styles.interestChip}>
                             <Text style={styles.interestChipText}>
-                              +{currentProfile.interests.length - 5}
+                              +{currentProfile.interests.length - (isCompactScreen ? 3 : 5)}
                             </Text>
                           </View>
                         )}
                       </View>
                     )}
 
-                  <View style={styles.tagsRow}>
-                    <View style={[styles.tag, { backgroundColor: 'rgba(244,63,94,0.3)' }]}>
-                      <Text style={styles.tagText}>{currentProfile.blood_type}</Text>
+                  {(currentProfile.blood_type || currentProfile.sickle_cell) && (
+                    <View style={styles.tagsRow}>
+                      {!!currentProfile.blood_type && (
+                        <View style={[styles.tag, isCompactScreen && styles.tagCompact, { backgroundColor: 'rgba(244,63,94,0.3)' }]}>
+                          <Text style={styles.tagText}>{currentProfile.blood_type}</Text>
+                        </View>
+                      )}
+                      {!!currentProfile.sickle_cell && (
+                        <View style={[styles.tag, isCompactScreen && styles.tagCompact, { backgroundColor: 'rgba(59,130,246,0.3)' }]}>
+                          <Text style={styles.tagText}>{currentProfile.sickle_cell}</Text>
+                        </View>
+                      )}
+                      {!isFullyVerified(currentProfile) && currentProfile.genotype_verified && (
+                        <GenotypeVerifiedBadge genotype={currentProfile.sickle_cell} variant="onPhoto" />
+                      )}
                     </View>
-                    <View style={[styles.tag, { backgroundColor: 'rgba(59,130,246,0.3)' }]}>
-                      <Text style={styles.tagText}>{currentProfile.sickle_cell}</Text>
-                    </View>
-                    {!isFullyVerified(currentProfile) && currentProfile.genotype_verified && (
-                      <GenotypeVerifiedBadge
-                        genotype={currentProfile.sickle_cell}
-                        variant="onPhoto"
-                      />
-                    )}
-                  </View>
+                  )}
 
                   <TouchableOpacity 
-                    style={styles.infoIcon}
+                    style={[styles.infoIcon, isCompactScreen && styles.infoIconCompact]}
                     onPress={() => openProfileSheet(currentProfile)}
                   >
                     <Info color="#fff" size={24} />
@@ -720,7 +761,7 @@ export default function MatchScreen() {
             <EmptyState
               icon={<Heart color={themeColors.accent} size={48} />}
               title="Revenez plus tard 💤"
-              message="Nous cherchons de nouveaux profils basés sur vos critères."
+              message="Aucun profil ne correspond pour le moment à tes critères et à la règle de compatibilité Géno. Tu peux ajuster tes filtres ou consulter la règle en haut de l’écran."
               actionLabel="Affiner les filtres"
               onAction={openFilters}
             />
@@ -742,20 +783,29 @@ export default function MatchScreen() {
         )}
 
         {currentProfile && (
-          <View style={styles.buttonsContainer}>
+          <View style={[styles.buttonsContainer, isCompactScreen && styles.buttonsContainerCompact]}>
             <TouchableOpacity 
-              style={[styles.actionBtn, styles.dislikeBtn, { backgroundColor: themeColors.card }]} 
+              style={[styles.actionBtn, isCompactScreen && styles.actionBtnCompact, styles.dislikeBtn, { backgroundColor: themeColors.card }]}
               onPress={() => handleAction('left')}
               activeOpacity={0.8}
             >
               <X color="#ef4444" size={26} />
             </TouchableOpacity>
             <TouchableOpacity 
-              style={[styles.actionBtn, styles.likeBtn, { backgroundColor: themeColors.card }]} 
+              style={[styles.actionBtn, isCompactScreen && styles.actionBtnCompact, styles.likeBtn, { backgroundColor: themeColors.card }]}
               onPress={() => handleAction('right')}
               activeOpacity={0.8}
             >
               <Heart color="#10b981" size={26} fill="#10b981" />
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.actionBtn, isCompactScreen && styles.actionBtnCompact, styles.explanationBtn, { backgroundColor: themeColors.card, borderColor: themeColors.border }]}
+              onPress={() => setCompatibilityInfoVisible(true)}
+              accessibilityRole="button"
+              accessibilityLabel="Voir l’explication de la compatibilité"
+              activeOpacity={0.8}
+            >
+              <Text style={[styles.explanationButtonText, { color: themeColors.accent }]}>?</Text>
             </TouchableOpacity>
           </View>
         )}
@@ -765,7 +815,7 @@ export default function MatchScreen() {
               Android, le RangeSlider n'y porterait pas sans elle. */}
           <GestureHandlerRootView style={{ flex: 1 }}>
           <View style={styles.modalOverlay}>
-            <View style={[styles.modalContent, { backgroundColor: themeColors.bgCard }]}>
+            <View style={[styles.modalContent, isCompactScreen && styles.modalContentCompact, { backgroundColor: themeColors.bgCard }]}>
               <View style={styles.modalHeader}>
                 <Text style={[styles.modalTitle, { color: themeColors.text }]}>Filtres</Text>
                 <TouchableOpacity onPress={() => setFilterVisible(false)}>
@@ -785,6 +835,9 @@ export default function MatchScreen() {
                       {draftFilters.city || 'Toutes les villes'}
                     </Text>
                   </TouchableOpacity>
+                  <Text style={[styles.filterHint, { color: themeColors.textMuted }]}>
+                    Les suggestions et les villes restent limitées au pays de ton profil.
+                  </Text>
                 </View>
 
                 <View style={styles.filterSection}>
@@ -806,55 +859,7 @@ export default function MatchScreen() {
                   />
                 </View>
 
-                <View style={styles.filterSection}>
-                  <Text style={[styles.filterLabel, { color: themeColors.textMuted }]}>Groupe Sanguin</Text>
-                  <View style={styles.filterGrid}>
-                    {bloodTypes.map(type => (
-                      <TouchableOpacity
-                        key={type}
-                        onPress={() => setDraftFilters({
-                          ...draftFilters,
-                          // Multi-selection : cocher / decocher sans écraser les autres.
-                          bloodType: draftFilters.bloodType.includes(type)
-                            ? draftFilters.bloodType.filter((t: string) => t !== type)
-                            : [...draftFilters.bloodType, type],
-                        })}
-                        style={[
-                          styles.filterChip,
-                          { borderColor: themeColors.border },
-                          draftFilters.bloodType.includes(type) && { backgroundColor: themeColors.accent, borderColor: themeColors.accent }
-                        ]}
-                      >
-                        <Text style={{ color: draftFilters.bloodType.includes(type) ? '#fff' : themeColors.text }}>{type}</Text>
-                      </TouchableOpacity>
-                    ))}
-                  </View>
-                </View>
-
-                <View style={styles.filterSection}>
-                  <Text style={[styles.filterLabel, { color: themeColors.textMuted }]}>Statut Drépanocytaire</Text>
-                  <View style={styles.filterGrid}>
-                    {sickleStatuses.map(status => (
-                      <TouchableOpacity
-                        key={status.value}
-                        onPress={() => setDraftFilters({
-                          ...draftFilters,
-                          // Multi-selection : cocher / decocher sans écraser les autres.
-                          sickleCell: draftFilters.sickleCell.includes(status.value)
-                            ? draftFilters.sickleCell.filter((v: string) => v !== status.value)
-                            : [...draftFilters.sickleCell, status.value],
-                        })}
-                        style={[
-                          styles.filterChip,
-                          { borderColor: themeColors.border, width: '47%' },
-                          draftFilters.sickleCell.includes(status.value) && { backgroundColor: '#3b82f6', borderColor: '#3b82f6' }
-                        ]}
-                      >
-                        <Text style={{ color: draftFilters.sickleCell.includes(status.value) ? '#fff' : themeColors.text }}>{status.label}</Text>
-                      </TouchableOpacity>
-                    ))}
-                  </View>
-                </View>
+                <Text style={[styles.filterHint, { color: themeColors.textMuted }]}>Les informations médicales restent privées avant un match réciproque.</Text>
 
                 <TouchableOpacity
                   style={[styles.applyBtn, { backgroundColor: themeColors.accent }]}
@@ -880,6 +885,46 @@ export default function MatchScreen() {
             </View>
           </View>
           </GestureHandlerRootView>
+        </Modal>
+
+        <Modal
+          visible={compatibilityInfoVisible}
+          animationType="fade"
+          transparent
+          onRequestClose={() => setCompatibilityInfoVisible(false)}
+        >
+          <View style={styles.modalOverlay}>
+            <View style={[styles.compatibilityModal, { backgroundColor: themeColors.bgCard }]}>
+              <View style={styles.modalHeader}>
+                <Text style={[styles.modalTitle, { color: themeColors.text }]}>La règle de compatibilité</Text>
+                <TouchableOpacity
+                  accessibilityRole="button"
+                  accessibilityLabel="Fermer"
+                  onPress={() => setCompatibilityInfoVisible(false)}
+                  hitSlop={10}
+                >
+                  <X color={themeColors.text} size={24} />
+                </TouchableOpacity>
+              </View>
+              <Text style={[styles.compatibilityBody, { color: themeColors.text }]}>
+                {viewerGenotype?.toUpperCase() === 'AA'
+                  ? 'Ton génotype est AA. Géno peut te proposer des profils AA, AS, AC, SS, SC et CC.'
+                  : viewerGenotype
+                    ? `Ton génotype est ${viewerGenotype.toUpperCase()}. Géno te propose uniquement des profils AA.`
+                    : 'Ton génotype n’est pas renseigné. Pour le moment, Géno te propose uniquement des profils AA.'}
+              </Text>
+              <Text style={[styles.compatibilityDisclaimer, { color: themeColors.textMuted }]}>
+                Cette règle explique le filtrage des profils dans Géno. Elle ne remplace pas l’avis d’un professionnel de santé.
+              </Text>
+              <TouchableOpacity
+                style={[styles.applyBtn, { backgroundColor: themeColors.accent }]}
+                onPress={() => setCompatibilityInfoVisible(false)}
+                activeOpacity={0.85}
+              >
+                <Text style={styles.applyBtnText}>Compris</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
         </Modal>
 
         <CityPickerModal
@@ -968,8 +1013,17 @@ const styles = StyleSheet.create({
     paddingTop: 16, 
     paddingBottom: 8 
   },
+  headerCompact: { paddingHorizontal: 18, paddingTop: 6, paddingBottom: 4 },
   headerTitle: { fontSize: 28, fontWeight: 'bold' },
+  headerTitleCompact: { fontSize: 24 },
+  headerCopy: { flex: 1, minWidth: 0 },
+  headerActions: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  likesShortcut: { height: 44, borderRadius: 14, borderWidth: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingHorizontal: 10, position: 'relative' },
+  likesShortcutText: { fontSize: 13, fontWeight: '700' },
+  likesCountBadge: { position: 'absolute', top: -7, right: -7, minWidth: 19, height: 19, borderRadius: 10, paddingHorizontal: 4, backgroundColor: '#f43f5e', borderWidth: 1.5, borderColor: '#ffffff', alignItems: 'center', justifyContent: 'center' },
+  likesCountBadgeText: { color: '#ffffff', fontSize: 10, fontWeight: '800' },
   headerSub: { fontSize: 14, opacity: 0.7 },
+  headerSubCompact: { fontSize: 12 },
   filterBtn: {
     width: 44,
     height: 44,
@@ -979,6 +1033,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   cardContainer: { flex: 1, padding: 16, justifyContent: 'center' },
+  cardContainerCompact: { paddingHorizontal: 10, paddingVertical: 8 },
   card: { 
     flex: 1, 
     borderRadius: 24, 
@@ -1006,15 +1061,22 @@ const styles = StyleSheet.create({
   activeDot: { backgroundColor: '#fff' },
   inactiveDot: { backgroundColor: 'rgba(255,255,255,0.4)' },
   cardGradient: { position: 'absolute', bottom: 0, left: 0, right: 0, padding: 24, paddingTop: 100 },
+  cardGradientCompact: { paddingHorizontal: 16, paddingBottom: 16, paddingTop: 62 },
   infoRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 4, gap: 8 },
   name: { color: '#ffffff', fontSize: 32, fontWeight: 'bold' },
+  nameCompact: { fontSize: 27, flexShrink: 1 },
   age: { color: '#ffffff', fontSize: 24, fontWeight: '400' },
+  ageCompact: { fontSize: 20 },
   locationRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginBottom: 12 },
+  locationRowCompact: { marginBottom: 7 },
   city: { color: '#e5e7eb', fontSize: 16 },
+  cityCompact: { fontSize: 14, flexShrink: 1 },
   tagsRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
   tag: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 12 },
+  tagCompact: { paddingHorizontal: 9, paddingVertical: 4 },
   tagText: { color: '#ffffff', fontSize: 13, fontWeight: '700' },
   interestsRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginBottom: 10 },
+  interestsRowCompact: { gap: 4, marginBottom: 6 },
   interestChip: {
     paddingHorizontal: 9,
     paddingVertical: 3,
@@ -1025,14 +1087,16 @@ const styles = StyleSheet.create({
   },
   interestChipText: { color: '#f9fafb', fontSize: 11, fontWeight: '600' },
   infoIcon: { position: 'absolute', right: 24, bottom: 24, width: 44, height: 44, borderRadius: 22, backgroundColor: 'rgba(255,255,255,0.2)', justifyContent: 'center', alignItems: 'center' },
+  infoIconCompact: { right: 16, bottom: 16, width: 38, height: 38, borderRadius: 19 },
   buttonsContainer: { 
     flexDirection: 'row', 
     justifyContent: 'center', 
     alignItems: 'center', 
     paddingBottom: 24, 
     paddingTop: 8, 
-    gap: 32 
+    gap: 24
   },
+  buttonsContainerCompact: { paddingTop: 4, paddingBottom: 8, gap: 14 },
   actionBtn: {
     width: 58,
     height: 58,
@@ -1045,8 +1109,11 @@ const styles = StyleSheet.create({
     shadowRadius: 12, 
     elevation: 8 
   },
+  actionBtnCompact: { width: 50, height: 50, borderRadius: 25 },
   dislikeBtn: { borderColor: '#ef4444', borderWidth: 2 },
   likeBtn: { borderColor: '#10b981', borderWidth: 2 },
+  explanationBtn: { borderWidth: 1.5 },
+  explanationButtonText: { fontSize: 28, lineHeight: 32, fontWeight: '800' },
   // Pastille blanche semi-opaque : le vert/rouge reste lisible sur TOUTES les
   // photos (le texte seul se fondait dans les fonds clairs). Rotation conservee.
   stamp: {
@@ -1082,10 +1149,15 @@ const styles = StyleSheet.create({
   undoText: { fontSize: 14, fontWeight: '700' },
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
   modalContent: { borderTopLeftRadius: 32, borderTopRightRadius: 32, padding: 32, maxHeight: '80%' },
+  modalContentCompact: { padding: 20, maxHeight: '90%' },
+  compatibilityModal: { width: '90%', alignSelf: 'center', borderRadius: 24, padding: 24 },
+  compatibilityBody: { fontSize: 16, lineHeight: 24, marginBottom: 14 },
+  compatibilityDisclaimer: { fontSize: 13, lineHeight: 19, marginBottom: 8 },
   modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 32 },
   modalTitle: { fontSize: 24, fontWeight: 'bold' },
   filterSection: { marginBottom: 24 },
   filterLabel: { fontSize: 14, fontWeight: '600', marginBottom: 12, textTransform: 'uppercase' },
+  filterHint: { fontSize: 12, lineHeight: 18, marginTop: 10 },
   filterOption: { padding: 16, borderRadius: 12 },
   filterGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
   filterChip: { paddingHorizontal: 16, paddingVertical: 10, borderRadius: 20, borderWidth: 1, minWidth: 60, alignItems: 'center' },

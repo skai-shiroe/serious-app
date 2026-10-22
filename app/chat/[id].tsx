@@ -639,10 +639,8 @@ export default function ChatScreen() {
     openProfileSheet(partner);
     try {
       const { data, error } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('user_id', partner.user_id)
-        .maybeSingle();
+        .rpc('get_matched_profile', { p_user_id: partner.user_id })
+        .single();
       if (error) throw error;
       if (data) updateProfileSheet(data);
     } catch {}

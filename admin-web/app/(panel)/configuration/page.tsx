@@ -6,6 +6,13 @@ import { supabase } from '@/lib/supabase';
 import { PageHeader } from '@/components/ui';
 
 type SettingRow = { setting_key: string; label: string; description: string; value: unknown; updated_at: string | null };
+const FEATURE_FLAGS = [
+  { key: 'coaching', label: 'Coaching', description: 'Affiche ou masque l’onglet Coaching dans l’application.' },
+  { key: 'medical_compatibility', label: 'Compatibilité médicale', description: 'Active les règles de compatibilité basées sur le génotype.' },
+  { key: 'push_notifications', label: 'Notifications push', description: 'Autorise l’envoi des notifications push de l’application.' },
+  { key: 'profile_verification', label: 'Vérification des profils', description: 'Affiche les options de vérification sur les profils.' },
+] as const;
+
 export default function ConfigurationPage() {
   const [rows, setRows] = useState<SettingRow[]>([]);
   const [selected, setSelected] = useState<SettingRow | null>(null);
@@ -56,6 +63,22 @@ export default function ConfigurationPage() {
     }
     setSaving(false);
   };
+  const toggleFeature = (key: string, enabled: boolean) => {
+    let current: Record<string, unknown> = {};
+    try {
+      const parsed: unknown = JSON.parse(draft);
+      if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) current = parsed as Record<string, unknown>;
+    } catch { /* Le JSON brut reste visible et peut être corrigé avant d’utiliser les interrupteurs. */ }
+    setDraft(JSON.stringify({ ...current, [key]: enabled }, null, 2));
+    setSaved(false);
+    setError(null);
+  };
+  const currentFlags = (() => {
+    try {
+      const parsed: unknown = JSON.parse(draft);
+      return parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? parsed as Record<string, unknown> : {};
+    } catch { return {}; }
+  })();
 
   return <div>
     <PageHeader title="Configuration de Geno" subtitle="Modifie les listes et contenus utilisés par l’application. Chaque sauvegarde est journalisée." />
@@ -75,6 +98,19 @@ export default function ConfigurationPage() {
           </div>
           {error ? <div className="mb-3 flex items-start gap-2 rounded-xl border border-red-100 bg-red-50 p-3 text-sm text-red-700"><AlertCircle size={16} className="mt-0.5 shrink-0"/>{error}</div> : null}
           {saved ? <div className="mb-3 flex items-center gap-2 rounded-xl border border-emerald-100 bg-emerald-50 p-3 text-sm text-emerald-700"><Check size={16}/>Modifications enregistrées et ajoutées au journal admin.</div> : null}
+          {selected.setting_key === 'feature_flags' ? <section className="mb-5 space-y-3" aria-label="Activation des fonctionnalités">
+            {FEATURE_FLAGS.map((feature) => {
+              const enabled = currentFlags[feature.key] !== false;
+              return <div key={feature.key} className="flex items-center justify-between gap-4 rounded-2xl border border-slate-200 px-4 py-3">
+                <div><p className="font-semibold text-slate-800">{feature.label}</p><p className="mt-1 text-sm text-slate-500">{feature.description}</p></div>
+                <button type="button" role="switch" aria-checked={enabled} aria-label={`${enabled ? 'Désactiver' : 'Activer'} ${feature.label}`} onClick={() => toggleFeature(feature.key, !enabled)} className={`relative h-7 w-12 shrink-0 rounded-full transition ${enabled ? 'bg-emerald-500' : 'bg-slate-300'}`}>
+                  <span className={`absolute top-1 h-5 w-5 rounded-full bg-white shadow transition-all ${enabled ? 'left-6' : 'left-1'}`} />
+                </button>
+              </div>;
+            })}
+            <p className="text-xs text-slate-500">Les changements prennent effet après avoir cliqué sur « Enregistrer ». L’application se met ensuite à jour automatiquement.</p>
+          </section> : null}
+          <label className="mb-2 block text-xs font-semibold uppercase tracking-wide text-slate-500">{selected.setting_key === 'feature_flags' ? 'Configuration avancée (JSON)' : 'Valeur JSON'}</label>
           <textarea value={draft} onChange={(event) => {setDraft(event.target.value);setSaved(false);}} spellCheck={false} rows={24} className="w-full rounded-2xl border border-slate-200 bg-slate-950 p-4 font-mono text-xs leading-6 text-emerald-100 outline-none focus:border-brand-400 focus:ring-4 focus:ring-brand-100" aria-label={`Valeur JSON de ${selected.label}`}/>
           <p className="mt-3 text-xs text-slate-500">Format JSON. Les changements sont appliqués aux écrans qui lisent ce réglage; les champs sont conservés comme données structurées.</p>
         </> : <p className="p-8 text-sm text-slate-500">Aucun réglage trouvé.</p>}

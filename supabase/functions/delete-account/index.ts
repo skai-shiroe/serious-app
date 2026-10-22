@@ -1,16 +1,8 @@
 // Suppression de compte — exigence Google Play + App Store : l'utilisateur
 // doit pouvoir supprimer son compte DANS l'app. 
 //
-// Strategie : on identifie l'appelant via son JWT (header Authorization),
-// on supprime ses donnees dans les tables connues (best effort : le schema
-// peut evoluer, une table absente ne doit pas bloquer la suppression), puis
-// on supprime auth.users via la service role. Les tables de moderation
-// (user_blocks, user_reports) cascadent deja via leurs FK.
-//
-// Diagnostic : chaque echec repond { error, step } — `step` identifie
-// l'etape fautive (env / auth / fetch-matches / purge-<table> /
-// delete-auth-user). Les purges non-bloquantes sont retournees dans
-// `warnings` au lieu d'etre silencieusement ignorees.
+// Purge les fichiers Storage et les données avant de supprimer l'identité Auth.
+// Toute erreur de purge laisse le compte Auth actif pour permettre une reprise.
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.0'
 
 const json = (body: unknown, status = 200) =>
@@ -62,22 +54,52 @@ Deno.serve(async (req: any) => {
     const uid = user.id
     const admin = createClient(supabaseUrl, serviceKey)
 
-    // Best effort : on ignore les tables/colonnes absentes du schema actuel
-    // (code 42P01 table inexistante, PGRST204 colonne inconnue). Les autres
-    // echecs sont collectes dans `warnings` pour visibilite cote client.
-    const isBenign = (e: any) => e?.code === '42P01' || e?.code === 'PGRST204'
-    const warnings: string[] = []
+    const isBenign = (e: any) => e?.code === '42P01' || e?.code === 'PGRST204' || e?.code === '42703'
+    const purgeErrors: string[] = []
     const drop = async (table: string, apply: (q: any) => any) => {
       try {
         const { error } = await apply(admin.from(table).delete())
         if (error && !isBenign(error)) {
           console.warn(`[delete-account] ${table}:`, error.message)
-          warnings.push(`${table}: ${error.message}`)
+          purgeErrors.push(`${table}: ${error.message}`)
         }
       } catch (e) {
         console.warn(`[delete-account] ${table}:`, (e as any)?.message)
-        warnings.push(`${table}: ${(e as any)?.message}`)
+        purgeErrors.push(`${table}: ${(e as any)?.message}`)
       }
+    }
+
+    const purgeStorageFolder = async (bucket: string, folder: string, depth = 0): Promise<void> => {
+      if (depth > 8) throw new Error(`${bucket}/${folder}: profondeur de dossiers inattendue`)
+      for (;;) {
+        const { data: entries, error } = await admin.storage.from(bucket).list(folder, { limit: 100, offset: 0 })
+        if (error) throw new Error(`${bucket}/${folder}: ${error.message}`)
+        if (!entries?.length) return
+
+        const files: string[] = []
+        for (const entry of entries) {
+          const path = `${folder}/${entry.name}`
+          if (entry.id == null) await purgeStorageFolder(bucket, path, depth + 1)
+          else files.push(path)
+        }
+        if (files.length) {
+          const { error: removeError } = await admin.storage.from(bucket).remove(files)
+          if (removeError) throw new Error(`${bucket}/${folder}: ${removeError.message}`)
+        } else if (entries.every((entry: any) => entry.id == null)) {
+          // Recursive removal should have emptied all folders. Re-list to
+          // allow Storage to remove their now-empty prefixes.
+          continue
+        }
+      }
+    }
+
+    // Storage is purged first: if it fails, no profile or Auth identity is
+    // removed and the user can retry. Both buckets store objects below uid/.
+    try {
+      await purgeStorageFolder('avatars', uid)
+      await purgeStorageFolder('verifications', uid)
+    } catch (e: any) {
+      return fail('purge-storage', e?.message || 'Impossible de supprimer les fichiers du compte')
     }
 
     // Conversations de l'utilisateur : leurs messages partent avec.
@@ -101,11 +123,14 @@ Deno.serve(async (req: any) => {
     await drop('coaching_likes', (q) => q.eq('user_id', uid))
     await drop('coaching_comments', (q) => q.eq('user_id', uid))
     await drop('verifications', (q) => q.eq('user_id', uid))
-    await drop('push_log', (q) => q.eq('user_id', uid))
     await drop('push_throttle', (q) => q.eq('user_id', uid))
     await drop('user_blocks', (q) => q.or(`user_id.eq.${uid},blocked_user_id.eq.${uid}`))
     await drop('user_reports', (q) => q.or(`reporter_id.eq.${uid},reported_user_id.eq.${uid}`))
     await drop('profiles', (q) => q.eq('user_id', uid))
+
+    if (purgeErrors.length) {
+      return fail('purge-data', purgeErrors.join('; '))
+    }
 
     // 2. Derniere etape : auth.users. Les FK restantes vers auth.users
     //    (s'il en existe) cascade ; sinon les lignes sont deja parties.
@@ -114,7 +139,7 @@ Deno.serve(async (req: any) => {
       return fail('delete-auth-user', deleteError.message)
     }
 
-    return json({ ok: true, warnings })
+    return json({ ok: true })
   } catch (e) {
     console.error('[delete-account]', e)
     return fail('unhandled', (e as any)?.message || 'Erreur inattendue')

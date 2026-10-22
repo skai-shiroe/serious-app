@@ -111,14 +111,10 @@ export default function CoachingScreen() {
         return;
       }
 
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('role')
-        .eq('user_id', user.id)
-        .single();
+      const { data, error } = await supabase.rpc('get_my_role');
 
       if (error) throw error;
-      setUserRole(data.role);
+      setUserRole(data ?? 'user');
     } catch {
     } finally {
       setRoleLoading(false);

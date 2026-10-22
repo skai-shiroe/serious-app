@@ -39,7 +39,6 @@ import {
   CertifiedIcon,
   GenotypeVerifiedBadge,
   IdentityVerifiedIcon,
-  VERIFIED_COLOR,
   isFullyVerified,
 } from '@/components/verified-badge';
 
@@ -385,11 +384,11 @@ function ProfileBottomSheet() {
                 <CertifiedIcon size={22} />
               ) : (
                 rendered.identity_verified && (
-                  <IdentityVerifiedIcon size={22} color={VERIFIED_COLOR} />
+                  <IdentityVerifiedIcon size={22} />
                 )
               )}
               <Text style={{ fontSize: 24, color: isDark ? '#fff' : '#111827', opacity: 0.8 }}>
-                {calculateAge(rendered.birth_date)}
+                {rendered.age ?? calculateAge(rendered.birth_date)}
               </Text>
             </View>
           </View>
@@ -416,17 +415,23 @@ function ProfileBottomSheet() {
             )}
           </View>
 
-          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginBottom: 24 }}>
-            <View style={{ backgroundColor: 'rgba(244,63,94,0.15)', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 12 }}>
-              <Text style={{ color: '#f43f5e', fontWeight: 'bold' }}>{rendered.blood_type}</Text>
+          {(rendered.blood_type || rendered.sickle_cell) && (
+            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginBottom: 24 }}>
+              {!!rendered.blood_type && (
+                <View style={{ backgroundColor: 'rgba(244,63,94,0.15)', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 12 }}>
+                  <Text style={{ color: '#f43f5e', fontWeight: 'bold' }}>{rendered.blood_type}</Text>
+                </View>
+              )}
+              {!!rendered.sickle_cell && (
+                <View style={{ backgroundColor: 'rgba(59,130,246,0.15)', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 12 }}>
+                  <Text style={{ color: '#3b82f6', fontWeight: 'bold' }}>Drépanocytose : {rendered.sickle_cell}</Text>
+                </View>
+              )}
+              {!isFullyVerified(rendered) && rendered.genotype_verified && (
+                <GenotypeVerifiedBadge genotype={rendered.sickle_cell} />
+              )}
             </View>
-            <View style={{ backgroundColor: 'rgba(59,130,246,0.15)', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 12 }}>
-              <Text style={{ color: '#3b82f6', fontWeight: 'bold' }}>Drépanocytose : {rendered.sickle_cell}</Text>
-            </View>
-            {!isFullyVerified(rendered) && rendered.genotype_verified && (
-              <GenotypeVerifiedBadge genotype={rendered.sickle_cell} />
-            )}
-          </View>
+          )}
 
           {rendered.bio && (
             <View style={{ marginBottom: 24 }}>
@@ -698,11 +703,7 @@ export default function RootLayout() {
     // 2) Revalidation serveur — .maybeSingle() et non .single() : une erreur
     //    reseau ne doit pas etre interpretee comme "profil absent".
     for (let attempt = 1; attempt <= 2; attempt++) {
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('id, role')
-        .eq('user_id', userId)
-        .maybeSingle();
+      const { data, error } = await supabase.rpc('get_my_profile').single();
 
       if (!error) {
         const ready = !!data;
@@ -795,7 +796,6 @@ export default function RootLayout() {
             {/* Tous les ecrans dessinent leur propre entete (ou sont des
                 transitions) : le header natif affichait le nom de route brut
                 (« coaching/[id] », « edit-profile »...). */}
-            <Stack.Screen name="modal" options={{ presentation: 'modal' }} />
           </Stack>
           <StatusBar style="auto" />
           <ProfileBottomSheet />

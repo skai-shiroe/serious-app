@@ -2,6 +2,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import React, { useState, useCallback, useRef, useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView, ActivityIndicator, useColorScheme, TouchableOpacity, Alert, Switch, Appearance, Platform, Dimensions, TextInput, Modal, KeyboardAvoidingView } from 'react-native';
 import { Image } from 'expo-image';
+import { LinearGradient } from 'expo-linear-gradient';
 import Svg, { Circle } from 'react-native-svg';
 import * as ImagePicker from 'expo-image-picker';
 import { decode } from 'base64-arraybuffer';
@@ -9,7 +10,7 @@ import { IMAGE_CACHE_POLICY, imageSource } from '@/lib/images';
 import { supabase } from '@/lib/supabase';
 import { forgetSession, getUser } from '@/lib/session';
 import { unblockUser } from '@/lib/moderation';
-import { LogOut, Edit3, MapPin, BookOpen, Moon, Sun, Bookmark, WifiOff, ShieldCheck, ChevronRight, ChevronDown, Ban, Flag, FileText, Plus, Trash2, X, Check, Settings } from 'lucide-react-native';
+import { LogOut, Edit3, MapPin, BookOpen, Moon, Sun, Bookmark, WifiOff, ShieldCheck, ChevronRight, ChevronDown, Ban, Flag, FileText, Plus, Trash2, X, Check, Settings, Pencil  } from 'lucide-react-native';
 import { EmptyState } from '@/components/empty-state';
 import { CertifiedIcon, isFullyVerified } from '@/components/verified-badge';
 import PhotoViewer from '@/components/photo-viewer';
@@ -17,6 +18,12 @@ import CityPickerModal from '@/components/city-picker-modal';
 import { FALLBACK_INTERESTS, fetchInterests, MIN_INTERESTS } from '@/lib/interests';
 import { watchAppSetting } from '@/lib/app-settings';
 import { useRouter, useFocusEffect } from 'expo-router';
+
+type MyProfile = Record<string, unknown> & {
+  birth_date: string | null;
+  first_name: string | null;
+  last_name: string | null;
+};
 
 export default function ProfileScreen() {
   const { width: screenWidth } = Dimensions.get('window');
@@ -213,19 +220,19 @@ export default function ProfileScreen() {
       const user = await getUser();
       if (!user) return;
 
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('*, role, first_name, last_name')
-        .eq('user_id', user.id)
-        .single();
+      const { data, error } = await supabase.rpc('get_my_profile').single();
 
       if (error) throw error;
-      
+      if (!data || typeof data !== 'object' || Array.isArray(data)) {
+        throw new Error('Profil introuvable.');
+      }
+
+      const profileData = data as MyProfile;
       setProfile({
-        ...data,
-        age: calculateAge(data.birth_date),
-        displayName: data.first_name || data.last_name 
-          ? `${data.first_name || ''} ${data.last_name || ''}`.trim()
+        ...profileData,
+        age: calculateAge(profileData.birth_date ?? ''),
+        displayName: profileData.first_name || profileData.last_name
+          ? `${profileData.first_name || ''} ${profileData.last_name || ''}`.trim()
           : (user.user_metadata?.full_name || user.user_metadata?.name || user.email?.split('@')[0] || 'Utilisateur'),
       });
     } catch {
@@ -291,8 +298,9 @@ export default function ProfileScreen() {
     if (deleteConfirmation !== 'SUPPRIMER' || deletingAccount) return;
     setDeletingAccount(true);
     try {
-      const { error } = await supabase.functions.invoke('delete-account');
+      const { data, error } = await supabase.functions.invoke('delete-account');
       if (error) throw error;
+      if (!data?.ok) throw new Error(data?.error || 'La suppression du compte n’a pas été confirmée.');
       await forgetSession();
     } catch (error: any) {
       Alert.alert('Erreur', await readFunctionError(error));
@@ -303,32 +311,14 @@ export default function ProfileScreen() {
   /** Comptes bloques par l'utilisateur, avec le prénom pour l'affichage. */
   const fetchBlockedList = async () => {
     try {
-      const user = await getUser();
-      if (!user) return;
-      const { data, error } = await supabase
-        .from('user_blocks')
-        .select('blocked_user_id')
-        .eq('user_id', user.id);
+      const { data, error } = await supabase.rpc('get_my_blocked_profiles');
       if (error) throw error;
-      const ids = (data || []).map((r: any) => r.blocked_user_id as string);
-      if (ids.length === 0) {
-        setBlockedList([]);
-        return;
-      }
-      const { data: profiles } = await supabase
-        .from('profiles')
-        .select('user_id, first_name, photos')
-        .in('user_id', ids);
-      const byId = new Map((profiles || []).map((p: any) => [p.user_id, p]));
       setBlockedList(
-        ids.map((id) => {
-          const p: any = byId.get(id);
-          return {
-            user_id: id,
-            first_name: p?.first_name || 'Utilisateur',
-            photos: p?.photos || [],
-          };
-        })
+        (data || []).map((p: any) => ({
+          user_id: p.user_id,
+          first_name: p.first_name || 'Utilisateur',
+          photos: p.photos || [],
+        }))
       );
     } catch {
       // Section silencieuse : un echec ici ne doit pas casser l'ecran Profil.
@@ -480,7 +470,17 @@ export default function ProfileScreen() {
               <Edit3 size={16} color="#111827" />
             </TouchableOpacity>
           </View>
-          <View style={styles.completionPill}><Text style={styles.completionPillText}>{completionPercent}% complété</Text></View>
+          <LinearGradient
+            colors={completionPercent >= 100 ? ['#22c55e', '#059669'] : ['#f43f5e', '#a855f7']}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 0 }}
+            style={styles.completionPill}
+          >
+            {completionPercent >= 100 ? <Check size={14} color="#ffffff" strokeWidth={3} /> : <Pencil size={14} color="#ffffff" />}
+            <Text style={styles.completionPillText}>
+              {completionPercent >= 100 ? 'Profil complet' : `${completionPercent}% complété`}
+            </Text>
+          </LinearGradient>
           <TouchableOpacity onPress={() => openEditor('first_name')} activeOpacity={0.75} style={styles.profileNameRow}>
             <Text style={[styles.heroName, { color: themeColors.text }]} numberOfLines={1}>{profile?.displayName}</Text>
             {isFullyVerified(profile) && <CertifiedIcon size={19} />}
@@ -985,8 +985,8 @@ const styles = StyleSheet.create({
   avatarEditButton: { position: 'absolute', right: 4, top: 21, width: 34, height: 34, borderRadius: 17, backgroundColor: '#ffffff', alignItems: 'center', justifyContent: 'center', elevation: 3, shadowColor: '#000', shadowOpacity: 0.15, shadowRadius: 5, shadowOffset: { width: 0, height: 2 } },
   heroAvatarFallback: { alignItems: 'center', justifyContent: 'center' },
   heroInitial: { fontSize: 40, fontWeight: '900' },
-  completionPill: { marginTop: -2, backgroundColor: '#facc15', borderRadius: 16, paddingHorizontal: 13, paddingVertical: 5, zIndex: 1 },
-  completionPillText: { color: '#111827', fontSize: 13, fontWeight: '800' },
+  completionPill: { marginTop: -2, flexDirection: 'row', alignItems: 'center', gap: 5, borderRadius: 16, paddingHorizontal: 13, paddingVertical: 6, zIndex: 1, shadowColor: '#be185d', shadowOpacity: 0.18, shadowRadius: 7, shadowOffset: { width: 0, height: 3 }, elevation: 2 },
+  completionPillText: { color: '#ffffff', fontSize: 13, fontWeight: '800' },
   profileNameRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7, marginTop: 11, maxWidth: '90%' },
   heroName: { fontSize: 25, fontWeight: '900', letterSpacing: -0.5 },
   profileMetaRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 4, marginTop: 5 },

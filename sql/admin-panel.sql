@@ -182,6 +182,9 @@ begin
     'likes_7d',            (select count(*) from public.swipes
                             where created_at >= now() - interval '7 days'
                               and direction = 'like'),
+    'profiles_liked_7d',   (select count(distinct swiped_id) from public.swipes
+                            where created_at >= now() - interval '7 days'
+                              and direction = 'like'),
     'coaching_posts',      (select count(*) from public.coaching_posts),
     'coaching_likes_30d',  (select count(*) from public.coaching_likes
                             where created_at >= now() - interval '30 days'),

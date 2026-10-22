@@ -95,15 +95,11 @@ export default function AdminReportsScreen() {
       const user = await getUser();
       if (!user) return;
 
-      const { data: me, error: meError } = await supabase
-        .from('profiles')
-        .select('role')
-        .eq('user_id', user.id)
-        .maybeSingle();
+      const { data: me, error: meError } = await supabase.rpc('get_my_role');
 
       if (meError) throw meError;
 
-      const admin = me?.role === 'admin' || me?.role === 'manager';
+      const admin = me === 'admin' || me === 'manager';
       setIsAdmin(admin);
       setRoleLoading(false);
 

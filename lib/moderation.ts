@@ -34,18 +34,12 @@ export function reportReasonLabel(reason: string | null | undefined): string {
  * - qui m'ont bloque.
  * Un seul appel, utilise pour le deck (repli), les conversations et le chat.
  */
-export async function fetchBlockedIds(userId: string): Promise<Set<string>> {
+export async function fetchBlockedIds(_userId: string): Promise<Set<string>> {
   const blocked = new Set<string>();
   try {
-    const { data, error } = await supabase
-      .from('user_blocks')
-      .select('user_id, blocked_user_id')
-      .or(`user_id.eq.${userId},blocked_user_id.eq.${userId}`);
+    const { data, error } = await supabase.rpc('get_my_blocked_user_ids');
     if (error) throw error;
-    for (const row of data || []) {
-      if (row.user_id === userId) blocked.add(row.blocked_user_id);
-      else blocked.add(row.user_id);
-    }
+    for (const row of data || []) blocked.add(row.user_id);
   } catch {}
   return blocked;
 }

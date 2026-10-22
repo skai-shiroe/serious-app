@@ -10,6 +10,7 @@ import React, { useCallback, useState } from 'react';
 import { ActivityIndicator, Alert, ScrollView, StyleSheet, Text, TouchableOpacity, useColorScheme, View, type AlertButton } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect, useRouter } from 'expo-router';
+import { CertifiedIcon, VERIFIED_COLOR } from '@/components/verified-badge';
 
 /**
  * Verification d'identite et de genotype.
@@ -80,11 +81,7 @@ export default function VerificationScreen() {
       if (!user) return;
 
       const [profileRes, requestsRes] = await Promise.all([
-        supabase
-          .from('profiles')
-          .select('first_name, last_name, sickle_cell, identity_verified, genotype_verified')
-          .eq('user_id', user.id)
-          .maybeSingle(),
+        supabase.rpc('get_my_profile').single(),
         supabase
           .from('verifications')
           .select('*')
@@ -273,7 +270,7 @@ export default function VerificationScreen() {
       case 'pending':
         return { label: 'En relecture', color: '#f59e0b', Icon: Clock };
       case 'approved':
-        return { label: 'Vérifiée', color: '#10b981', Icon: BadgeCheck };
+        return { label: 'Vérifiée', color: VERIFIED_COLOR, Icon: BadgeCheck };
       case 'rejected':
         return { label: 'Refusée', color: '#ef4444', Icon: CircleAlert };
       default:
@@ -313,7 +310,7 @@ export default function VerificationScreen() {
             {type === 'identity' ? (
               <ShieldCheck color={themeColors.accent} size={22} />
             ) : (
-              <BadgeCheck color="#22d3ee" size={22} />
+            <CertifiedIcon size={22} />
             )}
           </View>
 
@@ -326,7 +323,7 @@ export default function VerificationScreen() {
         </View>
 
         <View style={[styles.pill, { borderColor: statusColor }]}>
-          <StatusIcon color={statusColor} size={14} />
+          {isApproved ? <CertifiedIcon size={14} /> : <StatusIcon color={statusColor} size={14} />}
           <Text style={[styles.pillText, { color: statusColor }]}>{statusLabel}</Text>
         </View>
 

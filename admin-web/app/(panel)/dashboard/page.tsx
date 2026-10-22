@@ -18,7 +18,7 @@ import {
 } from 'recharts';
 import { ArrowRight, Flag, Newspaper, ShieldCheck, Users } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
-import type { AdminStats, DailyPoint } from '@/lib/types';
+import type { ActivityDailyPoint, AdminActivityData, ActivitySummary, AdminStats } from '@/lib/types';
 import { PageHeader, Pill } from '@/components/ui';
 
 function KpiCard({
@@ -82,24 +82,66 @@ function QueueLink({
 
 const axisStyle = { fontSize: 11, fill: '#64748b' };
 
+function utcDateString(date: Date) {
+  return date.toISOString().slice(0, 10);
+}
+
+function defaultDateRange() {
+  const end = new Date();
+  const start = new Date(end);
+  start.setUTCDate(start.getUTCDate() - 29);
+  return { start: utcDateString(start), end: utcDateString(end) };
+}
+
+function formatDate(date: string) {
+  return new Intl.DateTimeFormat('fr-FR', { dateStyle: 'medium', timeZone: 'UTC' }).format(
+    new Date(`${date}T00:00:00Z`),
+  );
+}
+
 export default function DashboardPage() {
   const [stats, setStats] = useState<AdminStats | null>(null);
-  const [series, setSeries] = useState<DailyPoint[]>([]);
+  const [series, setSeries] = useState<ActivityDailyPoint[]>([]);
+  const [periodSummary, setPeriodSummary] = useState<ActivitySummary | null>(null);
+  const [draftRange] = useState(defaultDateRange);
+  const [startDate, setStartDate] = useState(draftRange.start);
+  const [endDate, setEndDate] = useState(draftRange.end);
+  const [draftStartDate, setDraftStartDate] = useState(draftRange.start);
+  const [draftEndDate, setDraftEndDate] = useState(draftRange.end);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
-  const load = async () => {
+  const load = async (from = startDate, to = endDate) => {
     setLoading(true);
     setError(null);
-    const [statsRes, seriesRes] = await Promise.all([
+    const [statsRes, activityRes] = await Promise.all([
       supabase.rpc('admin_stats'),
-      supabase.rpc('admin_daily_series', { p_days: 30 }),
+      supabase.rpc('admin_activity_data', { p_start_date: from, p_end_date: to }),
     ]);
     if (statsRes.error) setError(statsRes.error.message);
     else setStats(statsRes.data as AdminStats);
-    if (seriesRes.error) setError(seriesRes.error.message);
-    else setSeries((seriesRes.data ?? []) as DailyPoint[]);
+    if (activityRes.error) {
+      setError(activityRes.error.message);
+    } else {
+      const activity = activityRes.data as AdminActivityData;
+      setPeriodSummary(activity.summary);
+      setSeries(activity.series ?? []);
+      setStartDate(from);
+      setEndDate(to);
+    }
     setLoading(false);
+  };
+
+  const applyDateRange = () => {
+    if (!draftStartDate || !draftEndDate || draftStartDate > draftEndDate) {
+      setError('La date de début doit précéder ou être égale à la date de fin.');
+      return;
+    }
+    if (draftEndDate > utcDateString(new Date())) {
+      setError('La date de fin ne peut pas être dans le futur.');
+      return;
+    }
+    load(draftStartDate, draftEndDate);
   };
 
   useEffect(() => {
@@ -109,21 +151,25 @@ export default function DashboardPage() {
 
   const chartData = series.map((p) => ({
     ...p,
-    label: p.day.slice(8, 10) + '/' + p.day.slice(5, 7),
+    label:
+      p.day.slice(8, 10) +
+      '/' +
+      p.day.slice(5, 7) +
+      (endDate.slice(0, 4) !== startDate.slice(0, 4) ? '/' + p.day.slice(2, 4) : ''),
   }));
+  const tickInterval = Math.max(0, Math.ceil(chartData.length / 10) - 1);
 
   const likeRate =
     stats && stats.swipes_7d > 0
       ? `${Math.round((stats.likes_7d / stats.swipes_7d) * 100)} %`
       : '—';
-
   return (
     <div>
       <PageHeader
         title="Vue d’ensemble"
-        subtitle="Indicateurs en temps réel — évolution sur les 7 et 30 derniers jours."
+        subtitle="Suivez l’activité de Géno sur la période de votre choix."
         actions={
-          <button type="button" onClick={load} className="btn-ghost" disabled={loading}>
+          <button type="button" onClick={() => load()} className="btn-ghost" disabled={loading}>
             Actualiser
           </button>
         }
@@ -139,6 +185,76 @@ export default function DashboardPage() {
         <p className="text-sm text-slate-500">Chargement des statistiques…</p>
       ) : stats ? (
         <>
+          <section className="panel-card mb-5">
+            <div className="mb-3">
+              <h2 className="text-sm font-semibold">Période d’analyse</h2>
+              <p className="mt-1 text-xs text-slate-500">
+                Du {formatDate(startDate)} au {formatDate(endDate)}
+              </p>
+            </div>
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
+              <label className="flex-1 text-xs font-medium text-slate-600">
+                Date de début
+                <input
+                  type="date"
+                  value={draftStartDate}
+                  max={draftEndDate || utcDateString(new Date())}
+                  onChange={(event) => setDraftStartDate(event.target.value)}
+                  className="mt-1 block w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900"
+                />
+              </label>
+              <label className="flex-1 text-xs font-medium text-slate-600">
+                Date de fin
+                <input
+                  type="date"
+                  value={draftEndDate}
+                  min={draftStartDate}
+                  max={utcDateString(new Date())}
+                  onChange={(event) => setDraftEndDate(event.target.value)}
+                  className="mt-1 block w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900"
+                />
+              </label>
+              <button type="button" onClick={applyDateRange} className="btn-primary" disabled={loading}>
+                Appliquer
+              </button>
+            </div>
+          </section>
+
+          {periodSummary ? (
+            <>
+              <h2 className="mb-3 text-sm font-semibold">
+                Activité du {formatDate(startDate)} au {formatDate(endDate)}
+              </h2>
+              <div className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                <KpiCard label="Nouveaux profils" value={periodSummary.new_profiles} />
+                <KpiCard label="Swipes" value={periodSummary.new_swipes} />
+                <KpiCard
+                  label="Likes reçus"
+                  value={periodSummary.likes}
+                  hint="Le total augmente de 1 à chaque nouveau like."
+                />
+                <KpiCard
+                  label="Profils distincts ayant reçu un like"
+                  value={periodSummary.profiles_liked}
+                />
+                <KpiCard label="Matchs créés" value={periodSummary.new_matches} />
+                <KpiCard label="Messages envoyés" value={periodSummary.new_messages} />
+                <KpiCard label="Ouvertures de Likes reçus" value={periodSummary.received_likes_page_opens} />
+                <KpiCard
+                  label="Utilisateurs ayant ouvert la page"
+                  value={periodSummary.received_likes_unique_users}
+                />
+                <KpiCard label="Profils consultés depuis la page" value={periodSummary.received_like_profiles_opened} />
+                <KpiCard
+                  label="Réponses depuis Likes reçus"
+                  value={periodSummary.received_like_responses}
+                  hint={`${periodSummary.received_like_response_likes} likes · ${periodSummary.received_like_response_passes} passes`}
+                />
+              </div>
+            </>
+          ) : null}
+
+          <h2 className="mb-3 text-sm font-semibold">Indicateurs généraux</h2>
           <div className="mb-4 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
             <KpiCard
               label="Profils"
@@ -161,9 +277,14 @@ export default function DashboardPage() {
               hint={`+${stats.messages_7d} sur 7 j`}
             />
             <KpiCard
+              label="Profils ayant reçu un like (7 j)"
+              value={stats.profiles_liked_7d}
+              hint="Profils distincts ciblés par au moins un like"
+            />
+            <KpiCard
               label="Taux de like (7 j)"
               value={likeRate}
-              hint={`${stats.likes_7d} likes / ${stats.swipes_7d} swipes`}
+              hint={`${stats.likes_7d} likes envoyés sur ${stats.swipes_7d} swipes`}
             />
             <KpiCard label="Bannis" value={stats.banned_total} hint="Bans administratifs actifs" />
             <KpiCard
@@ -195,7 +316,7 @@ export default function DashboardPage() {
 
           <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
             <div className="panel-card">
-              <p className="mb-4 text-sm font-semibold">Nouveaux profils (30 j)</p>
+              <p className="mb-4 text-sm font-semibold">Nouveaux profils</p>
               <ResponsiveContainer width="100%" height={240}>
                 <AreaChart data={chartData} margin={{ top: 4, right: 8, left: -18, bottom: 0 }}>
                   <defs>
@@ -205,7 +326,7 @@ export default function DashboardPage() {
                     </linearGradient>
                   </defs>
                   <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-                  <XAxis dataKey="label" tick={axisStyle} interval={4} />
+                  <XAxis dataKey="label" tick={axisStyle} interval={tickInterval} />
                   <YAxis tick={axisStyle} allowDecimals={false} />
                   <Tooltip />
                   <Area
@@ -221,11 +342,11 @@ export default function DashboardPage() {
             </div>
 
             <div className="panel-card">
-              <p className="mb-4 text-sm font-semibold">Matchs et messages (30 j)</p>
+              <p className="mb-4 text-sm font-semibold">Matchs et messages</p>
               <ResponsiveContainer width="100%" height={240}>
                 <LineChart data={chartData} margin={{ top: 4, right: 8, left: -18, bottom: 0 }}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-                  <XAxis dataKey="label" tick={axisStyle} interval={4} />
+                  <XAxis dataKey="label" tick={axisStyle} interval={tickInterval} />
                   <YAxis tick={axisStyle} allowDecimals={false} />
                   <Tooltip />
                   <Legend />
@@ -250,17 +371,83 @@ export default function DashboardPage() {
             </div>
 
             <div className="panel-card">
-              <p className="mb-4 text-sm font-semibold">Swipes et likes (30 j)</p>
+              <p className="mb-4 text-sm font-semibold">Swipes et likes reçus</p>
               <ResponsiveContainer width="100%" height={240}>
                 <BarChart data={chartData} margin={{ top: 4, right: 8, left: -18, bottom: 0 }}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-                  <XAxis dataKey="label" tick={axisStyle} interval={4} />
+                  <XAxis dataKey="label" tick={axisStyle} interval={tickInterval} />
                   <YAxis tick={axisStyle} allowDecimals={false} />
                   <Tooltip />
                   <Legend />
                   <Bar dataKey="new_swipes" name="Swipes" fill="#cbd5e1" radius={[4, 4, 0, 0]} />
-                  <Bar dataKey="likes" name="Likes" fill="#f43f5e" radius={[4, 4, 0, 0]} />
+                  <Bar dataKey="likes" name="Likes reçus" fill="#f43f5e" radius={[4, 4, 0, 0]} />
                 </BarChart>
+              </ResponsiveContainer>
+            </div>
+
+            <div className="panel-card">
+              <p className="mb-4 text-sm font-semibold">Profils touchés par les likes</p>
+              <ResponsiveContainer width="100%" height={240}>
+                <AreaChart data={chartData} margin={{ top: 4, right: 8, left: -18, bottom: 0 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+                  <XAxis dataKey="label" tick={axisStyle} interval={tickInterval} />
+                  <YAxis tick={axisStyle} allowDecimals={false} />
+                  <Tooltip />
+                  <Area
+                    type="monotone"
+                    dataKey="profiles_liked"
+                    name="Profils ayant reçu un like"
+                    stroke="#8b5cf6"
+                    fill="#8b5cf6"
+                    fillOpacity={0.16}
+                    strokeWidth={2}
+                  />
+                </AreaChart>
+              </ResponsiveContainer>
+            </div>
+
+            <div className="panel-card">
+              <p className="mb-4 text-sm font-semibold">Utilisation de Likes reçus</p>
+              <ResponsiveContainer width="100%" height={240}>
+                <LineChart data={chartData} margin={{ top: 4, right: 8, left: -18, bottom: 0 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+                  <XAxis dataKey="label" tick={axisStyle} interval={tickInterval} />
+                  <YAxis tick={axisStyle} allowDecimals={false} />
+                  <Tooltip />
+                  <Legend />
+                  <Line
+                    type="monotone"
+                    dataKey="received_likes_page_opens"
+                    name="Ouvertures"
+                    stroke="#e11d48"
+                    strokeWidth={2}
+                    dot={false}
+                  />
+                  <Line
+                    type="monotone"
+                    dataKey="received_likes_users"
+                    name="Utilisateurs uniques"
+                    stroke="#0ea5e9"
+                    strokeWidth={2}
+                    dot={false}
+                  />
+                  <Line
+                    type="monotone"
+                    dataKey="received_like_profiles_opened"
+                    name="Profils consultés"
+                    stroke="#8b5cf6"
+                    strokeWidth={2}
+                    dot={false}
+                  />
+                  <Line
+                    type="monotone"
+                    dataKey="received_like_responses"
+                    name="Réponses envoyées"
+                    stroke="#10b981"
+                    strokeWidth={2}
+                    dot={false}
+                  />
+                </LineChart>
               </ResponsiveContainer>
             </div>
 

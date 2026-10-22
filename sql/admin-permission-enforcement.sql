@@ -30,6 +30,7 @@ begin
   for r in select * from (values
     ('admin_stats','dashboard','view'),
     ('admin_daily_series','dashboard','view'),
+    ('admin_activity_data','dashboard','view'),
     ('admin_verifications_queue','verifications','view'),
     ('review_verification','verifications','manage'),
     ('admin_reports_queue','reports','view'),

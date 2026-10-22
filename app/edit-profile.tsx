@@ -24,11 +24,7 @@ export default function EditProfileScreen() {
         return;
       }
 
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('user_id', user.id)
-        .single();
+      const { data, error } = await supabase.rpc('get_my_profile').single();
 
       if (error) throw error;
       setProfileData(data);
