@@ -1,0 +1,1016 @@
+{
+  "schema": "openai.presentation.layout/v5",
+  "unit": "px",
+  "slide": {
+    "id": "sl/jyx0ra1s",
+    "index": 3,
+    "layout": {
+      "id": "ly/3yt8jipk",
+      "name": "Slide master 3"
+    },
+    "masterLayoutId": "ly/atofqts7",
+    "backgroundColor": "rgba(255,247,248,1)",
+    "position": {
+      "left": 0,
+      "top": 0,
+      "width": 1279.97,
+      "height": 720
+    }
+  },
+  "inheritedLayers": [
+    {
+      "scope": "layout",
+      "id": "ly/3yt8jipk",
+      "name": "Slide master 3",
+      "parentLayoutId": "ly/atofqts7",
+      "backgroundColor": "#FFF7F8",
+      "elements": []
+    },
+    {
+      "scope": "master",
+      "id": "ly/atofqts7",
+      "type": "master",
+      "elements": []
+    }
+  ],
+  "elements": [
+    {
+      "order": 1,
+      "kind": "textbox",
+      "scope": "slide",
+      "id": "sh/1cj2d8b6",
+      "editable": true,
+      "name": "Text 0",
+      "position": {
+        "left": 58.67,
+        "top": 58.8,
+        "width": 1221.3,
+        "height": 17.59
+      },
+      "geometry": "rect",
+      "text": "LA VALEUR POUR VOTRE ORGANISATION",
+      "style": {
+        "anchor": 1,
+        "fontSize": 14.67,
+        "typeface": "Familjen Grotesk SemiBold",
+        "color": "#000000",
+        "bold": false,
+        "italic": false,
+        "alignment": "left",
+        "verticalAlignment": "top",
+        "wrap": "none",
+        "insets": {
+          "top": 0,
+          "right": 0,
+          "bottom": 0,
+          "left": 0
+        }
+      },
+      "paragraphs": [
+        {
+          "index": 1,
+          "text": "LA VALEUR POUR VOTRE ORGANISATION",
+          "lineSpacingPercent": 100000,
+          "style": {
+            "alignment": "left"
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "LA VALEUR POUR VOTRE ORGANISATION",
+              "anchor": 1,
+              "fontSize": 14.67,
+              "typeface": "Familjen Grotesk SemiBold",
+              "color": "#000000",
+              "alignment": "left",
+              "verticalAlignment": "top",
+              "wrap": "none",
+              "insets": {
+                "top": 0,
+                "right": 0,
+                "bottom": 0,
+                "left": 0
+              }
+            }
+          ],
+          "marginLeft": 0
+        }
+      ]
+    },
+    {
+      "order": 2,
+      "kind": "textbox",
+      "scope": "slide",
+      "id": "sh/0ba143al",
+      "editable": true,
+      "name": "Text 1",
+      "position": {
+        "left": 58.67,
+        "top": 88.79,
+        "width": 1162.64,
+        "height": 117.33
+      },
+      "geometry": "rect",
+      "text": "POURQUOI DEVENIR PARTENAIRE DE GÉNO ?",
+      "style": {
+        "anchor": 1,
+        "fontSize": 58.67,
+        "typeface": "Archivo Black",
+        "color": "#000000",
+        "bold": false,
+        "italic": false,
+        "alignment": "left",
+        "verticalAlignment": "top",
+        "wrap": "square",
+        "autoFit": "shrinkText",
+        "insets": {
+          "top": 0,
+          "right": 0,
+          "bottom": 0,
+          "left": 0
+        }
+      },
+      "paragraphs": [
+        {
+          "index": 1,
+          "text": "POURQUOI DEVENIR PARTENAIRE DE GÉNO ?",
+          "lineSpacingPercent": 83000,
+          "style": {
+            "alignment": "left"
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "POURQUOI DEVENIR PARTENAIRE DE GÉNO ?",
+              "anchor": 1,
+              "fontSize": 58.67,
+              "typeface": "Archivo Black",
+              "color": "#000000",
+              "alignment": "left",
+              "verticalAlignment": "top",
+              "wrap": "square",
+              "autoFit": "shrinkText",
+              "insets": {
+                "top": 0,
+                "right": 0,
+                "bottom": 0,
+                "left": 0
+              }
+            }
+          ],
+          "marginLeft": 0
+        }
+      ]
+    },
+    {
+      "order": 3,
+      "kind": "shape",
+      "scope": "slide",
+      "id": "sh/rm1k7yt4",
+      "editable": true,
+      "name": "Shape 2",
+      "position": {
+        "left": 58.67,
+        "top": 223.59,
+        "width": 206.92,
+        "height": 359.08
+      },
+      "geometry": "rect",
+      "fillColor": "#FFF1F4"
+    },
+    {
+      "order": 4,
+      "kind": "image",
+      "scope": "slide",
+      "id": "im/b2lc3q1s",
+      "editable": true,
+      "name": "Image 0",
+      "position": {
+        "left": 82.66,
+        "top": 247.59,
+        "width": 42.67,
+        "height": 42.67
+      },
+      "contentType": "image/png",
+      "asset": {
+        "contentType": "image/png",
+        "byteLength": 3244
+      },
+      "fillImage": {
+        "contentType": "image/png",
+        "byteLength": 3244
+      }
+    },
+    {
+      "order": 5,
+      "kind": "textbox",
+      "scope": "slide",
+      "id": "sh/doj29oba",
+      "editable": true,
+      "name": "Text 3",
+      "position": {
+        "left": 82.66,
+        "top": 304.78,
+        "width": 158.92,
+        "height": 57.19
+      },
+      "geometry": "rect",
+      "text": "Développer votre visibilité",
+      "style": {
+        "anchor": 1,
+        "fontSize": 22,
+        "typeface": "Familjen Grotesk Bold",
+        "color": "#000000",
+        "bold": true,
+        "italic": false,
+        "alignment": "left",
+        "verticalAlignment": "top",
+        "wrap": "square",
+        "autoFit": "shrinkText",
+        "insets": {
+          "top": 0,
+          "right": 0,
+          "bottom": 0,
+          "left": 0
+        }
+      },
+      "paragraphs": [
+        {
+          "index": 1,
+          "text": "Développer votre visibilité",
+          "lineSpacingPercent": 108000,
+          "style": {
+            "alignment": "left"
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "Développer votre visibilité",
+              "anchor": 1,
+              "fontSize": 22,
+              "typeface": "Familjen Grotesk Bold",
+              "color": "#000000",
+              "bold": true,
+              "alignment": "left",
+              "verticalAlignment": "top",
+              "wrap": "square",
+              "autoFit": "shrinkText",
+              "insets": {
+                "top": 0,
+                "right": 0,
+                "bottom": 0,
+                "left": 0
+              }
+            }
+          ],
+          "marginLeft": 0
+        }
+      ]
+    },
+    {
+      "order": 6,
+      "kind": "textbox",
+      "scope": "slide",
+      "id": "sh/sna103ap",
+      "editable": true,
+      "name": "Text 4",
+      "position": {
+        "left": 82.66,
+        "top": 376.21,
+        "width": 158.92,
+        "height": 92.78
+      },
+      "geometry": "rect",
+      "text": "Auprès d’une nouvelle communauté.",
+      "style": {
+        "anchor": 1,
+        "fontSize": 21.33,
+        "typeface": "Familjen Grotesk",
+        "color": "#000000",
+        "bold": false,
+        "italic": false,
+        "alignment": "left",
+        "verticalAlignment": "top",
+        "wrap": "square",
+        "autoFit": "shrinkText",
+        "insets": {
+          "top": 0,
+          "right": 0,
+          "bottom": 0,
+          "left": 0
+        }
+      },
+      "paragraphs": [
+        {
+          "index": 1,
+          "text": "Auprès d’une nouvelle communauté.",
+          "lineSpacingPercent": 121000,
+          "style": {
+            "alignment": "left"
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "Auprès d’une nouvelle communauté.",
+              "anchor": 1,
+              "fontSize": 21.33,
+              "typeface": "Familjen Grotesk",
+              "color": "#000000",
+              "alignment": "left",
+              "verticalAlignment": "top",
+              "wrap": "square",
+              "autoFit": "shrinkText",
+              "insets": {
+                "top": 0,
+                "right": 0,
+                "bottom": 0,
+                "left": 0
+              }
+            }
+          ],
+          "marginLeft": 0
+        }
+      ]
+    },
+    {
+      "order": 7,
+      "kind": "shape",
+      "scope": "slide",
+      "id": "sh/3ihk3et8",
+      "editable": true,
+      "name": "Shape 5",
+      "position": {
+        "left": 297.59,
+        "top": 223.59,
+        "width": 206.93,
+        "height": 359.08
+      },
+      "geometry": "rect",
+      "fillColor": "#FFF1F4"
+    },
+    {
+      "order": 8,
+      "kind": "image",
+      "scope": "slide",
+      "id": "im/z6lc7q1o",
+      "editable": true,
+      "name": "Image 1",
+      "position": {
+        "left": 321.59,
+        "top": 247.59,
+        "width": 42.67,
+        "height": 42.67
+      },
+      "contentType": "image/png",
+      "asset": {
+        "contentType": "image/png",
+        "byteLength": 2112
+      },
+      "fillImage": {
+        "contentType": "image/png",
+        "byteLength": 2112
+      }
+    },
+    {
+      "order": 9,
+      "kind": "textbox",
+      "scope": "slide",
+      "id": "sh/kbm987y5",
+      "editable": true,
+      "name": "Text 6",
+      "position": {
+        "left": 321.59,
+        "top": 304.78,
+        "width": 158.93,
+        "height": 85.78
+      },
+      "geometry": "rect",
+      "text": "Attirer de nouveaux clients",
+      "style": {
+        "anchor": 1,
+        "fontSize": 22,
+        "typeface": "Familjen Grotesk Bold",
+        "color": "#000000",
+        "bold": true,
+        "italic": false,
+        "alignment": "left",
+        "verticalAlignment": "top",
+        "wrap": "square",
+        "autoFit": "shrinkText",
+        "insets": {
+          "top": 0,
+          "right": 0,
+          "bottom": 0,
+          "left": 0
+        }
+      },
+      "paragraphs": [
+        {
+          "index": 1,
+          "text": "Attirer de nouveaux clients",
+          "lineSpacingPercent": 108000,
+          "style": {
+            "alignment": "left"
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "Attirer de nouveaux clients",
+              "anchor": 1,
+              "fontSize": 22,
+              "typeface": "Familjen Grotesk Bold",
+              "color": "#000000",
+              "bold": true,
+              "alignment": "left",
+              "verticalAlignment": "top",
+              "wrap": "square",
+              "autoFit": "shrinkText",
+              "insets": {
+                "top": 0,
+                "right": 0,
+                "bottom": 0,
+                "left": 0
+              }
+            }
+          ],
+          "marginLeft": 0
+        }
+      ]
+    },
+    {
+      "order": 10,
+      "kind": "textbox",
+      "scope": "slide",
+      "id": "sh/5cva1cfq",
+      "editable": true,
+      "name": "Text 7",
+      "position": {
+        "left": 321.59,
+        "top": 404.81,
+        "width": 158.93,
+        "height": 61.85
+      },
+      "geometry": "rect",
+      "text": "Et valoriser vos services.",
+      "style": {
+        "anchor": 1,
+        "fontSize": 21.33,
+        "typeface": "Familjen Grotesk",
+        "color": "#000000",
+        "bold": false,
+        "italic": false,
+        "alignment": "left",
+        "verticalAlignment": "top",
+        "wrap": "square",
+        "autoFit": "shrinkText",
+        "insets": {
+          "top": 0,
+          "right": 0,
+          "bottom": 0,
+          "left": 0
+        }
+      },
+      "paragraphs": [
+        {
+          "index": 1,
+          "text": "Et valoriser vos services.",
+          "lineSpacingPercent": 121000,
+          "style": {
+            "alignment": "left"
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "Et valoriser vos services.",
+              "anchor": 1,
+              "fontSize": 21.33,
+              "typeface": "Familjen Grotesk",
+              "color": "#000000",
+              "alignment": "left",
+              "verticalAlignment": "top",
+              "wrap": "square",
+              "autoFit": "shrinkText",
+              "insets": {
+                "top": 0,
+                "right": 0,
+                "bottom": 0,
+                "left": 0
+              }
+            }
+          ],
+          "marginLeft": 0
+        }
+      ]
+    },
+    {
+      "order": 11,
+      "kind": "shape",
+      "scope": "slide",
+      "id": "sh/i94r6xgz",
+      "editable": true,
+      "name": "Shape 8",
+      "position": {
+        "left": 536.52,
+        "top": 223.59,
+        "width": 206.92,
+        "height": 359.08
+      },
+      "geometry": "rect",
+      "fillColor": "#FFF1F4"
+    },
+    {
+      "order": 12,
+      "kind": "image",
+      "scope": "slide",
+      "id": "im/gfm5gvit",
+      "editable": true,
+      "name": "Image 2",
+      "position": {
+        "left": 560.52,
+        "top": 247.59,
+        "width": 42.67,
+        "height": 42.67
+      },
+      "contentType": "image/png",
+      "asset": {
+        "contentType": "image/png",
+        "byteLength": 1663
+      },
+      "fillImage": {
+        "contentType": "image/png",
+        "byteLength": 1663
+      }
+    },
+    {
+      "order": 13,
+      "kind": "textbox",
+      "scope": "slide",
+      "id": "sh/w72947yt",
+      "editable": true,
+      "name": "Text 9",
+      "position": {
+        "left": 560.52,
+        "top": 304.78,
+        "width": 158.92,
+        "height": 57.19
+      },
+      "geometry": "rect",
+      "text": "Communiquer ensemble",
+      "style": {
+        "anchor": 1,
+        "fontSize": 22,
+        "typeface": "Familjen Grotesk Bold",
+        "color": "#000000",
+        "bold": true,
+        "italic": false,
+        "alignment": "left",
+        "verticalAlignment": "top",
+        "wrap": "square",
+        "autoFit": "shrinkText",
+        "insets": {
+          "top": 0,
+          "right": 0,
+          "bottom": 0,
+          "left": 0
+        }
+      },
+      "paragraphs": [
+        {
+          "index": 1,
+          "text": "Communiquer ensemble",
+          "lineSpacingPercent": 108000,
+          "style": {
+            "alignment": "left"
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "Communiquer ensemble",
+              "anchor": 1,
+              "fontSize": 22,
+              "typeface": "Familjen Grotesk Bold",
+              "color": "#000000",
+              "bold": true,
+              "alignment": "left",
+              "verticalAlignment": "top",
+              "wrap": "square",
+              "autoFit": "shrinkText",
+              "insets": {
+                "top": 0,
+                "right": 0,
+                "bottom": 0,
+                "left": 0
+              }
+            }
+          ],
+          "marginLeft": 0
+        }
+      ]
+    },
+    {
+      "order": 14,
+      "kind": "textbox",
+      "scope": "slide",
+      "id": "sh/x8vaxsfe",
+      "editable": true,
+      "name": "Text 10",
+      "position": {
+        "left": 560.52,
+        "top": 376.21,
+        "width": 158.92,
+        "height": 92.78
+      },
+      "geometry": "rect",
+      "text": "Créer des campagnes conjointes.",
+      "style": {
+        "anchor": 1,
+        "fontSize": 21.33,
+        "typeface": "Familjen Grotesk",
+        "color": "#000000",
+        "bold": false,
+        "italic": false,
+        "alignment": "left",
+        "verticalAlignment": "top",
+        "wrap": "square",
+        "autoFit": "shrinkText",
+        "insets": {
+          "top": 0,
+          "right": 0,
+          "bottom": 0,
+          "left": 0
+        }
+      },
+      "paragraphs": [
+        {
+          "index": 1,
+          "text": "Créer des campagnes conjointes.",
+          "lineSpacingPercent": 121000,
+          "style": {
+            "alignment": "left"
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "Créer des campagnes conjointes.",
+              "anchor": 1,
+              "fontSize": 21.33,
+              "typeface": "Familjen Grotesk",
+              "color": "#000000",
+              "alignment": "left",
+              "verticalAlignment": "top",
+              "wrap": "square",
+              "autoFit": "shrinkText",
+              "insets": {
+                "top": 0,
+                "right": 0,
+                "bottom": 0,
+                "left": 0
+              }
+            }
+          ],
+          "marginLeft": 0
+        }
+      ]
+    },
+    {
+      "order": 15,
+      "kind": "shape",
+      "scope": "slide",
+      "id": "sh/a5kr2xg3",
+      "editable": true,
+      "name": "Shape 11",
+      "position": {
+        "left": 775.44,
+        "top": 223.59,
+        "width": 206.93,
+        "height": 359.08
+      },
+      "geometry": "rect",
+      "fillColor": "#FFF1F4"
+    },
+    {
+      "order": 16,
+      "kind": "image",
+      "scope": "slide",
+      "id": "im/sbm5cbix",
+      "editable": true,
+      "name": "Image 3",
+      "position": {
+        "left": 799.44,
+        "top": 247.59,
+        "width": 42.67,
+        "height": 42.67
+      },
+      "contentType": "image/png",
+      "asset": {
+        "contentType": "image/png",
+        "byteLength": 4217
+      },
+      "fillImage": {
+        "contentType": "image/png",
+        "byteLength": 4217
+      }
+    },
+    {
+      "order": 17,
+      "kind": "textbox",
+      "scope": "slide",
+      "id": "sh/g36tgryd",
+      "editable": true,
+      "name": "Text 12",
+      "position": {
+        "left": 799.44,
+        "top": 304.78,
+        "width": 158.93,
+        "height": 57.19
+      },
+      "geometry": "rect",
+      "text": "Ouvrir des opportunités",
+      "style": {
+        "anchor": 1,
+        "fontSize": 22,
+        "typeface": "Familjen Grotesk Bold",
+        "color": "#000000",
+        "bold": true,
+        "italic": false,
+        "alignment": "left",
+        "verticalAlignment": "top",
+        "wrap": "square",
+        "autoFit": "shrinkText",
+        "insets": {
+          "top": 0,
+          "right": 0,
+          "bottom": 0,
+          "left": 0
+        }
+      },
+      "paragraphs": [
+        {
+          "index": 1,
+          "text": "Ouvrir des opportunités",
+          "lineSpacingPercent": 108000,
+          "style": {
+            "alignment": "left"
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "Ouvrir des opportunités",
+              "anchor": 1,
+              "fontSize": 22,
+              "typeface": "Familjen Grotesk Bold",
+              "color": "#000000",
+              "bold": true,
+              "alignment": "left",
+              "verticalAlignment": "top",
+              "wrap": "square",
+              "autoFit": "shrinkText",
+              "insets": {
+                "top": 0,
+                "right": 0,
+                "bottom": 0,
+                "left": 0
+              }
+            }
+          ],
+          "marginLeft": 0
+        }
+      ]
+    },
+    {
+      "order": 18,
+      "kind": "textbox",
+      "scope": "slide",
+      "id": "sh/h4fa9wfy",
+      "editable": true,
+      "name": "Text 13",
+      "position": {
+        "left": 799.44,
+        "top": 376.21,
+        "width": 158.93,
+        "height": 92.78
+      },
+      "geometry": "rect",
+      "text": "Développer de nouvelles pistes commerciales.",
+      "style": {
+        "anchor": 1,
+        "fontSize": 21.33,
+        "typeface": "Familjen Grotesk",
+        "color": "#000000",
+        "bold": false,
+        "italic": false,
+        "alignment": "left",
+        "verticalAlignment": "top",
+        "wrap": "square",
+        "autoFit": "shrinkText",
+        "insets": {
+          "top": 0,
+          "right": 0,
+          "bottom": 0,
+          "left": 0
+        }
+      },
+      "paragraphs": [
+        {
+          "index": 1,
+          "text": "Développer de nouvelles pistes commerciales.",
+          "lineSpacingPercent": 121000,
+          "style": {
+            "alignment": "left"
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "Développer de nouvelles pistes commerciales.",
+              "anchor": 1,
+              "fontSize": 21.33,
+              "typeface": "Familjen Grotesk",
+              "color": "#000000",
+              "alignment": "left",
+              "verticalAlignment": "top",
+              "wrap": "square",
+              "autoFit": "shrinkText",
+              "insets": {
+                "top": 0,
+                "right": 0,
+                "bottom": 0,
+                "left": 0
+              }
+            }
+          ],
+          "marginLeft": 0
+        }
+      ]
+    },
+    {
+      "order": 19,
+      "kind": "shape",
+      "scope": "slide",
+      "id": "sh/p0batw72",
+      "editable": true,
+      "name": "Shape 14",
+      "position": {
+        "left": 1014.37,
+        "top": 223.59,
+        "width": 206.92,
+        "height": 359.08
+      },
+      "geometry": "rect",
+      "fillColor": "#FFF1F4"
+    },
+    {
+      "order": 20,
+      "kind": "image",
+      "scope": "slide",
+      "id": "im/n2187e1o",
+      "editable": true,
+      "name": "Image 4",
+      "position": {
+        "left": 1038.37,
+        "top": 247.59,
+        "width": 42.67,
+        "height": 42.67
+      },
+      "contentType": "image/png",
+      "asset": {
+        "contentType": "image/png",
+        "byteLength": 2769
+      },
+      "fillImage": {
+        "contentType": "image/png",
+        "byteLength": 2769
+      }
+    },
+    {
+      "order": 21,
+      "kind": "textbox",
+      "scope": "slide",
+      "id": "sh/3ytsrmpw",
+      "editable": true,
+      "name": "Text 15",
+      "position": {
+        "left": 1038.37,
+        "top": 304.78,
+        "width": 158.92,
+        "height": 85.78
+      },
+      "geometry": "rect",
+      "text": "Porter une initiative de sens",
+      "style": {
+        "anchor": 1,
+        "fontSize": 22,
+        "typeface": "Familjen Grotesk Bold",
+        "color": "#000000",
+        "bold": true,
+        "italic": false,
+        "alignment": "left",
+        "verticalAlignment": "top",
+        "wrap": "square",
+        "autoFit": "shrinkText",
+        "insets": {
+          "top": 0,
+          "right": 0,
+          "bottom": 0,
+          "left": 0
+        }
+      },
+      "paragraphs": [
+        {
+          "index": 1,
+          "text": "Porter une initiative de sens",
+          "lineSpacingPercent": 108000,
+          "style": {
+            "alignment": "left"
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "Porter une initiative de sens",
+              "anchor": 1,
+              "fontSize": 22,
+              "typeface": "Familjen Grotesk Bold",
+              "color": "#000000",
+              "bold": true,
+              "alignment": "left",
+              "verticalAlignment": "top",
+              "wrap": "square",
+              "autoFit": "shrinkText",
+              "insets": {
+                "top": 0,
+                "right": 0,
+                "bottom": 0,
+                "left": 0
+              }
+            }
+          ],
+          "marginLeft": 0
+        }
+      ]
+    },
+    {
+      "order": 22,
+      "kind": "textbox",
+      "scope": "slide",
+      "id": "sh/2xkrih8b",
+      "editable": true,
+      "name": "Text 16",
+      "position": {
+        "left": 1038.37,
+        "top": 404.81,
+        "width": 158.92,
+        "height": 154.64
+      },
+      "geometry": "rect",
+      "text": "Associer votre marque à une innovation technologique utile.",
+      "style": {
+        "anchor": 1,
+        "fontSize": 21.33,
+        "typeface": "Familjen Grotesk",
+        "color": "#000000",
+        "bold": false,
+        "italic": false,
+        "alignment": "left",
+        "verticalAlignment": "top",
+        "wrap": "square",
+        "autoFit": "shrinkText",
+        "insets": {
+          "top": 0,
+          "right": 0,
+          "bottom": 0,
+          "left": 0
+        }
+      },
+      "paragraphs": [
+        {
+          "index": 1,
+          "text": "Associer votre marque à une innovation technologique utile.",
+          "lineSpacingPercent": 121000,
+          "style": {
+            "alignment": "left"
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "Associer votre marque à une innovation technologique utile.",
+              "anchor": 1,
+              "fontSize": 21.33,
+              "typeface": "Familjen Grotesk",
+              "color": "#000000",
+              "alignment": "left",
+              "verticalAlignment": "top",
+              "wrap": "square",
+              "autoFit": "shrinkText",
+              "insets": {
+                "top": 0,
+                "right": 0,
+                "bottom": 0,
+                "left": 0
+              }
+            }
+          ],
+          "marginLeft": 0
+        }
+      ]
+    }
+  ]
+}

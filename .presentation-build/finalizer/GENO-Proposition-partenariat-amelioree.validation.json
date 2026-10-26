@@ -1,0 +1,159 @@
+{
+  "schemaVersion": "presentation-finalization.v1",
+  "finalSha256": "3c6b0f19b8d0e49c75b2aca8a33ea0da8628134ec6314b7f4c7c16f5f4448a1b",
+  "byteCount": 3402783,
+  "packageIntegrity": {
+    "chart_count": 0,
+    "claim_boundary": "Structural package checks only; no slide text, notes, formulas, chart values, or native PowerPoint execution were inspected.",
+    "finding_count": 0,
+    "findings": [],
+    "notes_parts_skipped": 9,
+    "relationship_part_count": 27,
+    "slide_count": 9,
+    "status": "pass",
+    "exitCode": 0,
+    "findingCount": 0,
+    "warnings": []
+  },
+  "presentationLayout": {
+    "finding_count": 0,
+    "findings": [],
+    "font_policy": {
+      "checked_text_script_count": 106,
+      "native_font_rendering_verified": false,
+      "observed_font_families": [
+        "Archivo Black",
+        "Familjen Grotesk",
+        "Familjen Grotesk Bold",
+        "Familjen Grotesk SemiBold"
+      ],
+      "observed_font_use_counts": {
+        "Archivo Black": 13,
+        "Familjen Grotesk": 35,
+        "Familjen Grotesk Bold": 30,
+        "Familjen Grotesk SemiBold": 28
+      },
+      "passed": true,
+      "performed": true
+    },
+    "slide_count": 9,
+    "slide_size_in": [
+      13.333,
+      7.5
+    ],
+    "warning_count": 0,
+    "warnings": [],
+    "exitCode": 0,
+    "findingCount": 0,
+    "fontPolicy": {
+      "checked_text_script_count": 106,
+      "native_font_rendering_verified": false,
+      "observed_font_families": [
+        "Archivo Black",
+        "Familjen Grotesk",
+        "Familjen Grotesk Bold",
+        "Familjen Grotesk SemiBold"
+      ],
+      "observed_font_use_counts": {
+        "Archivo Black": 13,
+        "Familjen Grotesk": 35,
+        "Familjen Grotesk Bold": 30,
+        "Familjen Grotesk SemiBold": 28
+      },
+      "passed": true,
+      "performed": true
+    }
+  },
+  "fontSelection": {
+    "basis": "reference",
+    "approvedFamilies": [
+      "Archivo Black",
+      "Familjen Grotesk",
+      "Familjen Grotesk Bold",
+      "Familjen Grotesk SemiBold"
+    ],
+    "scriptFonts": {},
+    "referenceSha256": "e5790838e79c3d844f25fa8345bf661cd12a739f0ab5dfeb5375d1a9c60438ff",
+    "referenceFontsVerifiedInEncodedText": true,
+    "checked_text_script_count": 106,
+    "native_font_rendering_verified": false,
+    "observed_font_families": [
+      "Archivo Black",
+      "Familjen Grotesk",
+      "Familjen Grotesk Bold",
+      "Familjen Grotesk SemiBold"
+    ],
+    "observed_font_use_counts": {
+      "Archivo Black": 13,
+      "Familjen Grotesk": 35,
+      "Familjen Grotesk Bold": 30,
+      "Familjen Grotesk SemiBold": 28
+    },
+    "passed": true,
+    "performed": true
+  },
+  "firstPartyImport": {
+    "performed": true,
+    "passed": true,
+    "slideCount": 9,
+    "sha256": "3c6b0f19b8d0e49c75b2aca8a33ea0da8628134ec6314b7f4c7c16f5f4448a1b",
+    "runtimeNodeModules": "/home/skai/.cache/codex-runtimes/codex-primary-runtime/dependencies/node/node_modules",
+    "nodeExecutable": "/home/skai/.cache/codex-runtimes/codex-primary-runtime/dependencies/node/bin/node"
+  },
+  "nativeTableArithmetic": {
+    "performed": true,
+    "checked_column_count": 0,
+    "checks": [],
+    "claim_boundary": "Displayed-value arithmetic with rounding tolerance; not source-data verification.",
+    "eligible_table_count": 0,
+    "finding_count": 0,
+    "findings": [],
+    "native_table_count": 0,
+    "passed": true,
+    "schema_version": "presentation-native-table-arithmetic.v1",
+    "skipped_tables": [],
+    "slide_count": 9,
+    "warning_count": 0,
+    "warnings": []
+  },
+  "nativeChartTitles": {
+    "performed": true,
+    "checks": [],
+    "finding_count": 0,
+    "findings": [],
+    "native_chart_count": 0,
+    "native_powerpoint_verified": false,
+    "passed": true,
+    "presentation_sha256": "3c6b0f19b8d0e49c75b2aca8a33ea0da8628134ec6314b7f4c7c16f5f4448a1b",
+    "schema_version": "presentation-native-chart-titles.v1",
+    "slide_count": 9,
+    "source_text_emitted": false,
+    "unresolved_linked_title_count": 0
+  },
+  "sourceDerivedPolicyFlags": [
+    "--expected-slide-size-emu",
+    "12191695,6858000",
+    "--validate-bullet-geometry",
+    "--validate-heading-fit",
+    "--cover-role",
+    "none",
+    "--expected-slide-count",
+    "9",
+    "--approved-font-family",
+    "Archivo Black",
+    "--approved-font-family",
+    "Familjen Grotesk",
+    "--approved-font-family",
+    "Familjen Grotesk Bold",
+    "--approved-font-family",
+    "Familjen Grotesk SemiBold"
+  ],
+  "nativeChartValidation": {
+    "detectedOwnerSlides": [],
+    "detectedChartCount": 0,
+    "targetApplication": "portable",
+    "sourceChartOwnersExplicitlyDeclared": true,
+    "validatorRan": false,
+    "passed": true
+  }
+}

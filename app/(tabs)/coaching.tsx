@@ -1,7 +1,7 @@
 import { SafeAreaView } from 'react-native-safe-area-context';
-import React, { useState, useEffect, useRef } from 'react';
-import { View, Text, StyleSheet, ScrollView, useColorScheme, TouchableOpacity, ActivityIndicator, RefreshControl, Platform, Modal, TextInput, Alert, KeyboardAvoidingView } from 'react-native';
-import { useRouter } from 'expo-router';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { AppState, View, Text, StyleSheet, ScrollView, useColorScheme, TouchableOpacity, ActivityIndicator, RefreshControl, Platform, Modal, TextInput, Alert, KeyboardAvoidingView } from 'react-native';
+import { useFocusEffect, useRouter } from 'expo-router';
 import { Picker } from '@react-native-picker/picker';
 import { Image } from 'expo-image';
 import { IMAGE_CACHE_POLICY, imageSource } from '@/lib/images';
@@ -87,7 +87,7 @@ export default function CoachingScreen() {
     scrollRef.current?.scrollTo({ y: 0, animated: true });
   };
 
-  const fetchPosts = async () => {
+  const fetchPosts = useCallback(async () => {
     try {
       setLoadError(null);
       let query = supabase
@@ -112,9 +112,9 @@ export default function CoachingScreen() {
       setLoading(false);
       setRefreshing(false);
     }
-  };
+  }, [activeCategory]);
 
-  const fetchUserRole = async () => {
+  const fetchUserRole = useCallback(async () => {
     try {
       const user = await getUser();
       if (!user) {
@@ -130,7 +130,7 @@ export default function CoachingScreen() {
     } finally {
       setRoleLoading(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
     const stopCategories = watchAppSetting<Array<{ value: string; label: string }>>('coaching_categories', [], (items) => {
@@ -141,14 +141,41 @@ export default function CoachingScreen() {
         setNewPost((current) => !next.length ? current : next.some((item) => item.id === current.category) ? current : { ...current, category: next[0].id });
       }
     });
-    fetchPosts();
-    fetchUserRole();
     return stopCategories;
-  }, [activeCategory]);
+  }, []);
+
+  // Recharger le flux à chaque retour sur l'onglet, même si Realtime a manqué
+  // un événement pendant une coupure réseau ou lorsque l'app était en arrière-plan.
+  useFocusEffect(
+    useCallback(() => {
+      void fetchPosts();
+      void fetchUserRole();
+    }, [fetchPosts, fetchUserRole])
+  );
+
+  // Les suppressions/editions faites depuis le dashboard doivent se propager
+  // immédiatement à tous les flux Coaching ouverts.
+  useEffect(() => {
+    const channel = supabase
+      .channel('coaching-posts-feed')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'coaching_posts' }, () => {
+        void fetchPosts();
+      })
+      .subscribe();
+
+    const appStateSubscription = AppState.addEventListener('change', (state) => {
+      if (state === 'active') void fetchPosts();
+    });
+
+    return () => {
+      appStateSubscription.remove();
+      void supabase.removeChannel(channel);
+    };
+  }, [fetchPosts]);
 
   const onRefresh = () => {
     setRefreshing(true);
-    fetchPosts();
+    void fetchPosts();
     fetchUserRole();
   };
 
@@ -233,7 +260,7 @@ export default function CoachingScreen() {
       Alert.alert('Succès', 'Votre conseil a été ajouté avec succès !');
       setIsModalVisible(false);
       setNewPost({ title: '', content: '', category: 'couple', image_url: '' });
-      fetchPosts();
+      void fetchPosts();
     } catch (error: any) {
       const errorMessage = error.message || 'Impossible d\'ajouter le conseil';
       Alert.alert('Erreur', `Détails : ${errorMessage}`);

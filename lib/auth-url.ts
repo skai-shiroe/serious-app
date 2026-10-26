@@ -12,10 +12,14 @@ export type AuthUrlResult =
 // peuvent le fournir en double.
 let handledCode: string | null = null;
 let handledToken: string | null = null;
+let codeExchange: { value: string; promise: Promise<AuthUrlResult> } | null = null;
+let tokenExchange: { value: string; promise: Promise<AuthUrlResult> } | null = null;
 
 export function resetAuthUrlGuard() {
   handledCode = null;
   handledToken = null;
+  codeExchange = null;
+  tokenExchange = null;
 }
 
 /**
@@ -32,27 +36,51 @@ export async function completeAuthFromUrl(url: string | null): Promise<AuthUrlRe
 
     case 'code': {
       if (parsed.code === handledCode) return { status: 'already-handled' };
-      handledCode = parsed.code;
-      const { error } = await supabase.auth.exchangeCodeForSession(parsed.code);
-      if (error) {
+      if (codeExchange?.value === parsed.code) return codeExchange.promise;
+
+      const pending = (async (): Promise<AuthUrlResult> => {
+        try {
+          const { error } = await supabase.auth.exchangeCodeForSession(parsed.code);
+          if (error) return { status: 'error', message: error.message };
+          handledCode = parsed.code;
+          return { status: 'session' };
+        } catch (error: any) {
+          return { status: 'error', message: error?.message || 'Impossible de terminer la connexion.' };
+        }
+      })();
+      codeExchange = { value: parsed.code, promise: pending };
+      const result = await pending;
+      if (codeExchange?.promise === pending) codeExchange = null;
+      if (result.status !== 'session') {
         handledCode = null;
-        return { status: 'error', message: error.message };
       }
-      return { status: 'session' };
+      return result;
     }
 
     case 'tokens': {
       if (parsed.accessToken === handledToken) return { status: 'already-handled' };
-      handledToken = parsed.accessToken;
-      const { error } = await supabase.auth.setSession({
-        access_token: parsed.accessToken,
-        refresh_token: parsed.refreshToken,
-      });
-      if (error) {
+      if (tokenExchange?.value === parsed.accessToken) return tokenExchange.promise;
+
+      const pending = (async (): Promise<AuthUrlResult> => {
+        try {
+          const { error } = await supabase.auth.setSession({
+            access_token: parsed.accessToken,
+            refresh_token: parsed.refreshToken,
+          });
+          if (error) return { status: 'error', message: error.message };
+          handledToken = parsed.accessToken;
+          return { status: 'session' };
+        } catch (error: any) {
+          return { status: 'error', message: error?.message || 'Impossible de terminer la connexion.' };
+        }
+      })();
+      tokenExchange = { value: parsed.accessToken, promise: pending };
+      const result = await pending;
+      if (tokenExchange?.promise === pending) tokenExchange = null;
+      if (result.status !== 'session') {
         handledToken = null;
-        return { status: 'error', message: error.message };
       }
-      return { status: 'session' };
+      return result;
     }
 
     default:

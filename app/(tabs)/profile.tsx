@@ -8,6 +8,7 @@ import * as ImagePicker from 'expo-image-picker';
 import { decode } from 'base64-arraybuffer';
 import { IMAGE_CACHE_POLICY, imageSource } from '@/lib/images';
 import { supabase } from '@/lib/supabase';
+import { resetAuthUrlGuard } from '@/lib/auth-url';
 import { forgetSession, getUser } from '@/lib/session';
 import { unblockUser } from '@/lib/moderation';
 import { LogOut, Edit3, MapPin, BookOpen, Moon, Sun, Bookmark, WifiOff, ShieldCheck, ChevronRight, ChevronDown, Ban, Flag, FileText, Plus, Trash2, X, Check, Settings, Pencil  } from 'lucide-react-native';
@@ -271,6 +272,7 @@ export default function ProfileScreen() {
   const handleSignOut = async () => {
     try {
       await supabase.auth.signOut();
+      resetAuthUrlGuard();
     } catch (error) {
       Alert.alert('Erreur', 'Impossible de se déconnecter');
     }

@@ -700,14 +700,15 @@ export default function RootLayout() {
     const cached = await readProfileCache(userId);
     if (cached !== null) setProfileStatus(cached ? 'ready' : 'missing');
 
-    // 2) Revalidation serveur — .maybeSingle() et non .single() : une erreur
-    //    reseau ne doit pas etre interpretee comme "profil absent".
+    // 2) Revalidation serveur. La RPC renvoie zero ligne pour un nouveau
+    //    compte sans profil : maybeSingle distingue ce cas d'une erreur reseau.
     for (let attempt = 1; attempt <= 2; attempt++) {
-      const { data, error } = await supabase.rpc('get_my_profile').single();
+      const { data, error } = await supabase.rpc('get_my_profile').maybeSingle();
 
       if (!error) {
-        const ready = !!data;
-        setIsAdmin(data?.role === 'admin');
+        const profile = data as { role?: string } | null;
+        const ready = profile !== null;
+        setIsAdmin(profile?.role === 'admin');
         setProfileStatus(ready ? 'ready' : 'missing');
         void writeProfileCache(userId, ready);
         return;

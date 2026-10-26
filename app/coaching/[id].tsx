@@ -84,6 +84,31 @@ export default function CoachingDetailScreen() {
     }
   };
 
+  // Si un article est retiré alors qu'il est déjà ouvert, fermer aussi son
+  // contenu en direct au lieu de laisser une page devenue obsolète à l'écran.
+  useEffect(() => {
+    const postId = Array.isArray(id) ? id[0] : id;
+    if (!postId) return;
+
+    const channel = supabase
+      .channel(`coaching-post-${postId}`)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'coaching_posts' }, (payload) => {
+        const changedRow = payload.eventType === 'DELETE' ? payload.old : payload.new;
+        if (changedRow.id !== postId) return;
+
+        if (payload.eventType === 'DELETE') {
+          setPost(null);
+        } else {
+          setPost(payload.new as CoachingPost);
+        }
+      })
+      .subscribe();
+
+    return () => {
+      void supabase.removeChannel(channel);
+    };
+  }, [id]);
+
   const fetchInteractions = async () => {
     try {
       const user = await getUser();
@@ -249,9 +274,14 @@ export default function CoachingDetailScreen() {
   if (!post) {
     return (
       <View style={[styles.loaderContainer, { backgroundColor: themeColors.bg }]}>
-        <Text style={{ color: themeColors.text }}>Conseil non trouvé.</Text>
+        <Text style={{ color: themeColors.text, fontSize: 18, fontWeight: '700', textAlign: 'center' }}>
+          Ce conseil n&apos;est plus disponible.
+        </Text>
+        <Text style={{ color: themeColors.textMuted, textAlign: 'center', marginTop: 8 }}>
+          Il a peut-être été retiré du fil Coaching.
+        </Text>
         <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
-          <Text style={{ color: themeColors.accent }}>Retour</Text>
+          <Text style={{ color: themeColors.accent }}>Retour aux conseils</Text>
         </TouchableOpacity>
       </View>
     );

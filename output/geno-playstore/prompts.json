@@ -1,0 +1,66 @@
+{
+  "tool": "image_gen intégré",
+  "direction": "Fond rose pâle, accents framboise, titre court et capture réelle encadrée. Propositions de visuels Google Play.",
+  "visuals": [
+    {
+      "source": "/home/skai/.codex/generated_images/01a1751c-814d-7fc2-97f8-4047323dc95a/exec-7b77ce68-3762-4473-962e-fdee78ff069b.png",
+      "name": "01-geno.png",
+      "title": "Une rencontre qui compte",
+      "subtitle": "Pour une relation authentique."
+    },
+    {
+      "source": "/home/skai/.codex/generated_images/01a1751c-814d-7fc2-97f8-4047323dc95a/exec-a2fdcc2c-12b5-4893-bf55-9c25ff1cdaf7.png",
+      "name": "02-geno.png",
+      "title": "Découvre de nouveaux profils",
+      "subtitle": "Fais le premier pas à ton rythme."
+    },
+    {
+      "source": "/home/skai/.codex/generated_images/01a1751c-814d-7fc2-97f8-4047323dc95a/exec-cc7e5e97-5161-4ead-b1ca-1eb1206f74df.png",
+      "name": "03-geno.png",
+      "title": "Des passions à partager",
+      "subtitle": "Repère vos centres d’intérêt communs."
+    },
+    {
+      "source": "/home/skai/.codex/generated_images/01a1751c-814d-7fc2-97f8-4047323dc95a/exec-8bf8e9ee-d5fe-4d9a-8bac-ecb4706344fa.png",
+      "name": "04-geno.png",
+      "title": "Ton génotype pris en compte",
+      "subtitle": "Comprends la règle de suggestion des profils."
+    },
+    {
+      "source": "/home/skai/.codex/generated_images/01a1751c-814d-7fc2-97f8-4047323dc95a/exec-ea7e977d-8607-4760-8d86-23ab75a26209.png",
+      "name": "05-geno.png",
+      "title": "Affine tes rencontres",
+      "subtitle": "Choisis tes préférences d’âge et de ville."
+    },
+    {
+      "source": "/home/skai/.codex/generated_images/01a1751c-814d-7fc2-97f8-4047323dc95a/exec-b7b4f8c2-8fdd-4471-8066-1bd3d48f2517.png",
+      "name": "06-geno.png",
+      "title": "Un profil qui te ressemble",
+      "subtitle": "Tes photos, ta bio, tes envies."
+    },
+    {
+      "source": "/home/skai/.codex/generated_images/01a1751c-814d-7fc2-97f8-4047323dc95a/exec-4a62bfd7-2ed0-41b0-ae39-4e9c0227235f.png",
+      "name": "07-geno.png",
+      "title": "La vérification à portée de main",
+      "subtitle": "Accède à la vérification de ton profil."
+    },
+    {
+      "source": "/home/skai/.codex/generated_images/01a1751c-814d-7fc2-97f8-4047323dc95a/exec-edebff49-9e4c-4e1e-acab-c2614c2cfb86.png",
+      "name": "08-geno.png",
+      "title": "Des conseils pour avancer",
+      "subtitle": "Explore les articles couple et bien-être."
+    },
+    {
+      "source": "/home/skai/.codex/generated_images/01a1751c-814d-7fc2-97f8-4047323dc95a/exec-ff09e104-4106-4fd7-b18e-b6b94d79ef42.png",
+      "name": "09-geno.png",
+      "title": "Garde la main sur ton compte",
+      "subtitle": "Retrouve tes réglages de confidentialité."
+    },
+    {
+      "source": "/home/skai/.codex/generated_images/01a1751c-814d-7fc2-97f8-4047323dc95a/exec-8013eb3f-50d5-4b3a-ae12-4046a500c344.png",
+      "name": "10-geno.png",
+      "title": "L’histoire commence avec toi",
+      "subtitle": "Crée ton profil en quatre étapes."
+    }
+  ]
+}

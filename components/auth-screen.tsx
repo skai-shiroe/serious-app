@@ -1,5 +1,5 @@
 import { SafeAreaView } from 'react-native-safe-area-context';
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, KeyboardAvoidingView, Platform, useColorScheme, ScrollView, Alert, ActivityIndicator } from 'react-native';
 import { Mail, Eye, EyeOff, Chrome } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -30,6 +30,7 @@ export default function AuthScreen({ onComplete }: AuthScreenProps) {
   const router = useRouter();
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
+  const googleAuthInProgress = useRef(false);
   const [formData, setFormData] = useState({
     email: '',
     password: '',
@@ -40,39 +41,45 @@ export default function AuthScreen({ onComplete }: AuthScreenProps) {
   const isDark = colorScheme === 'dark';
 
   useEffect(() => {
+    let active = true;
     // Deep link recu (seriousapp://auth-callback) : on termine la connexion
     //   - flow PKCE      : ?code=...         -> exchangeCodeForSession
     //   - flow implicite : #access_token=... -> setSession
     const handleUrl = async (url: string | null) => {
       if (!url) return;
 
-      setLoading(true);
-      const result = await completeAuthFromUrl(url);
-      setLoading(false);
+      if (active) setLoading(true);
+      try {
+        const result = await completeAuthFromUrl(url);
 
-      if (result.status === 'session') {
-        onComplete();
-        return;
-      }
+        if (result.status === 'session') {
+          if (active) onComplete();
+          return;
+        }
 
-      if (result.status === 'already-handled') {
-        const { data: { session } } = await supabase.auth.getSession();
-        if (session) onComplete();
-        return;
-      }
+        if (result.status === 'already-handled') {
+          const { data: { session } } = await supabase.auth.getSession();
+          if (session && active) onComplete();
+          return;
+        }
 
-      if (result.status === 'error') {
-        Alert.alert('Erreur de connexion Google', result.message);
-        return;
-      }
+        if (result.status === 'error') {
+          if (active) Alert.alert('Erreur de connexion Google', result.message);
+          return;
+        }
 
-      // URL recue sans code ni token : presque toujours un redirect_to non
-      // autorise dans Supabase (le navigateur retombe alors sur le Site URL).
-      if (url.startsWith('seriousapp://') && !url.includes('expo-development-client')) {
-        Alert.alert(
-          'Connexion incomplete',
-          `Aucun code d'autorisation recu.\nURL recue :\n${url}\n\nA verifier dans Supabase > Authentication > URL Configuration :\n1) Redirect URLs doit contenir : seriousapp://auth-callback\n2) Google Cloud > Authorized redirect URIs : https://<PROJECT_REF>.supabase.co/auth/v1/callback`
-        );
+        // URL recue sans code ni token : presque toujours un redirect_to non
+        // autorise dans Supabase (le navigateur retombe alors sur le Site URL).
+        if (active && url.startsWith('seriousapp://') && !url.includes('expo-development-client')) {
+          Alert.alert(
+            'Connexion incomplete',
+            `Aucun code d'autorisation recu.\nURL recue :\n${url}\n\nA verifier dans Supabase > Authentication > URL Configuration :\n1) Redirect URLs doit contenir : seriousapp://auth-callback\n2) Google Cloud > Authorized redirect URIs : https://<PROJECT_REF>.supabase.co/auth/v1/callback`
+          );
+        }
+      } catch (error: any) {
+        if (active) Alert.alert('Erreur de connexion Google', error?.message || 'Impossible de terminer la connexion.');
+      } finally {
+        if (active) setLoading(false);
       }
     };
 
@@ -82,9 +89,10 @@ export default function AuthScreen({ onComplete }: AuthScreenProps) {
     });
 
     return () => {
+      active = false;
       subscription.remove();
     };
-  }, []);
+  }, [onComplete]);
 
   const handleSubmit = async () => {
     if (!formData.email || !formData.password) {
@@ -108,15 +116,28 @@ export default function AuthScreen({ onComplete }: AuthScreenProps) {
       } else {
         // Le telephone n est PAS demande ici : il est saisi en creation de
         // profil (drapeau + indicatif), y compris pour un compte Google.
-        const { error } = await supabase.auth.signUp({
+        const { data, error } = await supabase.auth.signUp({
           email: formData.email,
           password: formData.password,
+          options: {
+            emailRedirectTo: getAuthRedirectUrl(),
+          },
         });
         if (error) throw error;
-        Alert.alert(
-          'Inscription réussie',
-          'Un email de confirmation vous a été envoyé. Veuillez vérifier votre boîte de réception.'
-        );
+
+        // Lorsque la confirmation email est active, Supabase ne renvoie pas
+        // de session avant que l'utilisateur clique sur le lien. Rester sur
+        // l'ecran d'authentification au lieu d'afficher l'app avec un spinner.
+        if (!data.session) {
+          Alert.alert(
+            'Vérifie ta boîte mail',
+            'Un lien de confirmation a été envoyé. Ouvre-le pour confirmer ton adresse ; Géno te ramènera ensuite dans l’application pour créer ton profil.'
+          );
+          return;
+        }
+
+        onComplete();
+        return;
       }
       onComplete();
     } catch (error: any) {
@@ -127,6 +148,8 @@ export default function AuthScreen({ onComplete }: AuthScreenProps) {
   };
 
   const handleGoogleAuth = async () => {
+    if (googleAuthInProgress.current) return;
+    googleAuthInProgress.current = true;
     setLoading(true);
     try {
       const redirectUrl = getAuthRedirectUrl();
@@ -139,7 +162,7 @@ export default function AuthScreen({ onComplete }: AuthScreenProps) {
       });
 
       if (error) throw error;
-      if (!data?.url) return;
+      if (!data?.url) throw new Error("Google n'a pas renvoyé d'URL de connexion.");
 
       const result = await WebBrowser.openAuthSessionAsync(data.url, redirectUrl);
 
@@ -176,6 +199,7 @@ export default function AuthScreen({ onComplete }: AuthScreenProps) {
     } catch (error: any) {
       Alert.alert('Erreur', error.message || 'Echec de la connexion Google.');
     } finally {
+      googleAuthInProgress.current = false;
       setLoading(false);
     }
   };

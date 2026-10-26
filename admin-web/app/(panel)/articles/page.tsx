@@ -47,10 +47,21 @@ export default function ArticlesPage() {
   const remove = async (post: CoachingPost) => {
     if (!window.confirm(`Supprimer definitivement l article « ${post.title} » ?`)) return;
     setBusyId(post.id);
-    const { error: err } = await supabase.from('coaching_posts').delete().eq('id', post.id);
-    if (err) setError(err.message);
-    else await load();
-    setBusyId(null);
+    try {
+      const { data, error: err } = await supabase
+        .from('coaching_posts')
+        .delete()
+        .eq('id', post.id)
+        .select('id')
+        .maybeSingle();
+      if (err) throw err;
+      if (!data) throw new Error('Aucun article supprimé. Vérifiez vos droits administrateur puis réessayez.');
+      await load();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Impossible de supprimer cet article.');
+    } finally {
+      setBusyId(null);
+    }
   };
 
   return (

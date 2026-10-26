@@ -74,8 +74,13 @@ export function useUnreadMessagesCount(): number {
       debounce = setTimeout(() => void refresh(), 600);
     };
 
+    // Supabase retourne le canal existant lorsqu'un topic identique est encore
+    // en cours de fermeture. En React Strict Mode / Fast Refresh, le nouvel
+    // effet peut donc récupérer un canal déjà `subscribe()` et `.on()` lève.
+    // Un topic par cycle d'effet évite cette réutilisation pendant le cleanup.
+    const channelTopic = `unread-badge-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
     const channel = supabase
-      .channel('unread-badge')
+      .channel(channelTopic)
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages' }, refreshSoon)
       .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'messages' }, refreshSoon)
       .subscribe();
@@ -83,7 +88,7 @@ export function useUnreadMessagesCount(): number {
     return () => {
       listeners.delete(listener);
       if (debounce) clearTimeout(debounce);
-      supabase.removeChannel(channel);
+      void supabase.removeChannel(channel);
     };
   }, [refresh]);
 

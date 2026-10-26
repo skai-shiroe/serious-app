@@ -1,6 +1,6 @@
 // Type depuis le fork bottom-tabs integre a expo-router (le type de
 // @react-navigation/bottom-tabs natif diverge et casse le typecheck).
-import type { BottomTabBarProps } from 'expo-router/build/react-navigation/bottom-tabs';
+import type { BottomTabBarProps } from 'expo-router/build/layouts/Tabs';
 import { BlurView } from 'expo-blur';
 import * as Haptics from 'expo-haptics';
 import { Heart, MessageCircle, User, Zap, type LucideIcon } from 'lucide-react-native';
@@ -103,7 +103,7 @@ function TabItem({
   );
 }
 
-export function BottomTabBar({ state, navigation, descriptors }: BottomTabBarProps) {
+export function BottomTabBar({ state, emitter, navigateToTab, descriptors }: BottomTabBarProps) {
   const colorScheme = useColorScheme();
   const isDark = colorScheme === 'dark';
   const insets = useSafeAreaInsets();
@@ -169,13 +169,13 @@ export function BottomTabBar({ state, navigation, descriptors }: BottomTabBarPro
                 : undefined;
 
             const onPress = () => {
-              const event = navigation.emit({
+              const event = emitter.emit({
                 type: 'tabPress',
                 target: route.key,
                 canPreventDefault: true,
               });
               if (!isFocused && !event.defaultPrevented) {
-                navigation.navigate(route.name, route.params);
+                navigateToTab(route.key);
               }
               void Haptics.selectionAsync().catch(() => {});
             };

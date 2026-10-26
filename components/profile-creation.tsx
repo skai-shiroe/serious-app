@@ -98,7 +98,7 @@ function SimplePicker({
         <Text
           style={{
             color: selectedValue ? themeColors.text : themeColors.icon,
-            fontSize: 16,
+            fontSize: 15,
           }}
         >
           {selectedValue
@@ -541,26 +541,37 @@ export default function ProfileCreation({ onComplete, initialData }: ProfileCrea
         .sort((a, b) => a[0] - b[0])
         .map(([, url]) => url);
 
-      // Record profile
-      const { error: profileError } = await supabase
-        .from('profiles')
-        .upsert({
-          user_id: user.id,
-          first_name: formData.firstName,
-          last_name: formData.lastName,
-          birth_date: bd.year && bd.month && bd.day ? `${bd.year}-${bd.month.padStart(2, '0')}-${bd.day.padStart(2, '0')}` : null,
-          gender: formData.gender,
-          city: formData.city,
-          country_code: formData.countryCode,
-          phone_e164: formData.phone ? formatE164(selectedCountry.dial_code, formData.phone) : null,
-          religion: formData.religion,
-          profession: formData.profession,
-          interests: formData.interests,
-          blood_type: formData.bloodType,
-          sickle_cell: formData.sickleCell,
-          bio: formData.bio,
-          photos: uploadedUrls
-        }, { onConflict: 'user_id' });
+      // N'utilise pas upsert ici : ON CONFLICT DO UPDATE exige aussi des
+      // droits SELECT sur les colonnes sensibles (date de naissance,
+      // téléphone), volontairement masquées par les grants de profiles.
+      // Le RPC ne renvoie que le profil du compte courant et distingue la
+      // première création d'une modification.
+      const { data: existingProfile, error: lookupError } = await supabase
+        .rpc('get_my_profile')
+        .maybeSingle();
+      if (lookupError) throw lookupError;
+
+      const profileValues = {
+        first_name: formData.firstName,
+        last_name: formData.lastName,
+        birth_date: bd.year && bd.month && bd.day ? `${bd.year}-${bd.month.padStart(2, '0')}-${bd.day.padStart(2, '0')}` : null,
+        gender: formData.gender,
+        city: formData.city,
+        country_code: formData.countryCode,
+        phone_e164: formData.phone ? formatE164(selectedCountry.dial_code, formData.phone) : null,
+        religion: formData.religion,
+        profession: formData.profession,
+        interests: formData.interests,
+        blood_type: formData.bloodType,
+        sickle_cell: formData.sickleCell,
+        bio: formData.bio,
+        photos: uploadedUrls,
+      };
+
+      const writeQuery = existingProfile
+        ? supabase.from('profiles').update(profileValues).eq('user_id', user.id)
+        : supabase.from('profiles').insert({ user_id: user.id, ...profileValues });
+      const { error: profileError } = await writeQuery;
 
       if (profileError) throw profileError;
 
@@ -1299,18 +1310,18 @@ const styles = StyleSheet.create({
   stepSubtitle: { fontSize: 14 },
 
   /* Inputs */
-  inputGroup: { marginBottom: 18 },
-  label: { fontSize: 14, fontWeight: '500', marginBottom: 8 },
+  inputGroup: { marginBottom: 14 },
+  label: { fontSize: 13, fontWeight: '500', marginBottom: 6 },
   input: {
-    height: 48,
+    height: 44,
     borderWidth: 1,
-    borderRadius: 12,
-    paddingHorizontal: 16,
-    fontSize: 16,
+    borderRadius: 10,
+    paddingHorizontal: 14,
+    fontSize: 15,
   },
   textArea: {
-    height: 120,
-    paddingTop: 12,
+    height: 104,
+    paddingTop: 10,
   },
   charCount: { fontSize: 12, marginTop: 6, textAlign: 'right' },
   row: { flexDirection: 'row' },
@@ -1318,7 +1329,7 @@ const styles = StyleSheet.create({
   /* Telephone + pays (drapeau + indicatif a gauche du numero) */
   phoneRow: { flexDirection: 'row', gap: 8, alignItems: 'center' },
   countryBtn: {
-    height: 48,
+    height: 44,
     borderWidth: 1,
     borderRadius: 12,
     paddingHorizontal: 12,
@@ -1327,7 +1338,7 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   countryFlag: { fontSize: 20 },
-  phoneInput: { flex: 1, height: 48 },
+  phoneInput: { flex: 1, height: 44 },
   phoneHint: { marginTop: 6, fontSize: 12 },
 
   /* Centres d interet : compteur x/5 minimum */
@@ -1336,10 +1347,10 @@ const styles = StyleSheet.create({
 
   /* Picker */
   pickerBtn: {
-    height: 48,
+    height: 44,
     borderWidth: 1,
-    borderRadius: 12,
-    paddingHorizontal: 16,
+    borderRadius: 10,
+    paddingHorizontal: 14,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
@@ -1351,7 +1362,7 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   optionItem: {
-    paddingVertical: 12,
+    paddingVertical: 10,
     paddingHorizontal: 16,
     borderBottomWidth: StyleSheet.hairlineWidth,
   },

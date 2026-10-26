@@ -1,0 +1,803 @@
+{
+  "schema": "openai.presentation.layout/v5",
+  "unit": "px",
+  "slide": {
+    "id": "sl/hwbqtkby",
+    "index": 1,
+    "layout": {
+      "id": "ly/4v2ps7ql",
+      "name": "Slide master 2"
+    },
+    "masterLayoutId": "ly/atofqts7",
+    "backgroundColor": "rgba(17,24,39,1)",
+    "position": {
+      "left": 0,
+      "top": 0,
+      "width": 1279.97,
+      "height": 720
+    }
+  },
+  "inheritedLayers": [
+    {
+      "scope": "layout",
+      "id": "ly/4v2ps7ql",
+      "name": "Slide master 2",
+      "parentLayoutId": "ly/atofqts7",
+      "backgroundColor": "#111827",
+      "elements": []
+    },
+    {
+      "scope": "master",
+      "id": "ly/atofqts7",
+      "type": "master",
+      "elements": []
+    }
+  ],
+  "elements": [
+    {
+      "order": 1,
+      "kind": "textbox",
+      "scope": "slide",
+      "id": "sh/9072xkry",
+      "editable": true,
+      "name": "Text 0",
+      "position": {
+        "left": 53.33,
+        "top": 42.8,
+        "width": 799.98,
+        "height": 17.59
+      },
+      "geometry": "rect",
+      "text": "L’AMBITION GÉNO",
+      "style": {
+        "anchor": 1,
+        "fontSize": 14.67,
+        "typeface": "Familjen Grotesk SemiBold",
+        "color": "#FFFFFF",
+        "bold": false,
+        "italic": false,
+        "alignment": "left",
+        "verticalAlignment": "top",
+        "wrap": "none",
+        "insets": {
+          "top": 0,
+          "right": 0,
+          "bottom": 0,
+          "left": 0
+        }
+      },
+      "paragraphs": [
+        {
+          "index": 1,
+          "text": "L’AMBITION GÉNO",
+          "lineSpacingPercent": 100000,
+          "style": {
+            "alignment": "left"
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "L’AMBITION GÉNO",
+              "anchor": 1,
+              "fontSize": 14.67,
+              "typeface": "Familjen Grotesk SemiBold",
+              "color": "#FFFFFF",
+              "alignment": "left",
+              "verticalAlignment": "top",
+              "wrap": "none",
+              "insets": {
+                "top": 0,
+                "right": 0,
+                "bottom": 0,
+                "left": 0
+              }
+            }
+          ],
+          "marginLeft": 0
+        }
+      ]
+    },
+    {
+      "order": 2,
+      "kind": "textbox",
+      "scope": "slide",
+      "id": "sh/ozy1ofad",
+      "editable": true,
+      "name": "Text 1",
+      "position": {
+        "left": 53.33,
+        "top": 72.79,
+        "width": 757.31,
+        "height": 234.67
+      },
+      "geometry": "rect",
+      "text": "GÉNO REND LES RENCONTRES SÉRIEUSES PLUS ÉCLAIRÉES",
+      "style": {
+        "anchor": 1,
+        "fontSize": 58.67,
+        "typeface": "Archivo Black",
+        "color": "#FFFFFF",
+        "bold": false,
+        "italic": false,
+        "alignment": "left",
+        "verticalAlignment": "top",
+        "wrap": "square",
+        "autoFit": "shrinkText",
+        "autoFitScale": 1,
+        "insets": {
+          "top": 0,
+          "right": 0,
+          "bottom": 0,
+          "left": 0
+        }
+      },
+      "paragraphs": [
+        {
+          "index": 1,
+          "text": "GÉNO REND LES RENCONTRES SÉRIEUSES PLUS ÉCLAIRÉES",
+          "lineSpacingPercent": 83000,
+          "style": {
+            "alignment": "left"
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "GÉNO REND LES RENCONTRES SÉRIEUSES PLUS ÉCLAIRÉES",
+              "anchor": 1,
+              "fontSize": 58.67,
+              "typeface": "Archivo Black",
+              "color": "#FFFFFF",
+              "alignment": "left",
+              "verticalAlignment": "top",
+              "wrap": "square",
+              "autoFit": "shrinkText",
+              "autoFitScale": 1,
+              "insets": {
+                "top": 0,
+                "right": 0,
+                "bottom": 0,
+                "left": 0
+              }
+            }
+          ],
+          "marginLeft": 0
+        }
+      ]
+    },
+    {
+      "order": 3,
+      "kind": "image",
+      "scope": "slide",
+      "id": "im/6d8jed0r",
+      "editable": true,
+      "name": "Image 0",
+      "position": {
+        "left": 53.33,
+        "top": 324.93,
+        "width": 42.67,
+        "height": 42.67
+      },
+      "contentType": "image/png",
+      "asset": {
+        "contentType": "image/png",
+        "byteLength": 1403
+      },
+      "fillImage": {
+        "contentType": "image/png",
+        "byteLength": 1403
+      }
+    },
+    {
+      "order": 4,
+      "kind": "textbox",
+      "scope": "slide",
+      "id": "sh/a10jqpsj",
+      "editable": true,
+      "name": "Text 2",
+      "position": {
+        "left": 117.33,
+        "top": 326.78,
+        "width": 306.66,
+        "height": 28.59
+      },
+      "geometry": "rect",
+      "text": "Une application mobile",
+      "style": {
+        "anchor": 1,
+        "fontSize": 22,
+        "typeface": "Familjen Grotesk Bold",
+        "color": "#FFFFFF",
+        "bold": true,
+        "italic": false,
+        "alignment": "left",
+        "verticalAlignment": "top",
+        "wrap": "none",
+        "insets": {
+          "top": 0,
+          "right": 0,
+          "bottom": 0,
+          "left": 0
+        }
+      },
+      "paragraphs": [
+        {
+          "index": 1,
+          "text": "Une application mobile",
+          "lineSpacingPercent": 108000,
+          "style": {
+            "alignment": "left"
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "Une application mobile",
+              "anchor": 1,
+              "fontSize": 22,
+              "typeface": "Familjen Grotesk Bold",
+              "color": "#FFFFFF",
+              "bold": true,
+              "alignment": "left",
+              "verticalAlignment": "top",
+              "wrap": "none",
+              "insets": {
+                "top": 0,
+                "right": 0,
+                "bottom": 0,
+                "left": 0
+              }
+            }
+          ],
+          "marginLeft": 0
+        }
+      ]
+    },
+    {
+      "order": 5,
+      "kind": "textbox",
+      "scope": "slide",
+      "id": "sh/x4r21kru",
+      "editable": true,
+      "name": "Text 3",
+      "position": {
+        "left": 117.33,
+        "top": 369.62,
+        "width": 306.66,
+        "height": 30.93
+      },
+      "geometry": "rect",
+      "text": "Disponible sur Android et iOS.",
+      "style": {
+        "anchor": 1,
+        "fontSize": 21.33,
+        "typeface": "Familjen Grotesk",
+        "color": "#FFFFFF",
+        "bold": false,
+        "italic": false,
+        "alignment": "left",
+        "verticalAlignment": "top",
+        "wrap": "none",
+        "insets": {
+          "top": 0,
+          "right": 0,
+          "bottom": 0,
+          "left": 0
+        }
+      },
+      "paragraphs": [
+        {
+          "index": 1,
+          "text": "Disponible sur Android et iOS.",
+          "lineSpacingPercent": 121000,
+          "style": {
+            "alignment": "left"
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "Disponible sur Android et iOS.",
+              "anchor": 1,
+              "fontSize": 21.33,
+              "typeface": "Familjen Grotesk",
+              "color": "#FFFFFF",
+              "alignment": "left",
+              "verticalAlignment": "top",
+              "wrap": "none",
+              "insets": {
+                "top": 0,
+                "right": 0,
+                "bottom": 0,
+                "left": 0
+              }
+            }
+          ],
+          "marginLeft": 0
+        }
+      ]
+    },
+    {
+      "order": 6,
+      "kind": "image",
+      "scope": "slide",
+      "id": "im/tgjip8ji",
+      "editable": true,
+      "name": "Image 1",
+      "position": {
+        "left": 439.99,
+        "top": 324.93,
+        "width": 42.67,
+        "height": 42.67
+      },
+      "contentType": "image/png",
+      "asset": {
+        "contentType": "image/png",
+        "byteLength": 3497
+      },
+      "fillImage": {
+        "contentType": "image/png",
+        "byteLength": 3497
+      }
+    },
+    {
+      "order": 7,
+      "kind": "textbox",
+      "scope": "slide",
+      "id": "sh/r65knqtk",
+      "editable": true,
+      "name": "Text 4",
+      "position": {
+        "left": 503.99,
+        "top": 326.78,
+        "width": 306.66,
+        "height": 28.59
+      },
+      "geometry": "rect",
+      "text": "Une mission",
+      "style": {
+        "anchor": 1,
+        "fontSize": 22,
+        "typeface": "Familjen Grotesk Bold",
+        "color": "#FFFFFF",
+        "bold": true,
+        "italic": false,
+        "alignment": "left",
+        "verticalAlignment": "top",
+        "wrap": "none",
+        "insets": {
+          "top": 0,
+          "right": 0,
+          "bottom": 0,
+          "left": 0
+        }
+      },
+      "paragraphs": [
+        {
+          "index": 1,
+          "text": "Une mission",
+          "lineSpacingPercent": 108000,
+          "style": {
+            "alignment": "left"
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "Une mission",
+              "anchor": 1,
+              "fontSize": 22,
+              "typeface": "Familjen Grotesk Bold",
+              "color": "#FFFFFF",
+              "bold": true,
+              "alignment": "left",
+              "verticalAlignment": "top",
+              "wrap": "none",
+              "insets": {
+                "top": 0,
+                "right": 0,
+                "bottom": 0,
+                "left": 0
+              }
+            }
+          ],
+          "marginLeft": 0
+        }
+      ]
+    },
+    {
+      "order": 8,
+      "kind": "textbox",
+      "scope": "slide",
+      "id": "sh/q5wjelsz",
+      "editable": true,
+      "name": "Text 5",
+      "position": {
+        "left": 503.99,
+        "top": 369.62,
+        "width": 306.66,
+        "height": 92.78
+      },
+      "geometry": "rect",
+      "text": "Favoriser des rencontres authentiques et des relations durables.",
+      "style": {
+        "anchor": 1,
+        "fontSize": 21.33,
+        "typeface": "Familjen Grotesk",
+        "color": "#FFFFFF",
+        "bold": false,
+        "italic": false,
+        "alignment": "left",
+        "verticalAlignment": "top",
+        "wrap": "square",
+        "autoFit": "shrinkText",
+        "autoFitScale": 1,
+        "insets": {
+          "top": 0,
+          "right": 0,
+          "bottom": 0,
+          "left": 0
+        }
+      },
+      "paragraphs": [
+        {
+          "index": 1,
+          "text": "Favoriser des rencontres authentiques et des relations durables.",
+          "lineSpacingPercent": 121000,
+          "style": {
+            "alignment": "left"
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "Favoriser des rencontres authentiques et des relations durables.",
+              "anchor": 1,
+              "fontSize": 21.33,
+              "typeface": "Familjen Grotesk",
+              "color": "#FFFFFF",
+              "alignment": "left",
+              "verticalAlignment": "top",
+              "wrap": "square",
+              "autoFit": "shrinkText",
+              "autoFitScale": 1,
+              "insets": {
+                "top": 0,
+                "right": 0,
+                "bottom": 0,
+                "left": 0
+              }
+            }
+          ],
+          "marginLeft": 0
+        }
+      ]
+    },
+    {
+      "order": 9,
+      "kind": "image",
+      "scope": "slide",
+      "id": "im/jy5w3a14",
+      "editable": true,
+      "name": "Image 2",
+      "position": {
+        "left": 53.33,
+        "top": 477.64,
+        "width": 42.67,
+        "height": 42.67
+      },
+      "contentType": "image/png",
+      "asset": {
+        "contentType": "image/png",
+        "byteLength": 3227
+      },
+      "fillImage": {
+        "contentType": "image/png",
+        "byteLength": 3227
+      }
+    },
+    {
+      "order": 10,
+      "kind": "textbox",
+      "scope": "slide",
+      "id": "sh/9wnqhczy",
+      "editable": true,
+      "name": "Text 6",
+      "position": {
+        "left": 117.33,
+        "top": 479.49,
+        "width": 306.66,
+        "height": 28.59
+      },
+      "geometry": "rect",
+      "text": "Une singularité",
+      "style": {
+        "anchor": 1,
+        "fontSize": 22,
+        "typeface": "Familjen Grotesk Bold",
+        "color": "#FFFFFF",
+        "bold": true,
+        "italic": false,
+        "alignment": "left",
+        "verticalAlignment": "top",
+        "wrap": "none",
+        "insets": {
+          "top": 0,
+          "right": 0,
+          "bottom": 0,
+          "left": 0
+        }
+      },
+      "paragraphs": [
+        {
+          "index": 1,
+          "text": "Une singularité",
+          "lineSpacingPercent": 108000,
+          "style": {
+            "alignment": "left"
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "Une singularité",
+              "anchor": 1,
+              "fontSize": 22,
+              "typeface": "Familjen Grotesk Bold",
+              "color": "#FFFFFF",
+              "bold": true,
+              "alignment": "left",
+              "verticalAlignment": "top",
+              "wrap": "none",
+              "insets": {
+                "top": 0,
+                "right": 0,
+                "bottom": 0,
+                "left": 0
+              }
+            }
+          ],
+          "marginLeft": 0
+        }
+      ]
+    },
+    {
+      "order": 11,
+      "kind": "textbox",
+      "scope": "slide",
+      "id": "sh/mtwrmxg7",
+      "editable": true,
+      "name": "Text 7",
+      "position": {
+        "left": 117.33,
+        "top": 522.33,
+        "width": 306.66,
+        "height": 92.78
+      },
+      "geometry": "rect",
+      "text": "Associer les affinités humaines à la prise en compte de la compatibilité des génotypes.",
+      "style": {
+        "anchor": 1,
+        "fontSize": 21.33,
+        "typeface": "Familjen Grotesk",
+        "color": "#FFFFFF",
+        "bold": false,
+        "italic": false,
+        "alignment": "left",
+        "verticalAlignment": "top",
+        "wrap": "square",
+        "autoFit": "shrinkText",
+        "autoFitScale": 1,
+        "insets": {
+          "top": 0,
+          "right": 0,
+          "bottom": 0,
+          "left": 0
+        }
+      },
+      "paragraphs": [
+        {
+          "index": 1,
+          "text": "Associer les affinités humaines à la prise en compte de la compatibilité des génotypes.",
+          "lineSpacingPercent": 121000,
+          "style": {
+            "alignment": "left"
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "Associer les affinités humaines à la prise en compte de la compatibilité des génotypes.",
+              "anchor": 1,
+              "fontSize": 21.33,
+              "typeface": "Familjen Grotesk",
+              "color": "#FFFFFF",
+              "alignment": "left",
+              "verticalAlignment": "top",
+              "wrap": "square",
+              "autoFit": "shrinkText",
+              "autoFitScale": 1,
+              "insets": {
+                "top": 0,
+                "right": 0,
+                "bottom": 0,
+                "left": 0
+              }
+            }
+          ],
+          "marginLeft": 0
+        }
+      ]
+    },
+    {
+      "order": 12,
+      "kind": "image",
+      "scope": "slide",
+      "id": "im/kzexcfip",
+      "editable": true,
+      "name": "Image 3",
+      "position": {
+        "left": 439.99,
+        "top": 477.64,
+        "width": 42.67,
+        "height": 42.67
+      },
+      "contentType": "image/png",
+      "asset": {
+        "contentType": "image/png",
+        "byteLength": 4659
+      },
+      "fillImage": {
+        "contentType": "image/png",
+        "byteLength": 4659
+      }
+    },
+    {
+      "order": 13,
+      "kind": "textbox",
+      "scope": "slide",
+      "id": "sh/wjy9sry9",
+      "editable": true,
+      "name": "Text 8",
+      "position": {
+        "left": 503.99,
+        "top": 479.49,
+        "width": 306.66,
+        "height": 28.59
+      },
+      "geometry": "rect",
+      "text": "Où en sommes-nous",
+      "style": {
+        "anchor": 1,
+        "fontSize": 22,
+        "typeface": "Familjen Grotesk Bold",
+        "color": "#FFFFFF",
+        "bold": true,
+        "italic": false,
+        "alignment": "left",
+        "verticalAlignment": "top",
+        "wrap": "none",
+        "insets": {
+          "top": 0,
+          "right": 0,
+          "bottom": 0,
+          "left": 0
+        }
+      },
+      "paragraphs": [
+        {
+          "index": 1,
+          "text": "Où en sommes-nous",
+          "lineSpacingPercent": 108000,
+          "style": {
+            "alignment": "left"
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "Où en sommes-nous",
+              "anchor": 1,
+              "fontSize": 22,
+              "typeface": "Familjen Grotesk Bold",
+              "color": "#FFFFFF",
+              "bold": true,
+              "alignment": "left",
+              "verticalAlignment": "top",
+              "wrap": "none",
+              "insets": {
+                "top": 0,
+                "right": 0,
+                "bottom": 0,
+                "left": 0
+              }
+            }
+          ],
+          "marginLeft": 0
+        }
+      ]
+    },
+    {
+      "order": 14,
+      "kind": "textbox",
+      "scope": "slide",
+      "id": "sh/xk7qlczu",
+      "editable": true,
+      "name": "Text 9",
+      "position": {
+        "left": 503.99,
+        "top": 522.33,
+        "width": 306.66,
+        "height": 92.78
+      },
+      "geometry": "rect",
+      "text": "Application développée, actuellement en phase de test auprès des premiers utilisateurs.",
+      "style": {
+        "anchor": 1,
+        "fontSize": 21.33,
+        "typeface": "Familjen Grotesk",
+        "color": "#FFFFFF",
+        "bold": false,
+        "italic": false,
+        "alignment": "left",
+        "verticalAlignment": "top",
+        "wrap": "square",
+        "autoFit": "shrinkText",
+        "autoFitScale": 1,
+        "insets": {
+          "top": 0,
+          "right": 0,
+          "bottom": 0,
+          "left": 0
+        }
+      },
+      "paragraphs": [
+        {
+          "index": 1,
+          "text": "Application développée, actuellement en phase de test auprès des premiers utilisateurs.",
+          "lineSpacingPercent": 121000,
+          "style": {
+            "alignment": "left"
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "Application développée, actuellement en phase de test auprès des premiers utilisateurs.",
+              "anchor": 1,
+              "fontSize": 21.33,
+              "typeface": "Familjen Grotesk",
+              "color": "#FFFFFF",
+              "alignment": "left",
+              "verticalAlignment": "top",
+              "wrap": "square",
+              "autoFit": "shrinkText",
+              "autoFitScale": 1,
+              "insets": {
+                "top": 0,
+                "right": 0,
+                "bottom": 0,
+                "left": 0
+              }
+            }
+          ],
+          "marginLeft": 0
+        }
+      ]
+    },
+    {
+      "order": 15,
+      "kind": "image",
+      "scope": "slide",
+      "id": "im/xwne10je",
+      "editable": true,
+      "name": "Image 4",
+      "position": {
+        "left": 853.31,
+        "top": 0,
+        "width": 426.66,
+        "height": 720
+      },
+      "contentType": "image/jpeg",
+      "asset": {
+        "contentType": "image/jpeg",
+        "byteLength": 211982
+      },
+      "fillImage": {
+        "contentType": "image/jpeg",
+        "byteLength": 211982
+      }
+    }
+  ]
+}

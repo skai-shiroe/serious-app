@@ -112,8 +112,12 @@ export default function MatchScreen() {
       const user = await getUser();
       if (!active || !user) return;
 
+      // En React Strict Mode / Fast Refresh, l'ancien canal peut être encore
+      // en cours de fermeture. Un topic unique évite que Supabase réutilise un
+      // canal déjà abonné avant l'ajout des callbacks.
+      const channelTopic = `received-likes-count:${user.id}:${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
       channel = supabase
-        .channel(`received-likes-count:${user.id}`)
+        .channel(channelTopic)
         .on('postgres_changes', {
           event: '*',
           schema: 'public',
@@ -177,22 +181,27 @@ export default function MatchScreen() {
   const loadingMoreRef = useRef(false);
   // Curseur de pagination du deck : `user_id` du dernier profil parcouru.
   const deckCursorRef = useRef<string | null>(null);
-  // Genre du visiteur, lu une seule fois puis mis en cache : il conditionne le
-  // filtrage strict du deck (voir lib/candidates.ts).
+  // Profil du visiteur mis en cache pendant l'affichage du deck, puis relu à
+  // chaque retour sur Match pour appliquer les changements faits dans Profil.
   const viewerGenderRef = useRef<string | null | undefined>(undefined);
   // Pays du visiteur : borne la liste de villes proposee par le filtre deck.
   const [viewerCountry, setViewerCountry] = useState<string | null>(null);
-  const loadViewerGender = useCallback(async (): Promise<string | null> => {
-    if (viewerGenderRef.current !== undefined) return viewerGenderRef.current;
+  const loadViewerGender = useCallback(async (forceRefresh = false): Promise<string | null> => {
+    if (!forceRefresh && viewerGenderRef.current !== undefined) return viewerGenderRef.current;
     try {
       const user = await getUser();
       if (!user) {
         viewerGenderRef.current = null;
       } else {
         const { data } = await supabase.rpc('get_my_profile').single();
-        viewerGenderRef.current = data?.gender ?? null;
-        setViewerCountry(data?.country_code ?? null);
-        setViewerGenotype(data?.sickle_cell ?? null);
+        const viewerProfile = data as {
+          gender?: string | null;
+          country_code?: string | null;
+          sickle_cell?: string | null;
+        } | null;
+        viewerGenderRef.current = viewerProfile?.gender ?? null;
+        setViewerCountry(viewerProfile?.country_code ?? null);
+        setViewerGenotype(viewerProfile?.sickle_cell ?? null);
       }
     } catch {
       // Echec NON memorise : on retente a la prochaine lecture. Si on mettait
@@ -236,7 +245,7 @@ export default function MatchScreen() {
       setLoadError(null);
       const user = await getUser();
       if (!user) return;
-      const viewerGender = await loadViewerGender();
+      const viewerGender = await loadViewerGender(true);
 
       // Le deck repart du debut : le curseur est remis a zero.
       deckCursorRef.current = null;
@@ -321,9 +330,9 @@ export default function MatchScreen() {
     }
   }, [filters, loadViewerGender]);
 
-  useEffect(() => {
-    fetchProfiles();
-  }, [fetchProfiles]);
+  useFocusEffect(useCallback(() => {
+    void fetchProfiles();
+  }, [fetchProfiles]));
 
   // Reference a jour de l'etat, pour les callbacks de gestes
   useEffect(() => {
@@ -662,7 +671,7 @@ export default function MatchScreen() {
                 {isFullyVerified(currentProfile) && (
                   <CertifiedPhotoBadge size={30} style={{ top: 28, right: 16 }} />
                 )}
-                
+
                 {/* Pagination Dots */}
                 {currentProfile.photos && currentProfile.photos.length > 1 && (
                   <View style={styles.paginationDots}>
@@ -739,12 +748,13 @@ export default function MatchScreen() {
                     </View>
                   )}
 
-                  <TouchableOpacity 
+                  <TouchableOpacity
                     style={[styles.infoIcon, isCompactScreen && styles.infoIconCompact]}
                     onPress={() => openProfileSheet(currentProfile)}
                   >
                     <Info color="#fff" size={24} />
                   </TouchableOpacity>
+
                 </LinearGradient>
               </Animated.View>
             </GestureDetector>
@@ -766,6 +776,7 @@ export default function MatchScreen() {
               onAction={openFilters}
             />
           )}
+
         </View>
 
         {/* Annulation du dernier swipe : 1 seul niveau, fenêtre de 10 s */}
@@ -784,14 +795,14 @@ export default function MatchScreen() {
 
         {currentProfile && (
           <View style={[styles.buttonsContainer, isCompactScreen && styles.buttonsContainerCompact]}>
-            <TouchableOpacity 
+            <TouchableOpacity
               style={[styles.actionBtn, isCompactScreen && styles.actionBtnCompact, styles.dislikeBtn, { backgroundColor: themeColors.card }]}
               onPress={() => handleAction('left')}
               activeOpacity={0.8}
             >
               <X color="#ef4444" size={26} />
             </TouchableOpacity>
-            <TouchableOpacity 
+            <TouchableOpacity
               style={[styles.actionBtn, isCompactScreen && styles.actionBtnCompact, styles.likeBtn, { backgroundColor: themeColors.card }]}
               onPress={() => handleAction('right')}
               activeOpacity={0.8}
@@ -1088,26 +1099,26 @@ const styles = StyleSheet.create({
   interestChipText: { color: '#f9fafb', fontSize: 11, fontWeight: '600' },
   infoIcon: { position: 'absolute', right: 24, bottom: 24, width: 44, height: 44, borderRadius: 22, backgroundColor: 'rgba(255,255,255,0.2)', justifyContent: 'center', alignItems: 'center' },
   infoIconCompact: { right: 16, bottom: 16, width: 38, height: 38, borderRadius: 19 },
-  buttonsContainer: { 
-    flexDirection: 'row', 
-    justifyContent: 'center', 
-    alignItems: 'center', 
-    paddingBottom: 24, 
-    paddingTop: 8, 
-    gap: 24
+  buttonsContainer: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingBottom: 24,
+    paddingTop: 8,
+    gap: 24,
   },
   buttonsContainerCompact: { paddingTop: 4, paddingBottom: 8, gap: 14 },
   actionBtn: {
     width: 58,
     height: 58,
     borderRadius: 29,
-    justifyContent: 'center', 
-    alignItems: 'center', 
-    shadowColor: '#000', 
-    shadowOffset: { width: 0, height: 8 }, 
-    shadowOpacity: 0.15, 
-    shadowRadius: 12, 
-    elevation: 8 
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.15,
+    shadowRadius: 12,
+    elevation: 8,
   },
   actionBtnCompact: { width: 50, height: 50, borderRadius: 25 },
   dislikeBtn: { borderColor: '#ef4444', borderWidth: 2 },

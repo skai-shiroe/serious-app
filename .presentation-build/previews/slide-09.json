@@ -1,0 +1,822 @@
+{
+  "schema": "openai.presentation.layout/v5",
+  "unit": "px",
+  "slide": {
+    "id": "sl/udsvah03",
+    "index": 8,
+    "layout": {
+      "id": "ly/4v2ps7ql",
+      "name": "Slide master 2"
+    },
+    "masterLayoutId": "ly/atofqts7",
+    "backgroundColor": "rgba(17,24,39,1)",
+    "position": {
+      "left": 0,
+      "top": 0,
+      "width": 1279.97,
+      "height": 720
+    }
+  },
+  "inheritedLayers": [
+    {
+      "scope": "layout",
+      "id": "ly/4v2ps7ql",
+      "name": "Slide master 2",
+      "parentLayoutId": "ly/atofqts7",
+      "backgroundColor": "#111827",
+      "elements": []
+    },
+    {
+      "scope": "master",
+      "id": "ly/atofqts7",
+      "type": "master",
+      "elements": []
+    }
+  ],
+  "elements": [
+    {
+      "order": 1,
+      "kind": "textbox",
+      "scope": "slide",
+      "id": "sh/1cfmhgne",
+      "editable": true,
+      "name": "Text 0",
+      "position": {
+        "left": 58.67,
+        "top": 58.8,
+        "width": 709.32,
+        "height": 17.59
+      },
+      "geometry": "rect",
+      "text": "PROCHAINE ÉTAPE",
+      "style": {
+        "anchor": 1,
+        "fontSize": 14.67,
+        "typeface": "Familjen Grotesk SemiBold",
+        "color": "#FFFFFF",
+        "bold": false,
+        "italic": false,
+        "alignment": "left",
+        "verticalAlignment": "top",
+        "wrap": "none",
+        "insets": {
+          "top": 0,
+          "right": 0,
+          "bottom": 0,
+          "left": 0
+        }
+      },
+      "paragraphs": [
+        {
+          "index": 1,
+          "text": "PROCHAINE ÉTAPE",
+          "lineSpacingPercent": 100000,
+          "style": {
+            "alignment": "left"
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "PROCHAINE ÉTAPE",
+              "anchor": 1,
+              "fontSize": 14.67,
+              "typeface": "Familjen Grotesk SemiBold",
+              "color": "#FFFFFF",
+              "alignment": "left",
+              "verticalAlignment": "top",
+              "wrap": "none",
+              "insets": {
+                "top": 0,
+                "right": 0,
+                "bottom": 0,
+                "left": 0
+              }
+            }
+          ],
+          "marginLeft": 0
+        }
+      ]
+    },
+    {
+      "order": 2,
+      "kind": "textbox",
+      "scope": "slide",
+      "id": "sh/0b65obm9",
+      "editable": true,
+      "name": "Text 1",
+      "position": {
+        "left": 58.67,
+        "top": 88.79,
+        "width": 685.32,
+        "height": 234.67
+      },
+      "geometry": "rect",
+      "text": "ENSEMBLE, DONNONS PLUS DE SENS AUX RENCONTRES",
+      "style": {
+        "anchor": 1,
+        "fontSize": 58.67,
+        "typeface": "Archivo Black",
+        "color": "#FFFFFF",
+        "bold": false,
+        "italic": false,
+        "alignment": "left",
+        "verticalAlignment": "top",
+        "wrap": "square",
+        "autoFit": "shrinkText",
+        "autoFitScale": 1,
+        "insets": {
+          "top": 0,
+          "right": 0,
+          "bottom": 0,
+          "left": 0
+        }
+      },
+      "paragraphs": [
+        {
+          "index": 1,
+          "text": "ENSEMBLE, DONNONS PLUS DE SENS AUX RENCONTRES",
+          "lineSpacingPercent": 83000,
+          "style": {
+            "alignment": "left"
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "ENSEMBLE, DONNONS PLUS DE SENS AUX RENCONTRES",
+              "anchor": 1,
+              "fontSize": 58.67,
+              "typeface": "Archivo Black",
+              "color": "#FFFFFF",
+              "alignment": "left",
+              "verticalAlignment": "top",
+              "wrap": "square",
+              "autoFit": "shrinkText",
+              "autoFitScale": 1,
+              "insets": {
+                "top": 0,
+                "right": 0,
+                "bottom": 0,
+                "left": 0
+              }
+            }
+          ],
+          "marginLeft": 0
+        }
+      ]
+    },
+    {
+      "order": 3,
+      "kind": "textbox",
+      "scope": "slide",
+      "id": "sh/nex4jq5k",
+      "editable": true,
+      "name": "Text 2",
+      "position": {
+        "left": 58.67,
+        "top": 341.69,
+        "width": 685.32,
+        "height": 61.85
+      },
+      "geometry": "rect",
+      "text": "Nous serions ravis d’échanger avec vous afin d’explorer les opportunités d’une collaboration mutuellement bénéfique.",
+      "style": {
+        "anchor": 1,
+        "fontSize": 21.33,
+        "typeface": "Familjen Grotesk",
+        "color": "#FFFFFF",
+        "bold": false,
+        "italic": false,
+        "alignment": "left",
+        "verticalAlignment": "top",
+        "wrap": "square",
+        "autoFit": "shrinkText",
+        "autoFitScale": 1,
+        "insets": {
+          "top": 0,
+          "right": 0,
+          "bottom": 0,
+          "left": 0
+        }
+      },
+      "paragraphs": [
+        {
+          "index": 1,
+          "text": "Nous serions ravis d’échanger avec vous afin d’explorer les opportunités d’une collaboration mutuellement bénéfique.",
+          "lineSpacingPercent": 121000,
+          "style": {
+            "alignment": "left"
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "Nous serions ravis d’échanger avec vous afin d’explorer les opportunités d’une collaboration mutuellement bénéfique.",
+              "anchor": 1,
+              "fontSize": 21.33,
+              "typeface": "Familjen Grotesk",
+              "color": "#FFFFFF",
+              "alignment": "left",
+              "verticalAlignment": "top",
+              "wrap": "square",
+              "autoFit": "shrinkText",
+              "autoFitScale": 1,
+              "insets": {
+                "top": 0,
+                "right": 0,
+                "bottom": 0,
+                "left": 0
+              }
+            }
+          ],
+          "marginLeft": 0
+        }
+      ]
+    },
+    {
+      "order": 4,
+      "kind": "shape",
+      "scope": "slide",
+      "id": "sh/mdonql4z",
+      "editable": true,
+      "name": "Shape 3",
+      "position": {
+        "left": 58.67,
+        "top": 422.11,
+        "width": 370,
+        "height": 33.26
+      },
+      "geometry": "roundRect",
+      "fillColor": "#F43F5E"
+    },
+    {
+      "order": 5,
+      "kind": "textbox",
+      "scope": "slide",
+      "id": "sh/9gzml0nq",
+      "editable": true,
+      "name": "Text 4",
+      "position": {
+        "left": 71.46,
+        "top": 428.67,
+        "width": 341.44,
+        "height": 20.47
+      },
+      "geometry": "rect",
+      "text": "DEVENEZ PARTENAIRE DE GÉNO",
+      "style": {
+        "anchor": 1,
+        "fontSize": 17.33,
+        "typeface": "Familjen Grotesk SemiBold",
+        "color": "#FFFFFF",
+        "bold": false,
+        "italic": false,
+        "alignment": "left",
+        "verticalAlignment": "top",
+        "wrap": "none",
+        "insets": {
+          "top": 0,
+          "right": 0,
+          "bottom": 0,
+          "left": 0
+        }
+      },
+      "paragraphs": [
+        {
+          "index": 1,
+          "text": "DEVENEZ PARTENAIRE DE GÉNO",
+          "lineSpacingPercent": 100000,
+          "style": {
+            "alignment": "left"
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "DEVENEZ PARTENAIRE DE GÉNO",
+              "anchor": 1,
+              "fontSize": 17.33,
+              "typeface": "Familjen Grotesk SemiBold",
+              "color": "#FFFFFF",
+              "alignment": "left",
+              "verticalAlignment": "top",
+              "wrap": "none",
+              "insets": {
+                "top": 0,
+                "right": 0,
+                "bottom": 0,
+                "left": 0
+              }
+            }
+          ],
+          "marginLeft": 0
+        }
+      ]
+    },
+    {
+      "order": 6,
+      "kind": "textbox",
+      "scope": "slide",
+      "id": "sh/ofq5svm5",
+      "editable": true,
+      "name": "Text 5",
+      "position": {
+        "left": 58.67,
+        "top": 475.47,
+        "width": 342.66,
+        "height": 30.93
+      },
+      "geometry": "rect",
+      "text": "Nom du responsable : à compléter",
+      "style": {
+        "anchor": 1,
+        "fontSize": 21.33,
+        "typeface": "Familjen Grotesk Bold",
+        "color": "#FFFFFF",
+        "bold": true,
+        "italic": false,
+        "alignment": "left",
+        "verticalAlignment": "top",
+        "wrap": "none",
+        "insets": {
+          "top": 0,
+          "right": 0,
+          "bottom": 0,
+          "left": 0
+        }
+      },
+      "paragraphs": [
+        {
+          "index": 1,
+          "text": "Nom du responsable : à compléter",
+          "lineSpacingPercent": 121000,
+          "style": {
+            "alignment": "left"
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "Nom du responsable :",
+              "anchor": 1,
+              "fontSize": 21.33,
+              "typeface": "Familjen Grotesk Bold",
+              "color": "#FFFFFF",
+              "bold": true,
+              "alignment": "left",
+              "verticalAlignment": "top",
+              "wrap": "none",
+              "insets": {
+                "top": 0,
+                "right": 0,
+                "bottom": 0,
+                "left": 0
+              }
+            },
+            {
+              "index": 2,
+              "text": " à compléter",
+              "anchor": 1,
+              "fontSize": 21.33,
+              "typeface": "Familjen Grotesk",
+              "color": "#FFFFFF",
+              "alignment": "left",
+              "verticalAlignment": "top",
+              "wrap": "none",
+              "insets": {
+                "top": 0,
+                "right": 0,
+                "bottom": 0,
+                "left": 0
+              }
+            }
+          ],
+          "marginLeft": 0
+        }
+      ]
+    },
+    {
+      "order": 7,
+      "kind": "textbox",
+      "scope": "slide",
+      "id": "sh/bih4na5w",
+      "editable": true,
+      "name": "Text 6",
+      "position": {
+        "left": 425.32,
+        "top": 475.47,
+        "width": 318.66,
+        "height": 30.93
+      },
+      "geometry": "rect",
+      "text": "Adresse e-mail : à compléter",
+      "style": {
+        "anchor": 1,
+        "fontSize": 21.33,
+        "typeface": "Familjen Grotesk Bold",
+        "color": "#FFFFFF",
+        "bold": true,
+        "italic": false,
+        "alignment": "left",
+        "verticalAlignment": "top",
+        "wrap": "none",
+        "insets": {
+          "top": 0,
+          "right": 0,
+          "bottom": 0,
+          "left": 0
+        }
+      },
+      "paragraphs": [
+        {
+          "index": 1,
+          "text": "Adresse e-mail : à compléter",
+          "lineSpacingPercent": 121000,
+          "style": {
+            "alignment": "left"
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "Adresse e-mail :",
+              "anchor": 1,
+              "fontSize": 21.33,
+              "typeface": "Familjen Grotesk Bold",
+              "color": "#FFFFFF",
+              "bold": true,
+              "alignment": "left",
+              "verticalAlignment": "top",
+              "wrap": "none",
+              "insets": {
+                "top": 0,
+                "right": 0,
+                "bottom": 0,
+                "left": 0
+              }
+            },
+            {
+              "index": 2,
+              "text": " à compléter",
+              "anchor": 1,
+              "fontSize": 21.33,
+              "typeface": "Familjen Grotesk",
+              "color": "#FFFFFF",
+              "alignment": "left",
+              "verticalAlignment": "top",
+              "wrap": "none",
+              "insets": {
+                "top": 0,
+                "right": 0,
+                "bottom": 0,
+                "left": 0
+              }
+            }
+          ],
+          "marginLeft": 0
+        }
+      ]
+    },
+    {
+      "order": 8,
+      "kind": "textbox",
+      "scope": "slide",
+      "id": "sh/ah8nu54b",
+      "editable": true,
+      "name": "Text 7",
+      "position": {
+        "left": 58.67,
+        "top": 554.4,
+        "width": 342.66,
+        "height": 30.93
+      },
+      "geometry": "rect",
+      "text": "Téléphone : à compléter",
+      "style": {
+        "anchor": 1,
+        "fontSize": 21.33,
+        "typeface": "Familjen Grotesk Bold",
+        "color": "#FFFFFF",
+        "bold": true,
+        "italic": false,
+        "alignment": "left",
+        "verticalAlignment": "top",
+        "wrap": "none",
+        "insets": {
+          "top": 0,
+          "right": 0,
+          "bottom": 0,
+          "left": 0
+        }
+      },
+      "paragraphs": [
+        {
+          "index": 1,
+          "text": "Téléphone : à compléter",
+          "lineSpacingPercent": 121000,
+          "style": {
+            "alignment": "left"
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "Téléphone :",
+              "anchor": 1,
+              "fontSize": 21.33,
+              "typeface": "Familjen Grotesk Bold",
+              "color": "#FFFFFF",
+              "bold": true,
+              "alignment": "left",
+              "verticalAlignment": "top",
+              "wrap": "none",
+              "insets": {
+                "top": 0,
+                "right": 0,
+                "bottom": 0,
+                "left": 0
+              }
+            },
+            {
+              "index": 2,
+              "text": " à compléter",
+              "anchor": 1,
+              "fontSize": 21.33,
+              "typeface": "Familjen Grotesk",
+              "color": "#FFFFFF",
+              "alignment": "left",
+              "verticalAlignment": "top",
+              "wrap": "none",
+              "insets": {
+                "top": 0,
+                "right": 0,
+                "bottom": 0,
+                "left": 0
+              }
+            }
+          ],
+          "marginLeft": 0
+        }
+      ]
+    },
+    {
+      "order": 9,
+      "kind": "textbox",
+      "scope": "slide",
+      "id": "sh/oza1gfyh",
+      "editable": true,
+      "name": "Text 8",
+      "position": {
+        "left": 425.32,
+        "top": 554.4,
+        "width": 318.66,
+        "height": 30.93
+      },
+      "geometry": "rect",
+      "text": "Site web : à compléter",
+      "style": {
+        "anchor": 1,
+        "fontSize": 21.33,
+        "typeface": "Familjen Grotesk Bold",
+        "color": "#FFFFFF",
+        "bold": true,
+        "italic": false,
+        "alignment": "left",
+        "verticalAlignment": "top",
+        "wrap": "none",
+        "insets": {
+          "top": 0,
+          "right": 0,
+          "bottom": 0,
+          "left": 0
+        }
+      },
+      "paragraphs": [
+        {
+          "index": 1,
+          "text": "Site web : à compléter",
+          "lineSpacingPercent": 121000,
+          "style": {
+            "alignment": "left"
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "Site web :",
+              "anchor": 1,
+              "fontSize": 21.33,
+              "typeface": "Familjen Grotesk Bold",
+              "color": "#FFFFFF",
+              "bold": true,
+              "alignment": "left",
+              "verticalAlignment": "top",
+              "wrap": "none",
+              "insets": {
+                "top": 0,
+                "right": 0,
+                "bottom": 0,
+                "left": 0
+              }
+            },
+            {
+              "index": 2,
+              "text": " à compléter",
+              "anchor": 1,
+              "fontSize": 21.33,
+              "typeface": "Familjen Grotesk",
+              "color": "#FFFFFF",
+              "alignment": "left",
+              "verticalAlignment": "top",
+              "wrap": "none",
+              "insets": {
+                "top": 0,
+                "right": 0,
+                "bottom": 0,
+                "left": 0
+              }
+            }
+          ],
+          "marginLeft": 0
+        }
+      ]
+    },
+    {
+      "order": 10,
+      "kind": "textbox",
+      "scope": "slide",
+      "id": "sh/p0ji9kf2",
+      "editable": true,
+      "name": "Text 9",
+      "position": {
+        "left": 58.67,
+        "top": 633.33,
+        "width": 685.32,
+        "height": 30.93
+      },
+      "geometry": "rect",
+      "text": "Liens vers l’application : à compléter",
+      "style": {
+        "anchor": 1,
+        "fontSize": 21.33,
+        "typeface": "Familjen Grotesk Bold",
+        "color": "#FFFFFF",
+        "bold": true,
+        "italic": false,
+        "alignment": "left",
+        "verticalAlignment": "top",
+        "wrap": "none",
+        "insets": {
+          "top": 0,
+          "right": 0,
+          "bottom": 0,
+          "left": 0
+        }
+      },
+      "paragraphs": [
+        {
+          "index": 1,
+          "text": "Liens vers l’application : à compléter",
+          "lineSpacingPercent": 121000,
+          "style": {
+            "alignment": "left"
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "Liens vers l’application :",
+              "anchor": 1,
+              "fontSize": 21.33,
+              "typeface": "Familjen Grotesk Bold",
+              "color": "#FFFFFF",
+              "bold": true,
+              "alignment": "left",
+              "verticalAlignment": "top",
+              "wrap": "none",
+              "insets": {
+                "top": 0,
+                "right": 0,
+                "bottom": 0,
+                "left": 0
+              }
+            },
+            {
+              "index": 2,
+              "text": " à compléter",
+              "anchor": 1,
+              "fontSize": 21.33,
+              "typeface": "Familjen Grotesk",
+              "color": "#FFFFFF",
+              "alignment": "left",
+              "verticalAlignment": "top",
+              "wrap": "none",
+              "insets": {
+                "top": 0,
+                "right": 0,
+                "bottom": 0,
+                "left": 0
+              }
+            }
+          ],
+          "marginLeft": 0
+        }
+      ]
+    },
+    {
+      "order": 11,
+      "kind": "image",
+      "scope": "slide",
+      "id": "im/hcz65kbq",
+      "editable": true,
+      "name": "Image 0",
+      "position": {
+        "left": 767.98,
+        "top": 0,
+        "width": 511.99,
+        "height": 720
+      },
+      "contentType": "image/jpeg",
+      "asset": {
+        "contentType": "image/jpeg",
+        "byteLength": 224042
+      },
+      "fillImage": {
+        "contentType": "image/jpeg",
+        "byteLength": 224042
+      }
+    },
+    {
+      "order": 12,
+      "kind": "shape",
+      "scope": "slide",
+      "id": "sh/3y107axw",
+      "editable": true,
+      "name": "Shape 10",
+      "position": {
+        "left": 400.66,
+        "top": 474.71,
+        "width": 1.33,
+        "height": 54.93
+      },
+      "geometry": "rect",
+      "fillColor": "#65364A"
+    },
+    {
+      "order": 13,
+      "kind": "shape",
+      "scope": "slide",
+      "id": "sh/cnu1kzyd",
+      "editable": true,
+      "name": "Shape 11",
+      "position": {
+        "left": 58.67,
+        "top": 528.97,
+        "width": 342.66,
+        "height": 1.33
+      },
+      "geometry": "rect",
+      "fillColor": "#65364A"
+    },
+    {
+      "order": 14,
+      "kind": "shape",
+      "scope": "slide",
+      "id": "sh/do3id4fy",
+      "editable": true,
+      "name": "Shape 12",
+      "position": {
+        "left": 400.66,
+        "top": 529.64,
+        "width": 1.33,
+        "height": 78.93
+      },
+      "geometry": "rect",
+      "fillColor": "#65364A"
+    },
+    {
+      "order": 15,
+      "kind": "shape",
+      "scope": "slide",
+      "id": "sh/qlcjipgn",
+      "editable": true,
+      "name": "Shape 13",
+      "position": {
+        "left": 401.32,
+        "top": 528.97,
+        "width": 342.66,
+        "height": 1.33
+      },
+      "geometry": "rect",
+      "fillColor": "#65364A"
+    },
+    {
+      "order": 16,
+      "kind": "shape",
+      "scope": "slide",
+      "id": "sh/bml0buxs",
+      "editable": true,
+      "name": "Shape 14",
+      "position": {
+        "left": 58.67,
+        "top": 607.9,
+        "width": 685.32,
+        "height": 1.33
+      },
+      "geometry": "rect",
+      "fillColor": "#65364A"
+    }
+  ]
+}

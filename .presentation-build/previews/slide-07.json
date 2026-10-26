@@ -1,0 +1,1281 @@
+{
+  "schema": "openai.presentation.layout/v5",
+  "unit": "px",
+  "slide": {
+    "id": "sl/gnmp4jqx",
+    "index": 6,
+    "layout": {
+      "id": "ly/4v2ps7ql",
+      "name": "Slide master 2"
+    },
+    "masterLayoutId": "ly/atofqts7",
+    "backgroundColor": "rgba(255,247,248,1)",
+    "position": {
+      "left": 0,
+      "top": 0,
+      "width": 1279.97,
+      "height": 720
+    }
+  },
+  "inheritedLayers": [
+    {
+      "scope": "layout",
+      "id": "ly/4v2ps7ql",
+      "name": "Slide master 2",
+      "parentLayoutId": "ly/atofqts7",
+      "backgroundColor": "#111827",
+      "elements": []
+    },
+    {
+      "scope": "master",
+      "id": "ly/atofqts7",
+      "type": "master",
+      "elements": []
+    }
+  ],
+  "elements": [
+    {
+      "order": 1,
+      "kind": "textbox",
+      "scope": "slide",
+      "id": "sh/cb2tkvap",
+      "editable": true,
+      "name": "Text 0",
+      "position": {
+        "left": 58.67,
+        "top": 58.8,
+        "width": 1221.3,
+        "height": 17.59
+      },
+      "geometry": "rect",
+      "text": "PASSER DE L’IDÉE À L’APPRENTISSAGE",
+      "style": {
+        "anchor": 1,
+        "fontSize": 14.67,
+        "typeface": "Familjen Grotesk SemiBold",
+        "color": "#111827",
+        "bold": false,
+        "italic": false,
+        "alignment": "left",
+        "verticalAlignment": "top",
+        "wrap": "none",
+        "insets": {
+          "top": 0,
+          "right": 0,
+          "bottom": 0,
+          "left": 0
+        }
+      },
+      "paragraphs": [
+        {
+          "index": 1,
+          "text": "PASSER DE L’IDÉE À L’APPRENTISSAGE",
+          "lineSpacingPercent": 100000,
+          "style": {
+            "alignment": "left"
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "PASSER DE L’IDÉE À L’APPRENTISSAGE",
+              "anchor": 1,
+              "fontSize": 14.67,
+              "typeface": "Familjen Grotesk SemiBold",
+              "color": "#111827",
+              "alignment": "left",
+              "verticalAlignment": "top",
+              "wrap": "none",
+              "insets": {
+                "top": 0,
+                "right": 0,
+                "bottom": 0,
+                "left": 0
+              }
+            }
+          ],
+          "marginLeft": 0
+        }
+      ]
+    },
+    {
+      "order": 2,
+      "kind": "textbox",
+      "scope": "slide",
+      "id": "sh/dcbud0ra",
+      "editable": true,
+      "name": "Text 1",
+      "position": {
+        "left": 58.67,
+        "top": 88.79,
+        "width": 1162.64,
+        "height": 117.33
+      },
+      "geometry": "rect",
+      "text": "UN PILOTE DE 30 À 60 JOURS POUR COMMENCER CONCRÈTEMENT",
+      "style": {
+        "anchor": 1,
+        "fontSize": 58.67,
+        "typeface": "Archivo Black",
+        "color": "#111827",
+        "bold": false,
+        "italic": false,
+        "alignment": "left",
+        "verticalAlignment": "top",
+        "wrap": "square",
+        "autoFit": "shrinkText",
+        "autoFitScale": 1,
+        "insets": {
+          "top": 0,
+          "right": 0,
+          "bottom": 0,
+          "left": 0
+        }
+      },
+      "paragraphs": [
+        {
+          "index": 1,
+          "text": "UN PILOTE DE 30 À 60 JOURS POUR COMMENCER CONCRÈTEMENT",
+          "lineSpacingPercent": 83000,
+          "style": {
+            "alignment": "left"
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "UN PILOTE DE 30 À 60 JOURS POUR COMMENCER CONCRÈTEMENT",
+              "anchor": 1,
+              "fontSize": 58.67,
+              "typeface": "Archivo Black",
+              "color": "#111827",
+              "alignment": "left",
+              "verticalAlignment": "top",
+              "wrap": "square",
+              "autoFit": "shrinkText",
+              "autoFitScale": 1,
+              "insets": {
+                "top": 0,
+                "right": 0,
+                "bottom": 0,
+                "left": 0
+              }
+            }
+          ],
+          "marginLeft": 0
+        }
+      ]
+    },
+    {
+      "order": 3,
+      "kind": "textbox",
+      "scope": "slide",
+      "id": "sh/ydkbm5sv",
+      "editable": true,
+      "name": "Text 2",
+      "position": {
+        "left": 58.67,
+        "top": 223.59,
+        "width": 88.19,
+        "height": 21.33
+      },
+      "geometry": "rect",
+      "text": "01",
+      "style": {
+        "anchor": 1,
+        "fontSize": 21.33,
+        "typeface": "Familjen Grotesk SemiBold",
+        "color": "#111827",
+        "bold": false,
+        "italic": false,
+        "alignment": "left",
+        "verticalAlignment": "top",
+        "wrap": "none",
+        "insets": {
+          "top": 0,
+          "right": 0,
+          "bottom": 0,
+          "left": 0
+        }
+      },
+      "paragraphs": [
+        {
+          "index": 1,
+          "text": "01",
+          "lineSpacingPercent": 83000,
+          "style": {
+            "alignment": "left"
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "01",
+              "anchor": 1,
+              "fontSize": 21.33,
+              "typeface": "Familjen Grotesk SemiBold",
+              "color": "#111827",
+              "alignment": "left",
+              "verticalAlignment": "top",
+              "wrap": "none",
+              "insets": {
+                "top": 0,
+                "right": 0,
+                "bottom": 0,
+                "left": 0
+              }
+            }
+          ],
+          "marginLeft": 0
+        }
+      ]
+    },
+    {
+      "order": 4,
+      "kind": "shape",
+      "scope": "slide",
+      "id": "sh/zedcfa9g",
+      "editable": true,
+      "name": "Shape 3",
+      "position": {
+        "left": 58.67,
+        "top": 253.46,
+        "width": 206.91,
+        "height": 2
+      },
+      "geometry": "rect",
+      "fillColor": "#F43F5E"
+    },
+    {
+      "order": 5,
+      "kind": "textbox",
+      "scope": "slide",
+      "id": "sh/kzmdova1",
+      "editable": true,
+      "name": "Text 4",
+      "position": {
+        "left": 58.67,
+        "top": 270.1,
+        "width": 206.92,
+        "height": 28.59
+      },
+      "geometry": "rect",
+      "text": "Échange initial",
+      "style": {
+        "anchor": 1,
+        "fontSize": 22,
+        "typeface": "Familjen Grotesk Bold",
+        "color": "#111827",
+        "bold": true,
+        "italic": false,
+        "alignment": "left",
+        "verticalAlignment": "top",
+        "wrap": "none",
+        "insets": {
+          "top": 0,
+          "right": 0,
+          "bottom": 0,
+          "left": 0
+        }
+      },
+      "paragraphs": [
+        {
+          "index": 1,
+          "text": "Échange initial",
+          "lineSpacingPercent": 108000,
+          "style": {
+            "alignment": "left"
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "Échange initial",
+              "anchor": 1,
+              "fontSize": 22,
+              "typeface": "Familjen Grotesk Bold",
+              "color": "#111827",
+              "bold": true,
+              "alignment": "left",
+              "verticalAlignment": "top",
+              "wrap": "none",
+              "insets": {
+                "top": 0,
+                "right": 0,
+                "bottom": 0,
+                "left": 0
+              }
+            }
+          ],
+          "marginLeft": 0
+        }
+      ]
+    },
+    {
+      "order": 6,
+      "kind": "textbox",
+      "scope": "slide",
+      "id": "sh/l0vuh0rm",
+      "editable": true,
+      "name": "Text 5",
+      "position": {
+        "left": 58.67,
+        "top": 312.94,
+        "width": 206.92,
+        "height": 61.85
+      },
+      "geometry": "rect",
+      "text": "Compréhension des priorités du partenaire.",
+      "style": {
+        "anchor": 1,
+        "fontSize": 21.33,
+        "typeface": "Familjen Grotesk",
+        "color": "#111827",
+        "bold": false,
+        "italic": false,
+        "alignment": "left",
+        "verticalAlignment": "top",
+        "wrap": "square",
+        "autoFit": "shrinkText",
+        "autoFitScale": 1,
+        "insets": {
+          "top": 0,
+          "right": 0,
+          "bottom": 0,
+          "left": 0
+        }
+      },
+      "paragraphs": [
+        {
+          "index": 1,
+          "text": "Compréhension des priorités du partenaire.",
+          "lineSpacingPercent": 121000,
+          "style": {
+            "alignment": "left"
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "Compréhension des priorités du partenaire.",
+              "anchor": 1,
+              "fontSize": 21.33,
+              "typeface": "Familjen Grotesk",
+              "color": "#111827",
+              "alignment": "left",
+              "verticalAlignment": "top",
+              "wrap": "square",
+              "autoFit": "shrinkText",
+              "autoFitScale": 1,
+              "insets": {
+                "top": 0,
+                "right": 0,
+                "bottom": 0,
+                "left": 0
+              }
+            }
+          ],
+          "marginLeft": 0
+        }
+      ]
+    },
+    {
+      "order": 7,
+      "kind": "textbox",
+      "scope": "slide",
+      "id": "sh/eh0ba1sr",
+      "editable": true,
+      "name": "Text 6",
+      "position": {
+        "left": 297.59,
+        "top": 223.59,
+        "width": 88.19,
+        "height": 21.33
+      },
+      "geometry": "rect",
+      "text": "02",
+      "style": {
+        "anchor": 1,
+        "fontSize": 21.33,
+        "typeface": "Familjen Grotesk SemiBold",
+        "color": "#111827",
+        "bold": false,
+        "italic": false,
+        "alignment": "left",
+        "verticalAlignment": "top",
+        "wrap": "none",
+        "insets": {
+          "top": 0,
+          "right": 0,
+          "bottom": 0,
+          "left": 0
+        }
+      },
+      "paragraphs": [
+        {
+          "index": 1,
+          "text": "02",
+          "lineSpacingPercent": 83000,
+          "style": {
+            "alignment": "left"
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "02",
+              "anchor": 1,
+              "fontSize": 21.33,
+              "typeface": "Familjen Grotesk SemiBold",
+              "color": "#111827",
+              "alignment": "left",
+              "verticalAlignment": "top",
+              "wrap": "none",
+              "insets": {
+                "top": 0,
+                "right": 0,
+                "bottom": 0,
+                "left": 0
+              }
+            }
+          ],
+          "marginLeft": 0
+        }
+      ]
+    },
+    {
+      "order": 8,
+      "kind": "shape",
+      "scope": "slide",
+      "id": "sh/fi9c369c",
+      "editable": true,
+      "name": "Shape 7",
+      "position": {
+        "left": 297.59,
+        "top": 253.46,
+        "width": 206.93,
+        "height": 2
+      },
+      "geometry": "rect",
+      "fillColor": "#F43F5E"
+    },
+    {
+      "order": 9,
+      "kind": "textbox",
+      "scope": "slide",
+      "id": "sh/baxkjqlk",
+      "editable": true,
+      "name": "Text 8",
+      "position": {
+        "left": 297.59,
+        "top": 270.1,
+        "width": 206.93,
+        "height": 28.59
+      },
+      "geometry": "rect",
+      "text": "Objectifs et offre",
+      "style": {
+        "anchor": 1,
+        "fontSize": 22,
+        "typeface": "Familjen Grotesk Bold",
+        "color": "#111827",
+        "bold": true,
+        "italic": false,
+        "alignment": "left",
+        "verticalAlignment": "top",
+        "wrap": "none",
+        "insets": {
+          "top": 0,
+          "right": 0,
+          "bottom": 0,
+          "left": 0
+        }
+      },
+      "paragraphs": [
+        {
+          "index": 1,
+          "text": "Objectifs et offre",
+          "lineSpacingPercent": 108000,
+          "style": {
+            "alignment": "left"
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "Objectifs et offre",
+              "anchor": 1,
+              "fontSize": 22,
+              "typeface": "Familjen Grotesk Bold",
+              "color": "#111827",
+              "bold": true,
+              "alignment": "left",
+              "verticalAlignment": "top",
+              "wrap": "none",
+              "insets": {
+                "top": 0,
+                "right": 0,
+                "bottom": 0,
+                "left": 0
+              }
+            }
+          ],
+          "marginLeft": 0
+        }
+      ]
+    },
+    {
+      "order": 10,
+      "kind": "textbox",
+      "scope": "slide",
+      "id": "sh/a9ojq5kz",
+      "editable": true,
+      "name": "Text 9",
+      "position": {
+        "left": 297.59,
+        "top": 312.94,
+        "width": 206.93,
+        "height": 61.85
+      },
+      "geometry": "rect",
+      "text": "Définition des indicateurs de suivi.",
+      "style": {
+        "anchor": 1,
+        "fontSize": 21.33,
+        "typeface": "Familjen Grotesk",
+        "color": "#111827",
+        "bold": false,
+        "italic": false,
+        "alignment": "left",
+        "verticalAlignment": "top",
+        "wrap": "square",
+        "autoFit": "shrinkText",
+        "autoFitScale": 1,
+        "insets": {
+          "top": 0,
+          "right": 0,
+          "bottom": 0,
+          "left": 0
+        }
+      },
+      "paragraphs": [
+        {
+          "index": 1,
+          "text": "Définition des indicateurs de suivi.",
+          "lineSpacingPercent": 121000,
+          "style": {
+            "alignment": "left"
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "Définition des indicateurs de suivi.",
+              "anchor": 1,
+              "fontSize": 21.33,
+              "typeface": "Familjen Grotesk",
+              "color": "#111827",
+              "alignment": "left",
+              "verticalAlignment": "top",
+              "wrap": "square",
+              "autoFit": "shrinkText",
+              "autoFitScale": 1,
+              "insets": {
+                "top": 0,
+                "right": 0,
+                "bottom": 0,
+                "left": 0
+              }
+            }
+          ],
+          "marginLeft": 0
+        }
+      ]
+    },
+    {
+      "order": 11,
+      "kind": "textbox",
+      "scope": "slide",
+      "id": "sh/xcz2l03q",
+      "editable": true,
+      "name": "Text 10",
+      "position": {
+        "left": 536.52,
+        "top": 223.59,
+        "width": 88.19,
+        "height": 21.33
+      },
+      "geometry": "rect",
+      "text": "03",
+      "style": {
+        "anchor": 1,
+        "fontSize": 21.33,
+        "typeface": "Familjen Grotesk SemiBold",
+        "color": "#111827",
+        "bold": false,
+        "italic": false,
+        "alignment": "left",
+        "verticalAlignment": "top",
+        "wrap": "none",
+        "insets": {
+          "top": 0,
+          "right": 0,
+          "bottom": 0,
+          "left": 0
+        }
+      },
+      "paragraphs": [
+        {
+          "index": 1,
+          "text": "03",
+          "lineSpacingPercent": 83000,
+          "style": {
+            "alignment": "left"
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "03",
+              "anchor": 1,
+              "fontSize": 21.33,
+              "typeface": "Familjen Grotesk SemiBold",
+              "color": "#111827",
+              "alignment": "left",
+              "verticalAlignment": "top",
+              "wrap": "none",
+              "insets": {
+                "top": 0,
+                "right": 0,
+                "bottom": 0,
+                "left": 0
+              }
+            }
+          ],
+          "marginLeft": 0
+        }
+      ]
+    },
+    {
+      "order": 12,
+      "kind": "shape",
+      "scope": "slide",
+      "id": "sh/cbq1sv25",
+      "editable": true,
+      "name": "Shape 11",
+      "position": {
+        "left": 536.52,
+        "top": 253.46,
+        "width": 206.91,
+        "height": 2
+      },
+      "geometry": "rect",
+      "fillColor": "#F43F5E"
+    },
+    {
+      "order": 13,
+      "kind": "textbox",
+      "scope": "slide",
+      "id": "sh/n6x0fqlo",
+      "editable": true,
+      "name": "Text 12",
+      "position": {
+        "left": 536.52,
+        "top": 270.1,
+        "width": 206.92,
+        "height": 28.59
+      },
+      "geometry": "rect",
+      "text": "Lancement",
+      "style": {
+        "anchor": 1,
+        "fontSize": 22,
+        "typeface": "Familjen Grotesk Bold",
+        "color": "#111827",
+        "bold": true,
+        "italic": false,
+        "alignment": "left",
+        "verticalAlignment": "top",
+        "wrap": "none",
+        "insets": {
+          "top": 0,
+          "right": 0,
+          "bottom": 0,
+          "left": 0
+        }
+      },
+      "paragraphs": [
+        {
+          "index": 1,
+          "text": "Lancement",
+          "lineSpacingPercent": 108000,
+          "style": {
+            "alignment": "left"
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "Lancement",
+              "anchor": 1,
+              "fontSize": 22,
+              "typeface": "Familjen Grotesk Bold",
+              "color": "#111827",
+              "bold": true,
+              "alignment": "left",
+              "verticalAlignment": "top",
+              "wrap": "none",
+              "insets": {
+                "top": 0,
+                "right": 0,
+                "bottom": 0,
+                "left": 0
+              }
+            }
+          ],
+          "marginLeft": 0
+        }
+      ]
+    },
+    {
+      "order": 14,
+      "kind": "textbox",
+      "scope": "slide",
+      "id": "sh/25ojml43",
+      "editable": true,
+      "name": "Text 13",
+      "position": {
+        "left": 536.52,
+        "top": 312.94,
+        "width": 206.92,
+        "height": 92.78
+      },
+      "geometry": "rect",
+      "text": "Initiative commune auprès des publics concernés.",
+      "style": {
+        "anchor": 1,
+        "fontSize": 21.33,
+        "typeface": "Familjen Grotesk",
+        "color": "#111827",
+        "bold": false,
+        "italic": false,
+        "alignment": "left",
+        "verticalAlignment": "top",
+        "wrap": "square",
+        "autoFit": "shrinkText",
+        "autoFitScale": 1,
+        "insets": {
+          "top": 0,
+          "right": 0,
+          "bottom": 0,
+          "left": 0
+        }
+      },
+      "paragraphs": [
+        {
+          "index": 1,
+          "text": "Initiative commune auprès des publics concernés.",
+          "lineSpacingPercent": 121000,
+          "style": {
+            "alignment": "left"
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "Initiative commune auprès des publics concernés.",
+              "anchor": 1,
+              "fontSize": 21.33,
+              "typeface": "Familjen Grotesk",
+              "color": "#111827",
+              "alignment": "left",
+              "verticalAlignment": "top",
+              "wrap": "square",
+              "autoFit": "shrinkText",
+              "autoFitScale": 1,
+              "insets": {
+                "top": 0,
+                "right": 0,
+                "bottom": 0,
+                "left": 0
+              }
+            }
+          ],
+          "marginLeft": 0
+        }
+      ]
+    },
+    {
+      "order": 15,
+      "kind": "textbox",
+      "scope": "slide",
+      "id": "sh/p8fih03e",
+      "editable": true,
+      "name": "Text 14",
+      "position": {
+        "left": 775.44,
+        "top": 223.59,
+        "width": 88.19,
+        "height": 21.33
+      },
+      "geometry": "rect",
+      "text": "04",
+      "style": {
+        "anchor": 1,
+        "fontSize": 21.33,
+        "typeface": "Familjen Grotesk SemiBold",
+        "color": "#111827",
+        "bold": false,
+        "italic": false,
+        "alignment": "left",
+        "verticalAlignment": "top",
+        "wrap": "none",
+        "insets": {
+          "top": 0,
+          "right": 0,
+          "bottom": 0,
+          "left": 0
+        }
+      },
+      "paragraphs": [
+        {
+          "index": 1,
+          "text": "04",
+          "lineSpacingPercent": 83000,
+          "style": {
+            "alignment": "left"
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "04",
+              "anchor": 1,
+              "fontSize": 21.33,
+              "typeface": "Familjen Grotesk SemiBold",
+              "color": "#111827",
+              "alignment": "left",
+              "verticalAlignment": "top",
+              "wrap": "none",
+              "insets": {
+                "top": 0,
+                "right": 0,
+                "bottom": 0,
+                "left": 0
+              }
+            }
+          ],
+          "marginLeft": 0
+        }
+      ]
+    },
+    {
+      "order": 16,
+      "kind": "shape",
+      "scope": "slide",
+      "id": "sh/o761ov2t",
+      "editable": true,
+      "name": "Shape 15",
+      "position": {
+        "left": 775.44,
+        "top": 253.46,
+        "width": 206.93,
+        "height": 2
+      },
+      "geometry": "rect",
+      "fillColor": "#F43F5E"
+    },
+    {
+      "order": 17,
+      "kind": "textbox",
+      "scope": "slide",
+      "id": "sh/f2d0b6lc",
+      "editable": true,
+      "name": "Text 16",
+      "position": {
+        "left": 775.44,
+        "top": 270.1,
+        "width": 206.93,
+        "height": 28.59
+      },
+      "geometry": "rect",
+      "text": "Suivi",
+      "style": {
+        "anchor": 1,
+        "fontSize": 22,
+        "typeface": "Familjen Grotesk Bold",
+        "color": "#111827",
+        "bold": true,
+        "italic": false,
+        "alignment": "left",
+        "verticalAlignment": "top",
+        "wrap": "none",
+        "insets": {
+          "top": 0,
+          "right": 0,
+          "bottom": 0,
+          "left": 0
+        }
+      },
+      "paragraphs": [
+        {
+          "index": 1,
+          "text": "Suivi",
+          "lineSpacingPercent": 108000,
+          "style": {
+            "alignment": "left"
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "Suivi",
+              "anchor": 1,
+              "fontSize": 22,
+              "typeface": "Familjen Grotesk Bold",
+              "color": "#111827",
+              "bold": true,
+              "alignment": "left",
+              "verticalAlignment": "top",
+              "wrap": "none",
+              "insets": {
+                "top": 0,
+                "right": 0,
+                "bottom": 0,
+                "left": 0
+              }
+            }
+          ],
+          "marginLeft": 0
+        }
+      ]
+    },
+    {
+      "order": 18,
+      "kind": "textbox",
+      "scope": "slide",
+      "id": "sh/eh4jil4r",
+      "editable": true,
+      "name": "Text 17",
+      "position": {
+        "left": 775.44,
+        "top": 312.94,
+        "width": 206.93,
+        "height": 61.85
+      },
+      "geometry": "rect",
+      "text": "Résultats observés et ajustements.",
+      "style": {
+        "anchor": 1,
+        "fontSize": 21.33,
+        "typeface": "Familjen Grotesk",
+        "color": "#111827",
+        "bold": false,
+        "italic": false,
+        "alignment": "left",
+        "verticalAlignment": "top",
+        "wrap": "square",
+        "autoFit": "shrinkText",
+        "autoFitScale": 1,
+        "insets": {
+          "top": 0,
+          "right": 0,
+          "bottom": 0,
+          "left": 0
+        }
+      },
+      "paragraphs": [
+        {
+          "index": 1,
+          "text": "Résultats observés et ajustements.",
+          "lineSpacingPercent": 121000,
+          "style": {
+            "alignment": "left"
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "Résultats observés et ajustements.",
+              "anchor": 1,
+              "fontSize": 21.33,
+              "typeface": "Familjen Grotesk",
+              "color": "#111827",
+              "alignment": "left",
+              "verticalAlignment": "top",
+              "wrap": "square",
+              "autoFit": "shrinkText",
+              "autoFitScale": 1,
+              "insets": {
+                "top": 0,
+                "right": 0,
+                "bottom": 0,
+                "left": 0
+              }
+            }
+          ],
+          "marginLeft": 0
+        }
+      ]
+    },
+    {
+      "order": 19,
+      "kind": "textbox",
+      "scope": "slide",
+      "id": "sh/id4ju1oz",
+      "editable": true,
+      "name": "Text 18",
+      "position": {
+        "left": 1014.37,
+        "top": 223.59,
+        "width": 88.19,
+        "height": 21.33
+      },
+      "geometry": "rect",
+      "text": "05",
+      "style": {
+        "anchor": 1,
+        "fontSize": 21.33,
+        "typeface": "Familjen Grotesk SemiBold",
+        "color": "#111827",
+        "bold": false,
+        "italic": false,
+        "alignment": "left",
+        "verticalAlignment": "top",
+        "wrap": "none",
+        "insets": {
+          "top": 0,
+          "right": 0,
+          "bottom": 0,
+          "left": 0
+        }
+      },
+      "paragraphs": [
+        {
+          "index": 1,
+          "text": "05",
+          "lineSpacingPercent": 83000,
+          "style": {
+            "alignment": "left"
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "05",
+              "anchor": 1,
+              "fontSize": 21.33,
+              "typeface": "Familjen Grotesk SemiBold",
+              "color": "#111827",
+              "alignment": "left",
+              "verticalAlignment": "top",
+              "wrap": "none",
+              "insets": {
+                "top": 0,
+                "right": 0,
+                "bottom": 0,
+                "left": 0
+              }
+            }
+          ],
+          "marginLeft": 0
+        }
+      ]
+    },
+    {
+      "order": 20,
+      "kind": "shape",
+      "scope": "slide",
+      "id": "sh/jedkn654",
+      "editable": true,
+      "name": "Shape 19",
+      "position": {
+        "left": 1014.37,
+        "top": 253.46,
+        "width": 206.91,
+        "height": 2
+      },
+      "geometry": "rect",
+      "fillColor": "#F43F5E"
+    },
+    {
+      "order": 21,
+      "kind": "textbox",
+      "scope": "slide",
+      "id": "sh/4fm1wb6p",
+      "editable": true,
+      "name": "Text 20",
+      "position": {
+        "left": 1014.37,
+        "top": 270.1,
+        "width": 206.92,
+        "height": 28.59
+      },
+      "geometry": "rect",
+      "text": "Bilan partagé",
+      "style": {
+        "anchor": 1,
+        "fontSize": 22,
+        "typeface": "Familjen Grotesk Bold",
+        "color": "#111827",
+        "bold": true,
+        "italic": false,
+        "alignment": "left",
+        "verticalAlignment": "top",
+        "wrap": "none",
+        "insets": {
+          "top": 0,
+          "right": 0,
+          "bottom": 0,
+          "left": 0
+        }
+      },
+      "paragraphs": [
+        {
+          "index": 1,
+          "text": "Bilan partagé",
+          "lineSpacingPercent": 108000,
+          "style": {
+            "alignment": "left"
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "Bilan partagé",
+              "anchor": 1,
+              "fontSize": 22,
+              "typeface": "Familjen Grotesk Bold",
+              "color": "#111827",
+              "bold": true,
+              "alignment": "left",
+              "verticalAlignment": "top",
+              "wrap": "none",
+              "insets": {
+                "top": 0,
+                "right": 0,
+                "bottom": 0,
+                "left": 0
+              }
+            }
+          ],
+          "marginLeft": 0
+        }
+      ]
+    },
+    {
+      "order": 22,
+      "kind": "textbox",
+      "scope": "slide",
+      "id": "sh/50v2pgna",
+      "editable": true,
+      "name": "Text 21",
+      "position": {
+        "left": 1014.37,
+        "top": 312.94,
+        "width": 206.92,
+        "height": 61.85
+      },
+      "geometry": "rect",
+      "text": "Décision sur la suite de la collaboration.",
+      "style": {
+        "anchor": 1,
+        "fontSize": 21.33,
+        "typeface": "Familjen Grotesk",
+        "color": "#111827",
+        "bold": false,
+        "italic": false,
+        "alignment": "left",
+        "verticalAlignment": "top",
+        "wrap": "square",
+        "autoFit": "shrinkText",
+        "autoFitScale": 1,
+        "insets": {
+          "top": 0,
+          "right": 0,
+          "bottom": 0,
+          "left": 0
+        }
+      },
+      "paragraphs": [
+        {
+          "index": 1,
+          "text": "Décision sur la suite de la collaboration.",
+          "lineSpacingPercent": 121000,
+          "style": {
+            "alignment": "left"
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "Décision sur la suite de la collaboration.",
+              "anchor": 1,
+              "fontSize": 21.33,
+              "typeface": "Familjen Grotesk",
+              "color": "#111827",
+              "alignment": "left",
+              "verticalAlignment": "top",
+              "wrap": "square",
+              "autoFit": "shrinkText",
+              "autoFitScale": 1,
+              "insets": {
+                "top": 0,
+                "right": 0,
+                "bottom": 0,
+                "left": 0
+              }
+            }
+          ],
+          "marginLeft": 0
+        }
+      ]
+    },
+    {
+      "order": 23,
+      "kind": "textbox",
+      "scope": "slide",
+      "id": "sh/q143ylov",
+      "editable": true,
+      "name": "Text 22",
+      "position": {
+        "left": 58.67,
+        "top": 426.19,
+        "width": 1221.3,
+        "height": 18.4
+      },
+      "geometry": "rect",
+      "text": "LES ENGAGEMENTS ET CONDITIONS FINANCIÈRES SONT DÉFINIS AVEC CHAQUE PARTENAIRE.",
+      "style": {
+        "anchor": 1,
+        "fontSize": 15.33,
+        "typeface": "Familjen Grotesk SemiBold",
+        "color": "#6B7280",
+        "bold": false,
+        "italic": false,
+        "alignment": "left",
+        "verticalAlignment": "top",
+        "wrap": "none",
+        "insets": {
+          "top": 0,
+          "right": 0,
+          "bottom": 0,
+          "left": 0
+        }
+      },
+      "paragraphs": [
+        {
+          "index": 1,
+          "text": "LES ENGAGEMENTS ET CONDITIONS FINANCIÈRES SONT DÉFINIS AVEC CHAQUE PARTENAIRE.",
+          "lineSpacingPercent": 100000,
+          "style": {
+            "alignment": "left"
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "LES ENGAGEMENTS ET CONDITIONS FINANCIÈRES SONT DÉFINIS AVEC CHAQUE PARTENAIRE.",
+              "anchor": 1,
+              "fontSize": 15.33,
+              "typeface": "Familjen Grotesk SemiBold",
+              "color": "#6B7280",
+              "alignment": "left",
+              "verticalAlignment": "top",
+              "wrap": "none",
+              "insets": {
+                "top": 0,
+                "right": 0,
+                "bottom": 0,
+                "left": 0
+              }
+            }
+          ],
+          "marginLeft": 0
+        }
+      ]
+    }
+  ]
+}
