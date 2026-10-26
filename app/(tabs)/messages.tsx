@@ -8,7 +8,8 @@ import {
   TouchableOpacity, 
   useColorScheme, 
   ActivityIndicator,
-  RefreshControl 
+  RefreshControl,
+  TextInput,
 } from 'react-native';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { Image } from 'expo-image';
@@ -24,7 +25,7 @@ import {
   IdentityVerifiedIcon,
   isFullyVerified,
 } from '@/components/verified-badge';
-import { MessageCircle, WifiOff } from 'lucide-react-native';
+import { MessageCircle, Search, WifiOff, X } from 'lucide-react-native';
 
 // Helper pour le temps relatif simplifié
 const getRelativeTime = (dateString: string) => {
@@ -67,6 +68,7 @@ export default function MessagesScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [conversations, setConversations] = useState<Conversation[]>([]);
+  const [searchQuery, setSearchQuery] = useState('');
   // Distingue « aucun match » (liste vide) de « chargement echoue »
   const [loadError, setLoadError] = useState<string | null>(null);
   // Photos a afficher en grand (tap sur un avatar de la liste)
@@ -79,6 +81,18 @@ export default function MessagesScreen() {
     border: isDark ? '#374151' : '#f3f4f6',
     card: isDark ? '#1f2937' : '#ffffff',
   };
+
+  const normalizeSearchText = (value: string) =>
+    value.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLocaleLowerCase('fr');
+  const normalizedQuery = normalizeSearchText(searchQuery.trim());
+  const filteredConversations = normalizedQuery
+    ? conversations.filter((conversation) => {
+        const searchableText = normalizeSearchText(
+          `${conversation.otherUser.first_name} ${conversation.lastMessage?.content ?? ''}`
+        );
+        return searchableText.includes(normalizedQuery);
+      })
+    : conversations;
 
   const fetchConversations = useCallback(async () => {
     try {
@@ -337,6 +351,23 @@ export default function MessagesScreen() {
     <SafeAreaView style={[styles.safeArea, { backgroundColor: themeColors.bg }]}>
       <View style={styles.header}>
         <Text style={[styles.title, { color: themeColors.text }]}>Messages</Text>
+        <View style={[styles.searchContainer, { backgroundColor: themeColors.card, borderColor: themeColors.border }]}>
+          <Search size={19} color={themeColors.textMuted} />
+          <TextInput
+            value={searchQuery}
+            onChangeText={setSearchQuery}
+            placeholder="Rechercher une discussion"
+            placeholderTextColor={themeColors.textMuted}
+            style={[styles.searchInput, { color: themeColors.text }]}
+            returnKeyType="search"
+            accessibilityLabel="Rechercher une discussion"
+          />
+          {!!searchQuery && (
+            <TouchableOpacity onPress={() => setSearchQuery('')} accessibilityLabel="Effacer la recherche">
+              <X size={18} color={themeColors.textMuted} />
+            </TouchableOpacity>
+          )}
+        </View>
       </View>
 
       {loading && !refreshing ? (
@@ -358,9 +389,15 @@ export default function MessagesScreen() {
           title="Pas encore de match 💔"
           message="Continuez à swiper pour trouver votre compatibilité."
         />
+      ) : filteredConversations.length === 0 ? (
+        <EmptyState
+          icon={<Search color={themeColors.textMuted} size={44} />}
+          title="Aucune discussion trouvée"
+          message="Essayez un autre nom ou mot-clé."
+        />
       ) : (
         <FlatList
-          data={conversations}
+          data={filteredConversations}
           keyExtractor={(item) => item.id}
           renderItem={renderItem}
           contentContainerStyle={styles.listContent}
@@ -384,8 +421,10 @@ export default function MessagesScreen() {
 
 const styles = StyleSheet.create({
   safeArea: { flex: 1 },
-  header: { padding: 24, paddingTop: 16, paddingBottom: 16 },
+  header: { padding: 24, paddingTop: 16, paddingBottom: 12 },
   title: { fontSize: 32, fontWeight: 'bold' },
+  searchContainer: { flexDirection: 'row', alignItems: 'center', gap: 10, minHeight: 48, marginTop: 16, paddingHorizontal: 14, borderWidth: 1, borderRadius: 14 },
+  searchInput: { flex: 1, minHeight: 46, paddingVertical: 0, fontSize: 15 },
   listContent: { paddingHorizontal: 24, paddingBottom: 24 },
   chatItem: { flexDirection: 'row', paddingVertical: 16, borderBottomWidth: StyleSheet.hairlineWidth },
   avatar: { width: 62, height: 62, borderRadius: 31, marginRight: 16, backgroundColor: '#f3f4f6' },

@@ -11,6 +11,7 @@ import { decode } from 'base64-arraybuffer';
 import * as ImagePicker from 'expo-image-picker';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Heart, Activity, Sparkles, Clock, ChevronRight, Plus, X, Camera, Image as ImageIcon, WifiOff, Lightbulb } from 'lucide-react-native';
+import { Search } from 'lucide-react-native';
 import { EmptyState } from '@/components/empty-state';
 import { watchAppSetting } from '@/lib/app-settings';
 
@@ -38,6 +39,7 @@ export default function CoachingScreen() {
   const colorScheme = useColorScheme();
   const isDark = colorScheme === 'dark';
   const [posts, setPosts] = useState<CoachingPost[]>([]);
+  const [searchQuery, setSearchQuery] = useState('');
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [activeCategory, setActiveCategory] = useState('all');
@@ -65,6 +67,15 @@ export default function CoachingScreen() {
     border: isDark ? '#374151' : '#f3f4f6',
     accent: '#f43f5e',
   };
+
+  const normalizeSearchText = (value: string) =>
+    value.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLocaleLowerCase('fr');
+  const normalizedQuery = normalizeSearchText(searchQuery.trim());
+  const filteredPosts = normalizedQuery
+    ? posts.filter((post) => normalizeSearchText(
+        `${post.title} ${post.content} ${categoryOptions.find((category) => category.id === post.category)?.label ?? post.category}`
+      ).includes(normalizedQuery))
+    : posts;
 
   /**
    * Tap sur le badge catégorie d'une carte : filtre le flux par cette
@@ -313,6 +324,24 @@ export default function CoachingScreen() {
           })}
         </ScrollView>
 
+        <View style={[styles.searchContainer, { backgroundColor: themeColors.card, borderColor: themeColors.border }]}>
+          <Search size={19} color={themeColors.textMuted} />
+          <TextInput
+            value={searchQuery}
+            onChangeText={setSearchQuery}
+            placeholder="Rechercher un conseil"
+            placeholderTextColor={themeColors.textMuted}
+            style={[styles.searchInput, { color: themeColors.text }]}
+            returnKeyType="search"
+            accessibilityLabel="Rechercher un conseil de coaching"
+          />
+          {!!searchQuery && (
+            <TouchableOpacity onPress={() => setSearchQuery('')} accessibilityLabel="Effacer la recherche">
+              <X size={18} color={themeColors.textMuted} />
+            </TouchableOpacity>
+          )}
+        </View>
+
         {loading ? (
           <View style={styles.loaderContainer}>
             <ActivityIndicator size="large" color={themeColors.accent} />
@@ -332,8 +361,14 @@ export default function CoachingScreen() {
             title="Aucun conseil disponible"
             message="De nouveaux conseils seront publiés très bientôt."
           />
+        ) : filteredPosts.length === 0 ? (
+          <EmptyState
+            icon={<Search color={themeColors.textMuted} size={44} />}
+            title="Aucun conseil trouvé"
+            message="Essayez un autre mot-clé ou une autre catégorie."
+          />
         ) : (
-          posts.map((post) => {
+          filteredPosts.map((post) => {
             const theme = getCategoryTheme(post.category);
             return (
               <TouchableOpacity 
@@ -512,6 +547,8 @@ const styles = StyleSheet.create({
   
   categoriesContainer: { paddingLeft: 24, marginBottom: 24 },
   categoriesContent: { paddingRight: 40, gap: 12, flexDirection: 'row' },
+  searchContainer: { flexDirection: 'row', alignItems: 'center', gap: 10, minHeight: 48, marginHorizontal: 24, marginTop: -8, marginBottom: 20, paddingHorizontal: 14, borderWidth: 1, borderRadius: 14 },
+  searchInput: { flex: 1, minHeight: 46, paddingVertical: 0, fontSize: 15 },
   categoryChip: { 
     flexDirection: 'row', 
     alignItems: 'center', 
