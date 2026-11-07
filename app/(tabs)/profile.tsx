@@ -1,6 +1,6 @@
 import { SafeAreaView } from 'react-native-safe-area-context';
 import React, { useState, useCallback, useRef, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, ActivityIndicator, useColorScheme, TouchableOpacity, Alert, Switch, Appearance, Platform, Dimensions, TextInput, Modal, KeyboardAvoidingView } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, ActivityIndicator, useColorScheme, TouchableOpacity, Alert, Switch, Appearance, Platform, Dimensions, TextInput, Modal, KeyboardAvoidingView, type ScrollViewInstance } from 'react-native';
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import Svg, { Circle } from 'react-native-svg';
@@ -18,6 +18,7 @@ import PhotoViewer from '@/components/photo-viewer';
 import CityPickerModal from '@/components/city-picker-modal';
 import { FALLBACK_INTERESTS, fetchInterests, MIN_INTERESTS } from '@/lib/interests';
 import { watchAppSetting } from '@/lib/app-settings';
+import { openLegalPage } from '@/lib/legal-links';
 import { useRouter, useFocusEffect } from 'expo-router';
 
 type MyProfile = Record<string, unknown> & {
@@ -63,7 +64,7 @@ export default function ProfileScreen() {
     Record<string, { status: string; unseen: boolean }>
   >({});
   const router = useRouter();
-  const profileScrollRef = useRef<ScrollView>(null);
+  const profileScrollRef = useRef<ScrollViewInstance | null>(null);
   const colorScheme = useColorScheme();
   const isDark = colorScheme === 'dark';
   useEffect(() => {
@@ -801,7 +802,7 @@ export default function ProfileScreen() {
           </TouchableOpacity> : null}
           <TouchableOpacity
             style={[styles.settingRow, { borderBottomColor: themeColors.border }]}
-            onPress={() => router.push('/legal/privacy')}
+            onPress={() => { void openLegalPage('privacy'); }}
             activeOpacity={0.75}
           >
             <FileText size={19} color={themeColors.icon} />
@@ -810,11 +811,20 @@ export default function ProfileScreen() {
           </TouchableOpacity>
           <TouchableOpacity
             style={[styles.settingRow, { borderBottomColor: themeColors.border }]}
-            onPress={() => router.push('/legal/terms')}
+            onPress={() => { void openLegalPage('terms'); }}
             activeOpacity={0.75}
           >
             <FileText size={19} color={themeColors.icon} />
             <Text style={[styles.settingRowText, { color: themeColors.text }]}>Conditions d’utilisation</Text>
+            <ChevronRight size={18} color={themeColors.icon} />
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.settingRow, { borderBottomWidth: 0 }]}
+            onPress={() => { void openLegalPage('legal'); }}
+            activeOpacity={0.75}
+          >
+            <FileText size={19} color={themeColors.icon} />
+            <Text style={[styles.settingRowText, { color: themeColors.text }]}>Mentions légales</Text>
             <ChevronRight size={18} color={themeColors.icon} />
           </TouchableOpacity>
 

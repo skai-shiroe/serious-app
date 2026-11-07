@@ -7,6 +7,7 @@ import { Image } from 'expo-image';
 import * as WebBrowser from 'expo-web-browser';
 import * as AuthSession from 'expo-auth-session';
 import * as Linking from 'expo-linking';
+import { openLegalPage } from '@/lib/legal-links';
 import { supabase } from '@/lib/supabase';
 import { completeAuthFromUrl } from '@/lib/auth-url';
 import { useRouter } from 'expo-router';
@@ -413,9 +414,9 @@ export default function AuthScreen({ onComplete }: AuthScreenProps) {
           {/* Terms */}
           <Text style={styles.termsText}>
             En continuant, vous acceptez nos{' '}
-            <Text style={styles.termsLink} onPress={() => router.push('/legal/terms')}>Conditions d&apos;utilisation</Text>
+            <Text style={styles.termsLink} onPress={() => { void openLegalPage('terms'); }}>Conditions d&apos;utilisation</Text>
             {' '}et notre{' '}
-            <Text style={styles.termsLink} onPress={() => router.push('/legal/privacy')}>Politique de confidentialité</Text>
+            <Text style={styles.termsLink} onPress={() => { void openLegalPage('privacy'); }}>Politique de confidentialité</Text>
           </Text>
 
         </ScrollView>

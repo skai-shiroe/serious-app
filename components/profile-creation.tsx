@@ -13,6 +13,7 @@ import {
 } from '@/lib/countries';
 import { FALLBACK_INTERESTS, MIN_INTERESTS, fetchInterests } from '@/lib/interests';
 import { watchAppSetting } from '@/lib/app-settings';
+import { openLegalPage } from '@/lib/legal-links';
 import { decode } from 'base64-arraybuffer';
 import { Image } from 'expo-image';
 import * as ImagePicker from 'expo-image-picker';
@@ -949,10 +950,21 @@ export default function ProfileCreation({ onComplete, initialData }: ProfileCrea
         ]}
       >
         <Text style={[styles.infoText, { color: themeColors.infoText }]}>
-          Ces informations sont confidentielles et permettent d&apos;évaluer la compatibilité médicale
-          avec vos futurs matchs.
+          Ces champs sont facultatifs. Géno les utilise pour appliquer les règles de compatibilité médicale
+          aux profils proposés. Ils restent cachés aux autres membres dans Découverte et les Likes reçus,
+          puis peuvent être visibles sur votre profil après un match réciproque. Ils ne remplacent pas
+          l&apos;avis d&apos;un professionnel de santé.
         </Text>
       </View>
+      <TouchableOpacity
+        style={styles.healthPrivacyLink}
+        onPress={() => { void openLegalPage('privacy'); }}
+        activeOpacity={0.75}
+        accessibilityRole="link"
+      >
+        <Text style={[styles.healthPrivacyLinkText, { color: '#E91E63' }]}>Lire la politique de confidentialité</Text>
+        <ChevronRight color="#E91E63" size={16} />
+      </TouchableOpacity>
 
       <View style={styles.inputGroup}>
         <Text style={[styles.label, { color: themeColors.text }]}>Groupe sanguin</Text>
@@ -1375,6 +1387,16 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   infoText: { fontSize: 13, lineHeight: 20 },
+  healthPrivacyLink: {
+    alignSelf: 'flex-start',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 2,
+    marginTop: -12,
+    marginBottom: 20,
+    paddingVertical: 4,
+  },
+  healthPrivacyLinkText: { fontSize: 13, fontWeight: '700' },
 
   /* Tags */
   tagsContainer: {

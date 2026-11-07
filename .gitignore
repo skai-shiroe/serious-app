@@ -57,3 +57,6 @@ supabase/.temp/
 # generated native folders
 /ios
 /android
+
+# Visuels et artefacts generes localement
+/output/
