@@ -24,8 +24,9 @@ export default function TabLayout() {
         tabBarActiveTintColor: '#E91E63',
         tabBarInactiveTintColor: isDark ? '#9ca3af' : '#6b7280',
       }}>
-      <Tabs.Screen name="match" options={{ title: 'Match' }} />
-      <Tabs.Screen name="messages" options={{ title: 'Messages' }} />
+      <Tabs.Screen name="discover" options={{ title: 'À découvrir' }} />
+      <Tabs.Screen name="match" options={{ title: 'Rencontres' }} />
+      <Tabs.Screen name="messages" options={{ title: 'Discussions' }} />
       <Tabs.Screen name="coaching" options={{ title: 'Coaching', href: flags.coaching === false ? null : undefined }} />
       <Tabs.Screen name="profile" options={{ title: 'Profil' }} />
     </Tabs>

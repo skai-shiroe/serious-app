@@ -3,7 +3,7 @@
 import type { BottomTabBarProps } from 'expo-router/build/layouts/Tabs';
 import { BlurView } from 'expo-blur';
 import * as Haptics from 'expo-haptics';
-import { Heart, MessageCircle, User, Zap, type LucideIcon } from 'lucide-react-native';
+import { Heart, MapPin, MessageCircle, User, Zap, type LucideIcon } from 'lucide-react-native';
 import React, { useEffect, useState } from 'react';
 import {
   Keyboard,
@@ -38,6 +38,7 @@ import { useUnreadMessagesCount } from '@/hooks/use-unread-count';
 const ACCENT = '#E91E63';
 
 const TAB_ICONS: Record<string, LucideIcon> = {
+  discover: MapPin,
   match: Heart,
   messages: MessageCircle,
   coaching: Zap,

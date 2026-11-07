@@ -17,7 +17,7 @@ import {
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as Haptics from 'expo-haptics';
-import { Filter, Heart, MapPin, X, Info, ChevronLeft, ChevronRight, WifiOff, Undo2, Sparkles } from 'lucide-react-native';
+import { Filter, Heart, MapPin, X, Info, ChevronLeft, ChevronRight, WifiOff, Undo2 } from 'lucide-react-native';
 import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { ActivityIndicator, Alert, Dimensions, Modal, StyleSheet, Text, TouchableOpacity, useColorScheme, useWindowDimensions, View, ScrollView } from 'react-native';
 import { Gesture, GestureDetector, GestureHandlerRootView } from 'react-native-gesture-handler';
@@ -48,25 +48,6 @@ const DEFAULT_FILTERS = {
 const AGE_FILTER_MIN = 18;
 const AGE_FILTER_MAX = 80;
 
-type DiscoveryMode = 'everyone' | 'forYou';
-
-/** Classe les profils d’une page sans modifier les règles d’éligibilité du serveur. */
-function rankSuggestions(profiles: any[], city: string, interests: string[]) {
-  const ownInterests = new Set(interests.map((item) => item.trim().toLocaleLowerCase()).filter(Boolean));
-  const ownCity = city.trim().toLocaleLowerCase();
-
-  return profiles
-    .map((profile, index) => {
-      const sharedInterests = Array.isArray(profile.interests)
-        ? profile.interests.filter((item: string) => ownInterests.has(item.trim().toLocaleLowerCase())).length
-        : 0;
-      const sameCity = !!ownCity && profile.city?.trim?.().toLocaleLowerCase() === ownCity;
-      return { profile, index, score: sharedInterests * 3 + (sameCity ? 2 : 0) };
-    })
-    .sort((a, b) => b.score - a.score || a.index - b.index)
-    .map(({ profile }) => profile);
-}
-
 export default function MatchScreen() {
   const [loading, setLoading] = useState(true);
   const [profiles, setProfiles] = useState<any[]>([]);
@@ -84,7 +65,6 @@ export default function MatchScreen() {
   const [compatibilityInfoVisible, setCompatibilityInfoVisible] = useState(false);
   const [viewerGenotype, setViewerGenotype] = useState<string | null>(null);
   const [pendingReceivedLikes, setPendingReceivedLikes] = useState(0);
-  const [discoveryMode, setDiscoveryMode] = useState<DiscoveryMode>('everyone');
   const [ageBounds, setAgeBounds] = useState({ min: AGE_FILTER_MIN, max: AGE_FILTER_MAX });
   const [cityModalVisible, setCityModalVisible] = useState(false);
   // Dernier swipe effectué : annulation possible pendant UNDO_WINDOW_MS
@@ -204,7 +184,6 @@ export default function MatchScreen() {
   // Profil du visiteur mis en cache pendant l'affichage du deck, puis relu à
   // chaque retour sur Match pour appliquer les changements faits dans Profil.
   const viewerGenderRef = useRef<string | null | undefined>(undefined);
-  const viewerRecommendationRef = useRef({ city: '', interests: [] as string[] });
   // Pays du visiteur : borne la liste de villes proposee par le filtre deck.
   const [viewerCountry, setViewerCountry] = useState<string | null>(null);
   const loadViewerGender = useCallback(async (forceRefresh = false): Promise<string | null> => {
@@ -223,10 +202,6 @@ export default function MatchScreen() {
           interests?: string[] | null;
         } | null;
         viewerGenderRef.current = viewerProfile?.gender ?? null;
-        viewerRecommendationRef.current = {
-          city: viewerProfile?.city ?? '',
-          interests: Array.isArray(viewerProfile?.interests) ? viewerProfile.interests : [],
-        };
         setViewerCountry(viewerProfile?.country_code ?? null);
         setViewerGenotype(viewerProfile?.sickle_cell ?? null);
       }
@@ -294,10 +269,7 @@ export default function MatchScreen() {
           matchesTargetGender(p.gender, viewerGender)
       );
 
-      const recommendations = discoveryMode === 'forYou'
-        ? rankSuggestions(filtered, viewerRecommendationRef.current.city, viewerRecommendationRef.current.interests)
-        : filtered;
-      setProfiles(recommendations);
+      setProfiles(filtered);
       setCurrentIndex(0);
       setCurrentPhotoIndex(0);
     } catch {
@@ -307,7 +279,7 @@ export default function MatchScreen() {
     } finally {
       setLoading(false);
     }
-  }, [filters, loadViewerGender, discoveryMode]);
+  }, [filters, loadViewerGender]);
 
   // Precharge les photos dans le cache MEMOIRE : la carte est deja decodee
   // quand elle passe au premier plan (supprime l'effet "carte grise").
@@ -352,31 +324,17 @@ export default function MatchScreen() {
       );
 
       if (more.length > 0) {
-        const recommendations = discoveryMode === 'forYou'
-          ? rankSuggestions(more, viewerRecommendationRef.current.city, viewerRecommendationRef.current.interests)
-          : more;
-        setProfiles((prev) => [...prev, ...recommendations]);
+        setProfiles((prev) => [...prev, ...more]);
       }
     } catch {
     } finally {
       loadingMoreRef.current = false;
     }
-  }, [filters, loadViewerGender, discoveryMode]);
+  }, [filters, loadViewerGender]);
 
   useFocusEffect(useCallback(() => {
     void fetchProfiles();
   }, [fetchProfiles]));
-
-  const changeDiscoveryMode = (mode: DiscoveryMode) => {
-    if (mode === discoveryMode) return;
-    translateX.value = 0;
-    translateY.value = 0;
-    setLastSwipe(null);
-    setProfiles([]);
-    setCurrentIndex(0);
-    setCurrentPhotoIndex(0);
-    setDiscoveryMode(mode);
-  };
 
   // Reference a jour de l'etat, pour les callbacks de gestes
   useEffect(() => {
@@ -645,7 +603,7 @@ export default function MatchScreen() {
         
         <View style={[styles.header, isCompactScreen && styles.headerCompact]}>
           <View style={styles.headerCopy}>
-            <Text style={[styles.headerTitle, isCompactScreen && styles.headerTitleCompact, { color: themeColors.text }]}>Profils à découvrir</Text>
+            <Text style={[styles.headerTitle, isCompactScreen && styles.headerTitleCompact, { color: themeColors.text }]}>Rencontres</Text>
             <Text style={[styles.headerSub, isCompactScreen && styles.headerSubCompact, { color: themeColors.textMuted }]}>La compatibilité Géno est toujours respectée</Text>
           </View>
           <View style={styles.headerActions}>
@@ -683,31 +641,6 @@ export default function MatchScreen() {
             </TouchableOpacity>
           </View>
         </View>
-
-        <View style={[styles.discoveryTabs, { borderBottomColor: themeColors.border }]}>
-          <TouchableOpacity
-            style={[styles.discoveryTab, discoveryMode === 'everyone' && { borderBottomColor: themeColors.accent }]}
-            onPress={() => changeDiscoveryMode('everyone')}
-            accessibilityRole="tab"
-            accessibilityState={{ selected: discoveryMode === 'everyone' }}
-          >
-            <Text style={[styles.discoveryTabText, { color: discoveryMode === 'everyone' ? themeColors.text : themeColors.textMuted }]}>Tout le monde</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[styles.discoveryTab, discoveryMode === 'forYou' && { borderBottomColor: themeColors.accent }]}
-            onPress={() => changeDiscoveryMode('forYou')}
-            accessibilityRole="tab"
-            accessibilityState={{ selected: discoveryMode === 'forYou' }}
-          >
-            <Text style={[styles.discoveryTabText, { color: discoveryMode === 'forYou' ? themeColors.text : themeColors.textMuted }]}>Pour toi</Text>
-          </TouchableOpacity>
-        </View>
-        {discoveryMode === 'forYou' && (
-          <View style={styles.recommendationHint}>
-            <Sparkles size={15} color={themeColors.accent} />
-            <Text style={[styles.recommendationHintText, { color: themeColors.textMuted }]}>En tête : les profils de ta ville et ceux qui partagent tes intérêts.</Text>
-          </View>
-        )}
 
         <View style={[styles.cardContainer, isCompactScreen && styles.cardContainerCompact]}>
           {nextProfile && (
@@ -1104,11 +1037,6 @@ const styles = StyleSheet.create({
   likesCountBadgeText: { color: '#ffffff', fontSize: 10, fontWeight: '800' },
   headerSub: { fontSize: 14, opacity: 0.7 },
   headerSubCompact: { fontSize: 12 },
-  discoveryTabs: { flexDirection: 'row', borderBottomWidth: StyleSheet.hairlineWidth, paddingHorizontal: 20, gap: 14 },
-  discoveryTab: { flex: 1, alignItems: 'center', paddingVertical: 12, borderBottomWidth: 3, borderBottomColor: 'transparent' },
-  discoveryTabText: { fontSize: 15, fontWeight: '700' },
-  recommendationHint: { minHeight: 33, paddingHorizontal: 22, paddingTop: 9, flexDirection: 'row', alignItems: 'center', gap: 7 },
-  recommendationHintText: { flex: 1, fontSize: 12, lineHeight: 16 },
   filterBtn: {
     width: 44,
     height: 44,
