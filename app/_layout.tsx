@@ -361,6 +361,13 @@ function ProfileBottomSheet() {
             </GestureDetector>
 
       <ScrollView contentContainerStyle={{ paddingBottom: 32 }} style={{ flex: 1 }}>
+        {rendered.previewMode && (
+          <View style={{ marginHorizontal: 20, marginBottom: 10, paddingHorizontal: 14, paddingVertical: 10, borderRadius: 14, backgroundColor: isDark ? '#3b1d32' : '#fff1f5' }}>
+            <Text style={{ color: '#e11d48', fontSize: 13, fontWeight: '700', textAlign: 'center' }}>
+              Aperçu de ton profil tel qu’il apparaît avant un match
+            </Text>
+          </View>
+        )}
         <ScrollView horizontal pagingEnabled showsHorizontalScrollIndicator={false} style={{ height: 450 }}>
           {rendered.photos?.map((photo: string, index: number) => (
             <Image
@@ -415,7 +422,7 @@ function ProfileBottomSheet() {
             )}
           </View>
 
-          {(rendered.blood_type || rendered.sickle_cell) && (
+          {!rendered.previewMode && (rendered.blood_type || rendered.sickle_cell) && (
             <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginBottom: 24 }}>
               {!!rendered.blood_type && (
                 <View style={{ backgroundColor: 'rgba(244,63,94,0.15)', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 12 }}>

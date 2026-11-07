@@ -11,7 +11,7 @@ import { supabase } from '@/lib/supabase';
 import { resetAuthUrlGuard } from '@/lib/auth-url';
 import { forgetSession, getUser } from '@/lib/session';
 import { unblockUser } from '@/lib/moderation';
-import { LogOut, Edit3, MapPin, BookOpen, Moon, Sun, Bookmark, WifiOff, ShieldCheck, ChevronRight, ChevronDown, Ban, Flag, FileText, Plus, Trash2, X, Check, Settings, Pencil  } from 'lucide-react-native';
+import { LogOut, Edit3, MapPin, BookOpen, Moon, Sun, Bookmark, WifiOff, ShieldCheck, ChevronRight, ChevronDown, Ban, Flag, FileText, Plus, Trash2, X, Check, Settings, Pencil, Eye, Sparkles  } from 'lucide-react-native';
 import { EmptyState } from '@/components/empty-state';
 import { CertifiedIcon, isFullyVerified } from '@/components/verified-badge';
 import PhotoViewer from '@/components/photo-viewer';
@@ -20,6 +20,7 @@ import { FALLBACK_INTERESTS, fetchInterests, MIN_INTERESTS } from '@/lib/interes
 import { watchAppSetting } from '@/lib/app-settings';
 import { openLegalPage } from '@/lib/legal-links';
 import { useRouter, useFocusEffect } from 'expo-router';
+import { useProfileSheet } from '@/contexts/ProfileSheetContext';
 
 type MyProfile = Record<string, unknown> & {
   birth_date: string | null;
@@ -64,6 +65,7 @@ export default function ProfileScreen() {
     Record<string, { status: string; unseen: boolean }>
   >({});
   const router = useRouter();
+  const { openProfileSheet } = useProfileSheet();
   const profileScrollRef = useRef<ScrollViewInstance | null>(null);
   const colorScheme = useColorScheme();
   const isDark = colorScheme === 'dark';
@@ -428,12 +430,42 @@ export default function ProfileScreen() {
   const photos: string[] = (profile?.photos ?? []).filter(
     (p: any) => typeof p === 'string' && p.length > 0
   );
+  const completionNextStep = [
+    { field: 'photos', label: 'Ajoute une photo principale', complete: photos.length > 0 },
+    { field: 'bio', label: 'Présente-toi en quelques mots', complete: !!profile?.bio?.trim?.() },
+    { field: 'interests', label: 'Ajoute tes centres d’intérêt', complete: Array.isArray(profile?.interests) && profile.interests.length > 0 },
+    { field: 'profession', label: 'Ajoute ta profession', complete: !!profile?.profession?.trim?.() },
+    { field: 'city', label: 'Indique ta ville', complete: !!profile?.city },
+    { field: 'religion', label: 'Ajoute ta religion', complete: !!profile?.religion },
+    { field: 'gender', label: 'Indique ton genre', complete: !!profile?.gender },
+    { field: 'blood_type', label: 'Renseigne ton groupe sanguin', complete: !!profile?.blood_type },
+    { field: 'sickle_cell', label: 'Renseigne ton génotype', complete: !!profile?.sickle_cell },
+  ].find((step) => !step.complete);
+
+  const openCompletionStep = () => {
+    if (!completionNextStep) return;
+    if (completionNextStep.field === 'photos') {
+      void addProfilePhoto(true);
+    } else {
+      void openEditor(completionNextStep.field);
+    }
+  };
 
   return (
     <SafeAreaView style={[styles.safeArea, { backgroundColor: themeColors.bg }]}>
       <ScrollView ref={profileScrollRef} contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
         <View style={styles.profileTopBar}>
           <View style={{ flex: 1 }} />
+          <TouchableOpacity
+            style={[styles.previewButton, { backgroundColor: themeColors.bgCard, borderColor: themeColors.border }]}
+            onPress={() => openProfileSheet({ ...profile, previewMode: true })}
+            accessibilityRole="button"
+            accessibilityLabel="Aperçu de ton profil public"
+            activeOpacity={0.75}
+          >
+            <Eye size={17} color={themeColors.text} />
+            <Text style={[styles.previewButtonText, { color: themeColors.text }]}>Aperçu</Text>
+          </TouchableOpacity>
           <TouchableOpacity
             style={[styles.settingsButton, { backgroundColor: themeColors.bgCard, borderColor: themeColors.border }]}
             onPress={() => profileScrollRef.current?.scrollToEnd({ animated: true })}
@@ -500,6 +532,25 @@ export default function ProfileScreen() {
             <View style={styles.profileStat}><Text style={[styles.statValue, { color: themeColors.text }]}>{profile?.blood_type || '—'}</Text><Text style={[styles.statLabel, { color: themeColors.textMuted }]}>Groupe sanguin</Text></View>
           </View>
         </View>
+
+        {completionNextStep && (
+          <TouchableOpacity
+            style={[styles.completionCoach, { backgroundColor: themeColors.bgCard, borderColor: themeColors.border }]}
+            onPress={openCompletionStep}
+            activeOpacity={0.8}
+            accessibilityRole="button"
+            accessibilityLabel={`Compléter le profil : ${completionNextStep.label}`}
+          >
+            <View style={[styles.completionCoachIcon, { backgroundColor: isDark ? '#3b1d32' : '#fff1f5' }]}>
+              <Sparkles size={19} color={themeColors.accent} />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={[styles.completionCoachTitle, { color: themeColors.text }]}>Fais ressortir ta personnalité</Text>
+              <Text style={[styles.completionCoachText, { color: themeColors.textMuted }]}>{completionNextStep.label}</Text>
+            </View>
+            <ChevronRight size={20} color={themeColors.icon} />
+          </TouchableOpacity>
+        )}
 
         <View style={[styles.card, { backgroundColor: themeColors.bgCard, borderColor: themeColors.border }]}>
           <View style={styles.sectionHeader}>
@@ -990,6 +1041,12 @@ const styles = StyleSheet.create({
   scrollContent: { paddingHorizontal: 20, paddingTop: 12, paddingBottom: 16 },
   centerContainer: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   profileTopBar: { height: 46, flexDirection: 'row', alignItems: 'center', marginBottom: 8 },
+  previewButton: { height: 40, borderRadius: 20, borderWidth: 1, paddingHorizontal: 13, flexDirection: 'row', alignItems: 'center', gap: 6, marginRight: 8 },
+  previewButtonText: { fontSize: 13, fontWeight: '700' },
+  completionCoach: { minHeight: 76, borderRadius: 18, borderWidth: 1, padding: 13, flexDirection: 'row', alignItems: 'center', gap: 11, marginBottom: 13 },
+  completionCoachIcon: { width: 42, height: 42, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
+  completionCoachTitle: { fontSize: 14, fontWeight: '800', marginBottom: 3 },
+  completionCoachText: { fontSize: 13, lineHeight: 18 },
   settingsButton: { width: 42, height: 42, borderRadius: 21, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
   profileHero: { alignItems: 'center', marginBottom: 16, paddingTop: 1 },
   avatarRing: { width: 148, height: 148, alignItems: 'center', justifyContent: 'center' },
